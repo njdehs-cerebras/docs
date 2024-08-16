@@ -1,0 +1,267 @@
+---
+title: "Launch Your Job"
+description: "Running jobs on the Cerebras Wafer-Scale cluster is straightforward and similar to running them on a single device. Here’s a comprehensive guide to get you started."
+---
+
+## Prerequisite[#](#prerequisite "Permalink to this headline")
+
+Make sure you have [set up your installation](../getting-started/setup-and-installation.mdx).
+
+## Activate Cerebras virtual environment[#](#activate-cerebras-virtual-environment "Permalink to this headline")
+
+Before starting any jobs on the Cerebras Wafer-Scale Cluster, make sure to activate your virtual environment.
+
+On the user node, activate the environment by issuing the following command:
+
+```Bash
+source venv_cerebras_pt/bin/activate
+```
+Note that now you should be in the `(venv_cerebras_pt)` environment.
+
+## Navigate to your model implementation[#](#navigate-to-your-model-implementation "Permalink to this headline")
+
+For demonstration purposes, we will use models from the Cerebras Model Zoo. Once you have cloned the modelzoo, follow these steps to navigate to your model implementation:
+
+**1.** **Choose the Model**: Identify the model you want to work with in the repository.
+
+**2.** **Navigate to the Model Directory**: In this example, we’re using the [GPT-2 model](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2). Navigate to its directory with the following command:
+
+```Bash
+cd modelzoo/src/cerebras/modelzoo/models/nlp/gpt2
+```
+
+For more information on how to run a GPT2 model for training, refer to the [ReadMe](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2/README.md) provided in the Cerebras Model Zoo.
+
+<Note>
+Important
+
+When running a model from the Cerebras Model Zoo, ensure that the paths specified include the parent directory where the Model Zoo is located. For instance, if your directory structure is `/path/to/parent/modelzoo`, the arguments should be `/path/to/parent/modelzoo/src`.
+</Note>
+
+## Prepare your datasets[#](#prepare-your-datasets "Permalink to this headline")
+
+Each model in the Cerebras Model Zoo comes with scripts to help you prepare your datasets. For general guidance, check the Data processing and dataloaders section. Additionally, you can find dataset examples in the README file of each model.
+
+- For instance, the FC-MNIST model includes a `prepare_data.py` script that will download sample data.
+
+- For language models, leverage the data processing in the Cerebras Model Zoo. The Training and Fine-Tuning a Large Language Model(LLM) tutorial provides an example.
+
+<Info>
+
+Note
+
+After preparing your data, update the data path in the configuration file to the absolute path where your data is stored. Inside the `configs/`, you will find YAML files corresponding to different model sizes. Locate the YAML file for your desired model size and modify the data path accordingly to ensure the training or evaluation process can find your data:
+
+</Info>
+
+```Bash
+train_input:
+    data_dir: "/absolute/path/to/training/dataset"
+    ...
+eval_input:
+    data_dir: "/absolute/path/to/evaluation/dataset/"
+```
+
+## Launch your job[#](#id1 "Permalink to this headline")
+
+Each model in the Cerebras Model Zoo contains a script called `run.py`. This script is designed to handle the compilation, training, and evaluation of your models on the Cerebras Wafer-Scale cluster.
+
+To launch your job, you’ll need to specify the following flags:
+
+
+| Flag | Mandatory | Description |
+| --- | --- | --- |
+| `CSX` | Yes | Specifies that the target device for execution is a Cerebras Cluster. |
+| `--params <...>` | Yes | Path to a YAML file containing model/run configuration options. |
+| `--mode <train,eval,train_and_eval,eval_all>` | Yes | Whether to run train, eval, train\_and\_eval, or eval_all. |
+| `--mount_dirs <...>` | Yes | List of paths to be mounted to the Appliance containers. It should include parent paths for Cerebras Model Zoo and other locations needed by the dataloader, including datasets and code. (Default: Pulled from path defined by env variable `CEREBRAS_WAFER_SCALE_CLUSTER_DEFAULTS`) For more information, see [Cerebras cluster settings](./launch-your-job/------cerebras-cluster-settings-----.mdx) |
+| `--python_paths <...>` | Yes | List of paths to be exported to `PYTHONPATH` when starting the workers on the Appliance container. It should include parent paths to Cerebras Model Zoo and python packages needed by input workers. (Default: Pulled from path defined by env variable `CEREBRAS_WAFER_SCALE_CLUSTER_DEFAULTS`) For more information, see [Cerebras cluster settings](./launch-your-job/------cerebras-cluster-settings-----.mdx) |
+| `--compile_only` | No  | Compile the model including matching to Cerebras kernels and mapping to hardware. It does not execute on system. Upon success, compile artifacts are stored inside the Cerebras cluster, under the directory specified in `--compile_dir`. To start training from a pre-compiled model, use the same `--compile_dir` used in a compile-only run. Mutually exclusive with validate_only. (Default: `None`) |
+| `--validate_only` | No  | Validate model can be matched to Cerebras kernels. This is a lightweight compilation. It does not map to the hardware nor execute on system. Mutually exclusive with compile_only. (Default: `None`) |
+| `--model_dir <...>` | No  | Path to store model checkpoints, TensorBoard events files, etc. (Default: `$CWD/model_dir`) |
+| `--compile_dir <...>` | No  | Path to store the compile artifacts inside Cerebras cluster. (Default: `None`) |
+| `--num_csx <1,2,4,8,16>` | No  | Number of CS-X systems to use in training. (Default: `1`) |
+
+For a more comprehensive list, issue the following command:
+
+```Bash
+python run.py -h
+```
+### Validate your job (optional)[#](#validate-your-job-optional "Permalink to this headline")
+
+If you want to verify that your model implementation is compatible with the Cerebras software platform, you can use the `--validate_only` flag. This flag enables you to quickly check compatibility without the need to execute a full model run. It’s especially useful when you’re developing or adjusting your models and want to ensure they will work with the platform.
+
+For instance, you might run a command like this:
+
+```Bash
+python run.py \
+      CSX \
+      --params params.yaml \
+      --num_csx=1 \
+      --mode {train,eval,eval_all,train_and_eval} \
+      --mount_dirs {paths to modelzoo and to data} \
+      --python_paths {paths to modelzoo and other python code if used} \
+      --validate_only
+```
+### Compile your job (optional)[#](#compile-your-job-optional "Permalink to this headline")
+
+To generate the executable files for your model on the Cerebras cluster, you can use the <code class="docutils literal notranslate"><span class="pre">--compile_only</span></code> flag. This step takes more time compared to validation (typically 15 minutes to an hour) as it prepares the model’s computation graph for optimal execution.
+
+An example command might look like this:
+
+```Bash
+python run.py \
+      CSX \
+      --params params.yaml \
+      --num_csx=1 \
+      --model_dir model_dir \
+      --mode {train,eval,eval_all,train_and_eval} \
+      --mount_dirs {paths to modelzoo and to data} \
+      --python_paths {paths to modelzoo and other python code if used} \
+      --compile_only
+```
+Copy to clipboard
+
+<Info>
+
+Note
+
+You can speed up your training or evaluation runs by reusing pre-compiled artifacts obtained through the `--validate_only` and `--compile_only flags`. To achieve this, ensure that you use the same `--compile_dir` path during both the compilation and execution phases.
+
+</Info>
+
+Keep in mind that training and evaluation modes require distinct fabric programming on the CS-X system, resulting in different compiled artifacts depending on the mode. For instance, when running:
+
+- `--mode train --compile_only`
+
+- `--mode eval --compile_only`
+
+The artifacts will differ. Make sure you specify the appropriate `--compile_dir` based on whether you’re training or evaluating.
+
+### Execute your job[#](#execute-your-job "Permalink to this headline")
+
+To execute your job on the Cerebras Wafer-Scale cluster, follow these steps:
+
+**1.** Specify the Target Device: Use “CSX” as the first positional argument to target the Cerebras cluster.
+
+```Bash
+./run.py CSX [other flags]
+```
+
+**2.** Provide Cluster Information:
+
+- `--python_paths`: Specify the Python paths needed to execute your job correctly. This should include all necessary scripts and packages.
+
+- `--mount_dirs`: Indicate which directories should be mounted to access required files, datasets, or model weights.
+
+
+Information about the Cerebras cluster where the job will be executed using the flags `--python_paths` and `--mount_dirs`.
+
+<Info>
+
+Note
+
+You can specify the `python_paths` and `mount_dirs` arguments either in the:
+
+- `run.py` script: Provide them as command-line arguments while executing the script.
+
+Runconfig section of `params.yaml`: Define these parameters within the YAML configuration file.
+
+When running a model from the Cerebras Model Zoo, ensure that the paths specified include the parent directory where the Model Zoo is located. For instance, if your directory structure is `/path/to/parent/modelzoo`, the arguments should be `/path/to/parent/modelzoo/src`.
+
+</Info>
+
+**3.** When executing your job, you need to specify two key pieces of information:
+
+-  Execution Mode: Choose one of the following modes based on your requirements:
+
+    - `train`: For training the model.
+
+    - `eval`: For evaluating the model on a specific dataset.
+
+    - `eval_all`: For evaluating across multiple datasets.
+
+    - `train_and_eval`: For both training and evaluating.
+-  Configuration File Path: Provide the path to the relevant configuration file that contains the necessary settings.
+
+
+Ensure that these options are included in your command or script for proper execution.
+
+```Bash
+
+python run.py \
+      CSX \
+      --params params.yaml \
+      --num_csx=1 \
+      --model_dir model_dir \
+      --mode {train,eval,eval_all,train_and_eval} \
+      --mount_dirs {paths modelzoo and to data} \
+      --python_paths {paths to modelzoo and other python code if used}
+```
+
+Here is an example of a typical output log for a training job:
+
+```Bash
+
+Transferring weights to server: 100%|██| 1165/1165 [01:00<00:00, 19.33tensors/s]
+INFO:   Finished sending initial weights
+INFO:   | Train Device=CSX, Step=50, Loss=8.31250, Rate=69.37 samples/sec, GlobalRate=69.37 samples/sec
+INFO:   | Train Device=CSX, Step=100, Loss=7.25000, Rate=68.41 samples/sec, GlobalRate=68.56 samples/sec
+INFO:   | Train Device=CSX, Step=150, Loss=6.53125, Rate=68.31 samples/sec, GlobalRate=68.46 samples/sec
+INFO:   | Train Device=CSX, Step=200, Loss=6.53125, Rate=68.54 samples/sec, GlobalRate=68.51 samples/sec
+INFO:   | Train Device=CSX, Step=250, Loss=6.12500, Rate=68.84 samples/sec, GlobalRate=68.62 samples/sec
+INFO:   | Train Device=CSX, Step=300, Loss=5.53125, Rate=68.74 samples/sec, GlobalRate=68.63 samples/sec
+INFO:   | Train Device=CSX, Step=350, Loss=4.81250, Rate=68.01 samples/sec, GlobalRate=68.47 samples/sec
+INFO:   | Train Device=CSX, Step=400, Loss=5.37500, Rate=68.44 samples/sec, GlobalRate=68.50 samples/sec
+INFO:   | Train Device=CSX, Step=450, Loss=6.43750, Rate=68.43 samples/sec, GlobalRate=68.49 samples/sec
+INFO:   | Train Device=CSX, Step=500, Loss=5.09375, Rate=66.71 samples/sec, GlobalRate=68.19 samples/sec
+INFO:   Training completed successfully!
+INFO:   Processed 60500 sample(s) in 887.2672743797302 seconds.
+```
+
+<Info>
+
+Note
+
+- Cerebras only supports using a single CS-X when running in eval mode.
+
+- To scale to multiple CS-X systems, simply add the `--num_csx` flag specifying the number of CS-X systems. The global batch size divided by the number of CS-Xs will be the effective batch size per device.
+
+- Once you have submitted your job to execute in the Cerebras Wafer-Scale cluster, you can track the progress or kill your job using the csctl tool. You can also monitor the performance using a Grafana dashboard.
+
+
+</Info>
+
+## Explore output files and artifacts[#](#explore-output-files-and-artifacts "Permalink to this headline")
+
+The contents of the model directory, specified by the `--model_dir` flag, contain all results and artifacts from the latest run. These include:
+
+**- Checkpoints**
+    Checkpoints are saved in the `<model_dir>` directory.
+
+**- Tensorboard event files**
+    Tensorboard event files are stored in the `<model_dir>` directory. Events files can be visualized using Tensorboard. Here’s an example of how to launch Tensorboard:
+
+    ```Bash
+    $ tensorboard --logdir <model_dir> --bind_all
+
+    TensorBoard 2.2.2 at http://<url-to-user-node>:6006/ (Press CTRL+C to quit)
+    ```
+
+**- YAML files**
+    YAML files containing configuration parameters used in the run are stored in the `<model_dir>`/train or `<model_dir>`/eval directory depending on the execution mode.
+
+**- Run logs**
+    Stdout from the run is located under `<model_dir>/cerebras_logs/latest/run.log`. If there are multiple runs, look under the corresponding `<model_dir>/cerebras_logs/<train|eval>/<timestamp>/run.log`.
+
+
+### Cancel your job[#](#cancel-your-job "Permalink to this headline")
+
+For any reason if you wish to cancel your job, issue the following command:
+
+```Bash
+csctl cancel job <jobid>
+```
+## What’s next?[#](#what-s-next "Permalink to this headline")
+
+Try out our LLM workflow by following the step-by-step instructional tutorial on Training and fine-tuning a Large Language Model (LLM).

@@ -1,0 +1,465 @@
+---
+title: "        Read Hooks       "
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+This guide details various read hooks used to efficiently process different types of input data for machine learning tasks on Cerebras Systems. Each read hook is designed to handle specific data formats and requirements, preparing the data for seamless integration into your machine learning workflows.
+
+Each read hook processes input data differently, preparing it for specific machine learning tasks. This section provides an overview of various prebuilt read hooks, including their requirements and output structures.
+
+### Fine-tuning LLaVA hook[#](#fine-tuning-llava-hook "Permalink to this headline")
+
+Processes conversation data to format it for fine-tuning LLaVA models. Looks for conversation turns, optional system prompts, and images. Requires keys for conversation data and image paths.
+
+#### Configuration example[#](#configuration-example "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.finetuning_llava_hook"
+read_hook_kwargs:
+  data_keys:
+    multi_turn_key: "conversation"
+    image_key: "image_path"
+  system_prompt: "vicuna_v0"
+  image_token: "<image>"
+  phase: 2
+```
+
+#### Return structure[#](#return-structure "Permalink to this headline")
+```
+[
+    {
+        "type": "system",
+        "content": [{"text": "A chat between a curious human and an artificial intelligence assistant. "
+                            "The assistant gives helpful, detailed, and polite answers to the human's questions."}]
+    },
+    {
+        "type": "user",
+        "content": [
+            {"image": "path/to/image.jpg"},
+            {"text": "User's text before and after image"}
+        ],
+        "semantic_drop_mask": [False, False]
+    },
+    {
+        "type": "assistant",
+        "content": [{"text": "Assistant's response"}],
+        "semantic_drop_mask": [False]
+    }
+]
+
+```
+
+### Pretraining text read hook[#](#pretraining-text-read-hook "Permalink to this headline")
+
+Extracts and processes plain text data for reading tasks. Requires a key to extract text from input data.
+
+#### Configuration example[#](#id1 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.text_read_hook"
+read_hook_kwargs:
+  data_keys:
+    text_key: "text"
+
+```
+
+#### Return structure[#](#id2 "Permalink to this headline")
+```
+[
+    {
+        "content": [
+            {"text": "Extracted text data"}
+        ]
+    }
+]
+
+```
+
+### Pretraining image captions hook[#](#pretraining-image-captions-hook "Permalink to this headline")
+
+Prepares data for image captioning pretraining tasks by extracting image paths and captions.
+
+#### Configuration example[#](#id3 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.pretraining_image_captions_hook"
+read_hook_kwargs:
+  data_keys:
+    image_key: "image"
+    caption_key: "caption"
+
+```
+
+#### Return structure[#](#id4 "Permalink to this headline")
+```
+[
+    {
+        "content": [
+            {"image": "Path to the image"},
+            {"text": "Caption describing the image"}
+        ]
+    }
+]
+
+```
+
+### NLG read hook[#](#nlg-read-hook "Permalink to this headline")
+
+Processes natural language generation (NLG) data, organizing context and completion information into a structured format. Requires context and completion keys.
+
+#### Configuration example[#](#id5 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.nlg_read_hook"
+read_hook_kwargs:
+  data_keys:
+    context_key: "context"
+    completion_key: "completion"
+```
+
+#### Return structure[#](#id6 "Permalink to this headline")
+```
+[
+    {
+        "type": "context",
+        "content": [
+            {"text": "Context of the conversation"}
+        ]
+    },
+    {
+        "type": "completion",
+        "content": [
+            {"text": "Generated response"}
+        ]
+    }
+]
+
+```
+
+### Prompt completion text read hook[#](#prompt-completion-text-read-hook "Permalink to this headline")
+
+Formats prompt and completion text into a structured list. Requires prompt and completion keys.
+
+#### Configuration example[#](#id7 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.prompt_completion_text_read_hook"
+read_hook_kwargs:
+  data_keys:
+    prompt_key: "prompt"
+    completion_key: "completion"
+```
+
+#### Return structure[#](#id8 "Permalink to this headline")
+```
+[
+    {
+        "type": "prompt",
+        "content": [
+            {"text": "Prompt text"}
+        ]
+    },
+    {
+        "type": "completion",
+        "content": [
+            {"text": "Completion text"}
+        ]
+    }
+]
+
+```
+
+### Chat read hook[#](#chat-read-hook "Permalink to this headline")
+
+Transforms chat data into a semantic data array, distinguishing between user and assistant roles. Assumes data is in conversation format and requires a key for multi-turn content if the data is not in OpenAI ChatML format.
+
+#### Configuration example[#](#id9 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.chat_read_hook"
+read_hook_kwargs:
+  data_keys:
+    multi_turn_key: "messages"
+  multi_turn_content_key: "content"
+  has_system_prompt: False
+
+```
+
+#### Return structure[#](#id10 "Permalink to this headline")
+```
+[
+    {"type": "user", "content": [{"text": "User message"}]},
+    {"type": "assistant", "content": [{"text": "Assistant message"}]}
+]
+
+```
+
+### DPO read hook[#](#dpo-read-hook "Permalink to this headline")
+
+Structures data for Direct Preference Optimization (DPO) tasks, organizing prompts, chosen responses, and rejected responses into semantic data array. Requires keys for prompt, chosen, and rejected data. The implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/hooks.py#L331).
+
+#### Configuration example[#](#id11 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.dpo_read_hook"
+read_hook_kwargs:
+  data_keys:
+    prompt_key: "prompt"
+    chosen_key: "chosen"
+    rejected_key: "rejected"
+  assistant_role: "assistant:"
+
+```
+
+#### Return structure[#](#id12 "Permalink to this headline")
+```
+[
+    {"type": "prompt", "content": [{"text": "Prompt text"}]},
+    {"type": "chosen", "content": [{"text": "Chosen response"}]},
+    {"type": "rejected", "content": [{"text": "Rejected response"}]}
+]
+```
+
+### Prompt completion chat read hook[#](#prompt-completion-chat-read-hook "Permalink to this headline")
+
+Processes prompt and completion data as a single turn chat and creates a semantic data array format. The implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/hooks.py#L433).
+
+#### Configuration example[#](#id13 "Permalink to this headline")
+```
+read_hook:  "cerebras.modelzoo.data\_preparation.data\_preprocessing.hooks.prompt\_completion\_chat\_read\_hook"
+read\_hook\_kwargs:
+  data_keys:
+  prompt_key:  "prompt"
+  completion_key:  "completion"
+
+```
+
+#### Return structure[#](#id14 "Permalink to this headline")
+
+```
+[
+    {
+        "type": "user",
+        "content": [
+            {"text": "User's prompt text"}
+        ]
+    },
+    {
+        "type": "assistant",
+        "content": [
+            {"text": "Assistant's completion text"}
+        ]
+    }
+]
+
+```
+
+### Fine-tuning image captions hook[#](#fine-tuning-image-captions-hook "Permalink to this headline")
+
+Processes fine-tuning image captions data into a semantic data array format. Requires keys for image and caption data. The hook implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/hooks.py#L473).
+
+#### Configuration example[#](#id15 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.finetuning_image_captions_hook"
+read_hook_kwargs:
+  data_keys:
+    image_key: "image"
+    caption_key: "caption"
+
+```
+
+#### Return structure[#](#id16 "Permalink to this headline")
+```
+[
+    {
+        "type": "prompt",
+        "content": [
+            {"image": "Path to the image"}
+        ]
+    },
+    {
+        "type": "completion",
+        "content": [
+            {"text": "Caption describing the image"}
+        ]
+    }
+]
+
+```
+
+### Fine-tuning LLaVA hook prompt completion[#](#fine-tuning-llava-hook-prompt-completion "Permalink to this headline")
+
+Transforms conversation data for fine-tuning LLaVA, alternating between prompt and completion roles. Requires keys for conversation data and image paths. The hook implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/hooks.py#L530).
+
+#### Configuration example[#](#id17 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.finetuning_llava_hook_prompt_completion"
+read_hook_kwargs:
+  data_keys:
+    multi_turn_key: "conversation"
+    image_key: "image_path"
+  image_token: "<image>"
+  phase: 1
+
+```
+
+#### Return structure[#](#id18 "Permalink to this headline")
+```
+[
+    {
+        "type": "system",
+        "content": [{"text": "A chat between a curious human and an artificial intelligence "
+                             "assistant. The assistant gives helpful, detailed, and polite answers "
+                             "to the human's questions."}]
+    },
+    {
+        "type": "prompt",
+        "content": [
+            {"image": "path/to/image.jpg"},
+            {"text": "User's text before and after image"}
+        ],
+        "semantic_drop_mask": [False, True]
+    },
+    {
+        "type": "completion",
+        "content": [{"text": "Assistant's response"}],
+        "semantic_drop_mask": [False]
+    }
+]
+
+```
+
+Custom read hook examples[#](#custom-read-hook-examples "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+This section describes examples of custom read hooks for processing data on Cerebras Systems.
+
+### Description of data fields[#](#description-of-data-fields "Permalink to this headline")
+
+1.  **type**: Indicates the role in the conversation. Possible values are system, user, assistant, prompt, or completion.
+    
+2.  **content**: A list of dictionaries representing parts of the conversation turn. Each dictionary can contain: - text: A segment of text. - image: The path to an image (if applicable).
+    
+3.  **semantic\_loss\_weight**: A list of booleans indicating which parts of the content might be dropped during training for semantic purposes.
+    
+4.  **system_prompt**: If specified, the system prompt is retrieved from SYSTEM\_PROMPT\_REGISTRY and added as the first item in the transformed data.
+    
+
+### Multiple images LLaVA fine-tuning hook[#](#multiple-images-llava-fine-tuning-hook "Permalink to this headline")
+
+Transforms conversation data for fine-tuning LLaVA models with multiple images. Requires keys for conversation data and image paths.
+
+#### Configuration example[#](#id19 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.multiple_images_llava_finetuning_hook"
+read_hook_kwargs:
+  data_keys:
+    multi_turn_key: "conversation"
+    image_key: "image_paths"
+  system_prompt: "vicuna_v0"
+  image_token: "<image>"
+
+```
+
+#### Return structure[#](#id20 "Permalink to this headline")
+```
+[
+    {
+        "type": "system",
+        "content": [{"text": "A chat between a curious human and an artificial intelligence assistant. "
+                             "The assistant gives helpful, detailed, and polite answers to the human's "
+                             "questions."}]
+    },
+    {
+        "type": "user",
+        "content": [
+            {"image": "path/to/image1.jpg"},
+            {"text": "This is a user's text with an placeholder."}
+            {"image": "path/to/image2.jpg"},
+        ],
+        "semantic_drop_mask": [False, True, False]
+    },
+    {
+        "type": "assistant",
+        "content": [{"text": "This is the assistant's response."}],
+        "semantic_drop_mask": [False]
+    }
+]
+
+```
+
+This output structure ensures that the data is correctly formatted for fine-tuning LLaVA models, maintaining consistency in conversation roles, content types, and semantic importance.
+
+### Ultra chat common words mask hook[#](#ultra-chat-common-words-mask-hook "Permalink to this headline")
+
+This hook masks selected words in the sequence and was written for Ultrachat data. The link to the dataset is [here](https://huggingface.co/datasets/HuggingFaceH4/ultrachat_200k). The hook implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/custom_hook_examples/custom_hooks.py#L144).
+
+#### Configuration example[#](#id21 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.ultra_chat_common_words_mask_hook"
+read_hook_kwargs:
+  data_keys:
+    prompt_key: "prompt"
+    completion_key: "completion"
+
+```
+
+#### Return structure[#](#id22 "Permalink to this headline")
+```
+[
+    {
+        "type": "prompt",
+        "content": [{"text": "Prompt text"}]
+    },
+    {
+        "type": "completion",
+        "content": [{"text": chunk} for chunk in completion_chunks],
+        "semantic_loss_weight": completion_loss_mask
+    }
+]
+
+```
+
+### Obelics hook[#](#obelics-hook "Permalink to this headline")
+
+Processes obelics dataset examples into a semantic data array format. Requires keys for image and text data. The dataset link and description can be found [here](https://huggingface.co/datasets/HuggingFaceM4/OBELICS). The hooks implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/custom_hook_examples/custom_hooks.py#L58).
+
+#### Configuration example[#](#id24 "Permalink to this headline")
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.obelics_hook"
+read_hook_kwargs:
+  data_keys:
+    image_key: "image_urls"
+    caption_key: "captions"
+  image_dir: "/path/to/image_dir"
+
+```
+
+#### Return structure[#](#id25 "Permalink to this headline")
+```
+[
+    {
+        "content": [
+            {"text": "Text caption"},
+            {"image": "unique_image_name.png"}
+        ]
+    }
+]
+
+```
+
+Important considerations[#](#important-considerations "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+* **Space Handling**: When combining custom regions, the data processor does not add any spaces or separators between the regions. Space handling must be managed within the read hooks.When creating custom semantic regions, ensure there is a leading space at the start of each region (except the first) to prevent the merging of words from neighboring regions.
+    
+* **Multimodal Datasets**: When working with multimodal datasets, if images are provided as URLs, the hooks should download the images and generate image paths to be used by the multimodal models.
+    
+* **Separator Handling With Prompt Completion Read Hook**: Token generator adds a separator token between `prompt` and `completion` semantic regions. The tokenizer’s `sep_token` attribute is used as a separator token if present; else we use `<|sep|>`.
+    
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Proper configuration of input data is essential for efficient and effective preprocessing in machine learning workflows on Cerebras Systems. By following the guidelines and examples provided in this guide, you can seamlessly set up local and HuggingFace data sources, ensuring that your preprocessing pipeline is robust and ready for various machine learning tasks. Utilizing the appropriate read hooks tailored to specific data types and tasks will further enhance your data processing capabilities, leading to better model performance and more accurate results. With this knowledge, you’re well-equipped to handle the complexities of data preprocessing on the Cerebras platform, paving the way for successful machine learning projects.
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+Now that you’ve configured your input data and understood how to process it using various read hooks, the next step is to set up your token generators. Token generators play a crucial role in the preprocessing pipeline, as they convert raw data into tokenized formats suitable for machine learning models.

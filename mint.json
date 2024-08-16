@@ -1,0 +1,423 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "Cerebras AI",
+  "logo": {
+    "dark": "/logo/1.png",
+    "light": "/logo/2.png"
+  },
+  "layout": "sidenav",
+  "favicon": "/favicon.png",
+  "colors": {
+    "primary": "#ff6900",
+    "light": "#ff6900",
+    "dark": "#ff6900",
+    "anchors": {
+      "from": "#ff6900",
+      "to": "#ff6900"
+    }
+  },
+  "background": {
+    "style": "windows"
+  },
+
+  "topbarCtaButton": {
+    "name": "Contact Us",
+    "url": "https://www.cerebras.net/contact-us/"
+  },
+
+  "primaryTab": {
+    "name": "Concepts & Guides"
+  },
+  "tabs": [
+    {
+      "name": "Release Notes",
+      "url": "release-notes"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "About",
+      "icon": "house",
+      "url": "https://www.cerebras.net/company/"
+    },
+    {
+      "name": "Community",
+      "icon": "discord",
+      "url": "https://discord.com/invite/ZqvYS2e2rY"
+    },
+    {
+      "name": "Blog",
+      "icon": "newspaper",
+      "url": "https://www.cerebras.net/blog"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Quickstart",
+      "pages": ["quickstart/home"]
+    },
+    {
+      "group": "Getting Started",
+      "pages": [
+        "getting-started/overview",
+        "getting-started/setup-and-installation",
+        "getting-started/pre-train-your-first-model",
+        "getting-started/fine-tune-your-first-model",
+        "getting-started/current-release-highlights"
+      ]
+    },
+    {
+      "group": "Concepts",
+      "pages": [
+        "concepts/cerebras-wafer-scale-cluster",
+        "concepts/weight-streaming-execution"
+      ]
+    },
+    {
+      "group": "Model Zoo",
+      "pages": [
+        "model-zoo/model-zoo-overview",
+        "model-zoo/trainer-overview",
+        {
+          "group": "Trainer Configuration Overview",
+          "pages": [
+            "model-zoo/trainer-configuration-overview",
+            "model-zoo/trainer-configuration-overview/correspondance-from-legacy-to-trainer"
+          ]
+        },
+        {
+          "group": "Core Workflows",
+          "pages": [
+            "model-zoo/core-workflows",
+            "model-zoo/core-workflows/------quickstart-guide-for-data-preprocessing-----",
+            "model-zoo/core-workflows/------pretraining-with-upstream-validation-----",
+            "model-zoo/core-workflows/------downstream-validation-using-eleuther-eval-harness-----",
+            "model-zoo/core-workflows/------downstream-validation-using-bigcode-eval-harness",
+            "model-zoo/core-workflows/------pretraining-with-downstream-validation-----",
+            "model-zoo/core-workflows/------fine-tuning-with-validation-----",
+            "model-zoo/core-workflows/------multi-phase-training-----",
+            "model-zoo/core-workflows/------summarize-scalars-and-tensors"
+          ]
+        },
+        {
+          "group": "Tutorials",
+          "pages": [
+            "model-zoo/tutorials/training-and-fine-tuning-a-large-language-model--llm",
+            "model-zoo/tutorials/extend-context-length-using-position-interpolation",
+            "model-zoo/tutorials/train-an-llm-with-a-large-or-small-context-window",
+            "model-zoo/tutorials/instruction-fine-tuning-for-llms",
+            "model-zoo/tutorials/train-a-model-with-weight-sparsity",
+            "model-zoo/tutorials/optimize-performance-with-automatic-microbatching",
+            "model-zoo/tutorials/train-an-llm-using-maximal-update-parameterization",
+            {
+              "group": "Train An Llm Using Maximal Update Parameterization",
+              "pages": [
+                "model-zoo/tutorials/training-an-llm-using-maximal-update-parameterization/configure-mp-for-gpt-style-models",
+                "model-zoo/tutorials/training-an-llm-using-maximal-update-parameterization/configure-mp-for-bert-pretrain--beta",
+                "model-zoo/tutorials/training-an-llm-using-maximal-update-parameterization/configure-mp-for-t5--beta"
+              ]
+            },
+            "model-zoo/tutorials/train-an-llm-using-maximal-update-parameterization-with-legacy-params",
+            "model-zoo/tutorials/dynamic-loss-scaling",
+            "model-zoo/tutorials/training-with-number-of-tokens-loss-scaling"
+          ]
+        },
+        {
+          "group": "Components",
+          "pages": [
+            "model-zoo/components/components",
+            {
+              "group": "Data preprocessing",
+              "pages": [
+                "model-zoo/components/data-preprocessing/data-preprocessing",
+                "model-zoo/components/data-preprocessing/input-data-configuration",
+                "model-zoo/components/data-preprocessing/read-hooks",
+                "model-zoo/components/data-preprocessing/token-generators",
+                "model-zoo/components/data-preprocessing/custom-tokenizer",
+                "model-zoo/components/data-preprocessing/on-the-fly-data-processing",
+                "model-zoo/components/data-preprocessing/online-shuffling-in-hdf5-file-storage",
+                "model-zoo/components/data-preprocessing/visualization-and-debugging"
+              ]
+            },
+
+            {
+              "group": "Data preprocessing scripts",
+              "pages": [
+                "model-zoo/components/data-preprocessing-scripts/data-preprocessing-scripts",
+                "model-zoo/components/data-preprocessing-scripts/using-hf-datasets-for-auto-regressive-lm",
+                "model-zoo/components/data-preprocessing-scripts/creating-hdf5-dataset-for-gpt-models",
+                "model-zoo/components/data-preprocessing-scripts/slimpajama-dataset-pre-processing"
+              ]
+            },
+            {
+              "group": "Dataloaders",
+              "pages": [
+                "model-zoo/components/dataloaders/dataloaders",
+                "model-zoo/components/dataloaders/creating-custom-dataloaders",
+                "model-zoo/components/dataloaders/dataloaders-for-pytorch"
+              ]
+            },
+            "model-zoo/components/data-deduplication-pipeline",
+            {
+              "group": "Trainer components",
+              "pages": [
+                "model-zoo/components/trainer-components/trainer-components",
+                "model-zoo/components/trainer-components/model-directory",
+                "model-zoo/components/trainer-components/backend",
+                "model-zoo/components/trainer-components/model",
+                "model-zoo/components/trainer-components/loop",
+                "model-zoo/components/trainer-components/numeric-precision",
+                "model-zoo/components/trainer-components/optimizer-and-scheduler",
+                "model-zoo/components/trainer-components/checkpointing",
+                "model-zoo/components/trainer-components/logging",
+                "model-zoo/components/trainer-components/reproducibility",
+                "model-zoo/components/trainer-components/customizing-the-trainer-with-callbacks",
+                "model-zoo/components/trainer-components/defer-weight-initialization",
+                "model-zoo/components/trainer-components/performance-flags"
+              ]
+            },
+            "model-zoo/components/model-zoo-config-classes",
+            "model-zoo/components/model-zoo-usage-examples",
+            "model-zoo/components/model-zoo-registry",
+            "model-zoo/components/supported-config-parameters"
+          ]
+        },
+        {
+          "group": "Migration",
+          "pages": [
+            "model-zoo/migration",
+            "model-zoo/migration/port-a-trained-and-fine-tuned-model-to-hugging-face",
+            "model-zoo/migration/port-a-hugging-face-model-to-cerebras-model-zoo",
+            "model-zoo/migration/porting-pytorch-models-to-cerebras",
+            {
+              "group": "convert-checkpoints-and-model-configs",
+              "pages": [
+                "model-zoo/migration/convert-checkpoints-and-model-configs/convert-checkpoints-and-model-configs",
+                "model-zoo/migration/convert-checkpoints-and-model-configs/work-with-cerebras-checkpoints"
+              ]
+            }
+          ]
+        },
+        {
+          "group": "API ",
+          "pages": [
+            "model-zoo/api",
+
+            {
+              "group": "cerebras-modelzoo",
+              "pages": [
+                "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo",
+                "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-layers",
+                "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-trainer",
+                {
+                  "group": "cerebras-modelzoo-common",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-checkpoint-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-dump-context",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-half-dtype",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-input-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-mlops",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-model-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-optim-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-pytorch-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-registry",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-registry-cli",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-run-bigcode-eval-harness",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-run-cstorch-flow",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-run-eleuther-eval-harness",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-run-gpt-inference",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-run-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-train-and-eval",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-common/cerebras-modelzoo-common-utils"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-config-manager",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-config-manager/cerebras-modelzoo-config-manager",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-config-manager/cerebras-modelzoo-config-manager-config-classes",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-config-manager/cerebras-modelzoo-config-manager-config-loader",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-config-manager/cerebras-modelzoo-config-manager-config-map",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-config-manager/cerebras-modelzoo-config-manager-config-validators"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-data",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data/cerebras-modelzoo-data",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data/cerebras-modelzoo-data-common",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data/cerebras-modelzoo-data-multimodal",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data/cerebras-modelzoo-data-nlp",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data/cerebras-modelzoo-data-vision"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-data-preparation",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-data-preprocessing",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-hdf5-shuffling",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-huggingface",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-multimodal",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-nlp",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-raw-dataset-processor",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-utils",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-data-preparation/cerebras-modelzoo-data-preparation-vision"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-fc-mnist",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-fc-mnist/cerebras-modelzoo-fc-mnist",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-fc-mnist/cerebras-modelzoo-fc-mnist-pytorch"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-losses",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-bertpretrainmodelloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-dpoloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-gptlmheadmodelloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-loadbalancingloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-t5forconditionalgenerationloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-vitmaeloss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-clip-contrasive-loss",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-losses/cerebras-modelzoo-losses-dpr-loss"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-models",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-models/cerebras-modelzoo-models",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-models/cerebras-modelzoo-models-multimodal",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-models/cerebras-modelzoo-models-nlp",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-models/cerebras-modelzoo-models-vision"
+                  ]
+                },
+                {
+                  "group": "cerebras-modelzoo-tools",
+                  "pages": [
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools-checkpoint-converters",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools-compat",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools-convert-checkpoint",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools-convert-config-to-mup",
+                    "model-zoo/api/cerebras-modelzoo/cerebras-modelzoo-tools/cerebras-modelzoo-tools-fold-lora-checkpoint"
+                  ]
+                }
+              ]
+            },
+            "model-zoo/api/trainer-api"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Cs Torch",
+      "pages": [
+        {
+          "group": "Cerebras Pytorch API",
+          "pages": [
+            "cs-torch/cerebras-pytorch-api",
+            "cs-torch/cerebras-pytorch-api/cerebras-pytorch-package",
+            "cs-torch/cerebras-pytorch-api/cerebras-pytorch-amp",
+            "cs-torch/cerebras-pytorch-api/cerebras-pytorch-optim",
+            "cs-torch/cerebras-pytorch-api/cerebras-pytorch-sparse",
+            "cs-torch/cerebras-pytorch-api/cerebras-pytorch-metrics"
+          ]
+        },
+        {
+          "group": "Writing A Custom Training Loop",
+          "pages": [
+            "cs-torch/writing-a-custom-training-loop",
+            "cs-torch/writing-a-custom-training-loop/step-closures",
+            "cs-torch/writing-a-custom-training-loop/saving-loading-checkpoints",
+            "cs-torch/writing-a-custom-training-loop/efficient-weight-initialization",
+            "cs-torch/writing-a-custom-training-loop/writing-custom-optimizers",
+            "cs-torch/writing-a-custom-training-loop/learning-rate-scheduling",
+            "cs-torch/writing-a-custom-training-loop/gradient-scaling",
+            "cs-torch/writing-a-custom-training-loop/sparsifying-models",
+            "cs-torch/writing-a-custom-training-loop/restartable-dataloaders",
+            "cs-torch/writing-a-custom-training-loop/profiling-the-executor",
+            "cs-torch/writing-a-custom-training-loop/evaluation-metrics",
+            "cs-torch/writing-a-custom-training-loop/per-layer-precision-optimization-level",
+            "cs-torch/writing-a-custom-training-loop/limitations-of-pytorch-on-cerebras"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Cluster Monitoring",
+      "pages": [
+        {
+          "group": "Cerebras Job Scheduling And Monitoring",
+          "pages": [
+            "cluster-monitoring/cerebras-job-scheduling-and-monitoring",
+            "cluster-monitoring/cerebras-job-scheduling-and-monitoring/cli-for-job-monitoring-csctl",
+            "cluster-monitoring/cerebras-job-scheduling-and-monitoring/job-priority",
+            "cluster-monitoring/cerebras-job-scheduling-and-monitoring/cluster-monitoring-with-grafana"
+          ]
+        }
+      ]
+    },
+    {
+      "group": "Fundamentals",
+      "pages": [
+        {
+          "group": "Launch Your Job",
+          "pages": [
+            "fundamentals/launch-your-job",
+            "fundamentals/launch-your-job/cerebras-cluster-settings"
+          ]
+        },
+        "fundamentals/kernel-autogeneration-with-autogen",
+        "fundamentals/define-environment-variables-for-input-workers",
+        "fundamentals/import-user-dependencies-in-cerebras",
+        "fundamentals/special-considerations-for-cv-dataloaders",
+        "fundamentals/measure-throughput-of-your-model",
+        "fundamentals/managing-cluster-access-controls"
+      ]
+    },
+    {
+      "group": "Support",
+      "pages": ["release-notes/release-notes-tabs"]
+    },
+    {
+      "group": "Support",
+      "pages": [
+        "support/release-notes",
+        {
+          "group": "Troubleshooting",
+          "pages": [
+            "support/troubleshooting",
+            "support/troubleshooting/cannot-load-cerebras-checkpoints-in-gpus",
+            "support/troubleshooting/custom-pt-training-script-spawns-multiple-compile-jobs",
+            "support/troubleshooting/loss-compilation-issues-with-autogen",
+            "support/troubleshooting/error-parsing-metadata",
+            "support/troubleshooting/error-receiving-activation",
+            "support/troubleshooting/failed-mount-directory-during-execution",
+            "support/troubleshooting/failing-to-automatically-load-checkpoints",
+            "support/troubleshooting/failure-to-trace-due-to-functionalization-error",
+            "support/troubleshooting/input-starvation",
+            "support/troubleshooting/out-of-memory-errors-and-system-resources",
+            "support/troubleshooting/model-is-too-large-to-fit-in-memory",
+            "support/troubleshooting/modulenotfounderror",
+            "support/troubleshooting/numerical-issues",
+            "support/troubleshooting/throughput-spike-after-saving-checkpoints",
+            "support/troubleshooting/training-fails-when-logged-in-as-root",
+            "support/troubleshooting/vocabulary-size-troubleshooting"
+          ]
+        },
+        "support/glossary"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "discord": "https://discord.com/invite/ZqvYS2e2rY",
+    "github": "https://github.com/Cerebras/modelzoo",
+    "linkedin": "https://www.linkedin.com/company/cerebras-systems/",
+    "youtube": "https://www.youtube.com/channel/UCAAJD_MScghZj9R1cUZ3c8w"
+  }
+}

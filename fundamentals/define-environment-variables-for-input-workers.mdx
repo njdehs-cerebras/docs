@@ -1,0 +1,53 @@
+---
+title: "Define Environment Variables For Input Workers"
+description: "In a Wafer-Scale Cluster execution, the input pipeline runs on input worker nodes within the cluster, which are separate processes started by the Appliance on different CPU nodes."
+---
+## Overview[#](#overview "Permalink to this headline")
+
+As such, any environment variables set on the user process are not seen by the input workers as they run on different nodes. But since input workers run user code (e.g., dataloader), it is desirable in some cases to have some environment variables set on user side to be visible by workers as well. This section describes how to set environment variables on the user node that are visible by the input workers that stream data to the system.
+
+## Procedure[#](#procedure "Permalink to this headline")
+
+For this, we provide a drop-in replacement for `os.environ` with an identical interface. This object can be imported as follows:
+
+```Bash
+>>>from cerebras.appliance.environment import appliance_environ
+```
+The main difference of this object compared to `os.environ` is that it tracks any environment variables **set** through it and sends them to the input workers. Setting an environment variable through `appliance_environ` effectively stores the key and when an execute job is created, values of these environment variables are read and sent to the input workers. The input workers then see these variables as if they were set through `os.environ`.
+
+## Important considerations[#](#important-considerations "Permalink to this headline")
+
+- This object **does not** track environment variables that are **not** set through it. For example, if you set an environment variable through os.environ, while this object will see the value, it will not transfer this variable to the input workers.
+
+- These environment variables are sent to the Appliance when an execute job is requested. Setting variables after an execute job is created has no effect until the next execute job is created (if any).
+
+- Environment variables set throug appliance_environ are injected into the input workers **after** the worker process has been created. This means setting environment variables that need to exist before the Python interpreter is started will not work. For example, setting PYTHONPATH will not have the intended effect. This object is mainly for user-level environment variables set within a run.
+
+## Usage[#](#usage "Permalink to this headline")
+
+Here’s an example of how to use this object:
+
+```Bash
+>>> # Let's start with a clean environment
+>>> assert "foo" not in os.environ and "bar" not in app.environ
+
+>>> # Import the appliance_environ object
+>>> from cerebras.appliance.environment import appliance_environ
+
+>>> # Now let's set env variable "foo" through appliance_environ.
+>>> # When the input workers are created, they will see this updated
+>>> # value.
+>>> appliance_environ["foo"] = "1"
+>>> assert appliance_environ["foo"] == "1"  # appliance_environ sees the updated value
+>>> assert os.environ["foo"] == "1"  # os.environ also sees the updated value
+
+>>> # Now let's set env variable "bar" through os.environ.
+>>> # Since "bar" is set through "os.environ", when the input workers are
+>>> # created, they won't have access to this key.
+>>> os.environ["bar"] = "2"
+>>> assert appliance_environ["bar"] == "2"  # appliance_environ sees the updated value
+```
+## Conclusion[#](#conclusion "Permalink to this headline")
+
+The introduction of the specialized environment variable manager, `appliance_environ`, provides a robust solution for propagating environment variables from the user node to input worker nodes in a Wafer-Scale Cluster setup. This functionality is essential for ensuring that user code running on input workers can access necessary environment variables, despite the inherent separation of these processes across different CPU nodes. By utilizing appliance_environ to set environment variables, users can ensure that their settings are consistently applied across all nodes involved in the execution, thereby maintaining the desired environment for data streaming and processing. This approach not only simplifies the configuration process but also enhances the reliability and efficiency of the input pipeline in distributed computing environments.
+

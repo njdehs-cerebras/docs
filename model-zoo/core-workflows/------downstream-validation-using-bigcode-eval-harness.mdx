@@ -1,0 +1,611 @@
+---
+title: Downstream Validation Using Bigcode Eval Harness
+---
+This page walks through the steps for performing downstream validation on the Cerebras Wafer-Scale cluster using [BigCode’s Evaluation Harness](https://github.com/bigcode-project/bigcode-evaluation-harness) (BCEH). BCEH is a framework for evaluating code generation models.
+
+
+While you can configure BCEH as part of your training (see [Pretraining with Downstream Validation](pretrain_downstream.html#wsc-modelzoo-pretrain-downstream-validation)) run, this guide is primarily for running BCEH standalone, without also configuring any training, using the run script `src/cerebras/modelzoo/common/run_bigcode_eval_harness.py` from the Cerebras Model Zoo.
+
+The examples in this guide will perform downstream validation on [LLaMA3 8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B).
+
+By the end of this guide, you will be able to leverage the BCEH framework to perform standalone downstream validation on your models on CS-X.
+
+Prerequisites
+-------------------------------------------------------------
+
+Please ensure that you have installed the Cerebras Model Zoo package by going through the installation guide. Note that BCEH version tested and packaged in the Cerebras Model Zoo is the pinned to [this commit](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/84b96da31b7f840b55c5733325346176140cdb6b).
+
+Please also read through the [Trainer Overview](../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../yaml/index.html#wsc-modelzoo-yaml), as these guides will help understand how we configure running BCEH standalone.
+
+<Note>
+This guide configures the downstream BCEH run using V2 YAML. While release 2.3 includes support for legacy V1 YAML, please convert the configuration to V2 using `convert_legacy_params_to_trainer_params` from the script `src/cerebras/modelzoo/trainer/utils.py`.
+</Note>
+
+Configure the Run
+---------------------------------------------------------------------
+
+This section covers the required steps for setting up an BCEH run to perform standalone downstream validation on code generation tasks.
+
+In particular, you will need to write a YAML configuration file to configure an instance of the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class with the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback.
+
+The example in this section configure code evaluation on the bigcode eval harness task `humaneval` using a single CSX.
+
+If you aren’t interested in seeing the break down of the configuration, feel free to skip ahead to the [Putting it All Together](#wsc-modelzoo-bceh-pretrain-full-yaml) section to see the full YAML configuration.
+
+### Configure the CSX Backend
+
+The first step is to specify the CSX backend and resources required for the run.
+
+Please create a YAML configuration file with the following cluster config:
+```
+trainer:
+  init:
+    backend:
+      backend_type: CSX
+      cluster_config:
+        num_csx: 1
+
+```
+
+This example uses a single CSX, but you can readily update `num_csx` to run BCEH on multiple CSXs for improved performance.
+
+### Configure the Model
+
+Next, please add the following model configuration in the YAML for [LLaMA3 8B](https://huggingface.co/meta-llama/Meta-Llama-3-8B) with 8K context length:
+```
+trainer:
+  init:
+    backend:  # CSX
+      ...
+    model:
+      model_name: llama # This setting is required
+
+      # Embedding
+      vocab_size: 128256
+      hidden_size: 4096
+      position_embedding_type: "rotary"
+      pos_scaling_factor: 1.0
+      rope_theta: 500000.0
+      rotary_dim: 128
+      share_embedding_weights: false
+      max_position_embeddings: 8192
+      embedding_dropout_rate: 0.0
+      embedding_layer_norm: false
+
+      # Decoder
+      num_hidden_layers: 32
+      dropout_rate: 0.0
+      layer_norm_epsilon: 1.0e-5
+      norm_type: "rmsnorm"
+
+      # Decoder - Attention
+      num_heads: 32
+      attention_type: "scaled_dot_product"
+      attention_module: "multiquery_attention"
+      attention_dropout_rate: 0.0
+      use_projection_bias_in_attention: false
+      use_ffn_bias_in_attention: false
+      extra_attention_params:
+      num_kv_groups: 8
+
+      # Decoder - ffn
+      filter_size: 14336
+      nonlinearity: "swiglu"
+      use_ffn_bias: false
+
+      # Task-specific
+      use_bias_in_output: false
+      loss_scaling: "num_tokens"
+      loss_weight: 1.0
+
+      # Initializer
+      initializer_range: 0.02
+
+```
+
+<Note>
+Note
+
+To run downstream validation harness, you must specify the `model_name` setting in the model configuration. Valid names corresponding to the supported models include:
+
+* `btlm`
+    
+* `bloom`
+    
+* `gpt2`
+    
+* `gptj`
+    
+* `falcon`
+    
+* `gpt3`
+    
+* `gpt-neox`
+    
+* `llama`
+    
+* `mistral`
+    
+* `mpt`
+    
+* `jais`
+    
+* `santacoder`
+    
+* `starcoder`
+    
+</Note>
+### Configure the BCEH Callback
+
+BCEH is implemented as an extension to the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class that you will configure via the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback.
+
+Add the following configuration for the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback.
+```
+trainer:
+  init:
+    backend: # CSX
+      ...
+    model: # Llama3-8B
+      model_name: llama # This setting is required
+      ...
+    callbacks:
+    - BigCodeEvalHarness:
+        # BigCode Eval Harness settings (exposed via CLI)
+        bceh_args:
+          tasks: humaneval
+        # CSX-specific eval harness settings (exposed via CLI)
+        keep_data_dir: false
+        hf_cache_dir: <path_to_directory_for_caching_HF_data>
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+```
+
+The `bceh_args` section exposes the following settings configure the BCEH run:
+
+  
+| BigCode Eval Harness CLI Arguments | Description |
+| --- | --- |
+| `--prefix` | Number of examples to be added to the fewshot context string. Defaults to 0 |
+| `--temperature` | Sampling temperature used for generation. |
+| `--top_p` | Top-p parameter used for nucleus sampling. |
+| `--top_k` | Top-k parameter used for generation. |
+| `--n_samples` | Number of completions to generate for each sample. Defaults to 1. |
+| `--seed` | Random seed used for evaluation. |
+| `--tasks` | Comma separated string specifying BigCode Eval Harness tasks. |
+| `--instruction_tokens` | A series of instruction tokens used for instruction-tuning benchamrks separated by comma e.g. &lt;user\_message&gt;,&lt;end\_user\_message&gt;,&lt;assistant\_message&gt; |
+| `--max_length_generation` | Maximum length of generated sequence (prompt+generation). |
+| `--limit` | Number of samples to solve and evaluate from the benchmark. |
+| `--limit_start` | Optional offset to start from when limiting the number of samples. |
+| `--save_every_k_tasks` | Optional saving after every k tasks. |
+| `--load_generations_path` | Path of file with previously generated solutions, if provided generation is skipped and only evaluation is done |
+| `--load_data_path` | Path of additional data to load for the tasks. |
+| `--metric_output_path` | Path to save the results. |
+| `--load_generations_intermediate_paths` | List of paths for saving the intermediate code generations. |
+| `--save_generations_path` | Path for saving the model’s output code generations. |
+| `--save_references_path` | Path for saving the references solutions/tests. |
+| `--prompt` | Prompt type to use for generation in HumanEvalPack tasks. |
+| `--check_references` | Don’t run generation but benchmark groundtruth (useful for debugging). |
+
+You can either specify the settings here or pass them via CLI arguments to the standalone BCEH run script.
+
+The callback configuration accepts dataloader settings that you must specify in the YAML to set up input data preprocessing for the run:
+
+  
+| DataLoader Settings | Description |
+| --- | --- |
+| `data_dir` | This setting is required. Provide a path to the mounted directory visible to the worker containers where eval harness task data samples are dumped after preprocessing. Use the `mount_dirs` argument to specify a dir mount, similar to our existing flows. |
+| `tokenizer_file_path` | Path to a custom tokenizer (JSON) file. If you provide a custom tokenizer, then you must also specify `eos_id`; otherwise, you must provide a pretrained tokenizer from Hugging Face in `pretrained_model_name_or_path`. |
+| `pretrained_model_name_or_path` | Hugging Face (HF) pretrained model name or path. This setting is required if you do not specify `tokenizer_file_path`. For detailed description, see [HF AutoTokenizers](https://huggingface.co/docs/transformers/main/en/model_doc/auto#transformers.AutoTokenizer.from_pretrained.pretrained_model_name_or_path). |
+| `eos_id` | End-of-sentence (eos) token ID to signal the termination of a sequence. This setting is required if you specify a custom tokenizer in `tokenizer_file_path`. You can set this by looking for the ID corresponding to the eos token in the custom tokenizer JSON file. |
+| `max_sequence_length` | Maximum length of the input sequence. This setting is required for preprocessing input data samples from the specified eval harness tasks. You should align the `max_sequence_length` field to the `max_position_embeddings` value in the model configuration of the YAML. If you don’t specify `max_sequence_length`, the flow defaults to this `max_position_embeddings` setting. |
+
+Additionally, you may optionally specify the following, CSX-specific eval harness setting:
+
+* `keep_data_dir`: Use this to preserve the preprocessed eval harness task data samples, i.e. the directory specified under `data_dir`. Defaults to False, i.e. data samples are deleted after the run.
+    
+
+### (Optional) Configure HuggingFace (HF) Cache Directory
+
+BCEH utilizes HF’s APIs to download task data and other configurations. This data is by default cached under `$HOME/.cache/huggingface`.
+
+However, you may choose to specify a different directory for this cached data via the [`HFCacheDir`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.HFCacheDir "cerebras.modelzoo.trainer.extensions.HFCacheDir") callback:
+```
+trainer:
+  init:
+    backend: # CSX
+      ...
+    model: # Llama3-8B
+      ...
+    callbacks:
+    - BigCodeEvalHarness:
+        ...
+    - HFCacheDir:
+        cache_dir: <path_to_directory_for_caching_HF_data>
+```
+
+### Configure Generation Settings[#](#configure-generation-settings "Permalink to this headline")
+
+All BCEH tasks are generative (autoregressive) in nature.
+
+In order to run generative inference on CSX, you must specify the following inference settings in the model config of YAML file:
+
+* `start_token` \- ID of the special token that indicates where to start inferring for each sample, as described above. You may specify a list of token IDs instead of a single ID. If you do, the model will start inference at the first token that matches any one of the provided IDs. The model will pad inferred predictions with the first ID in the list.
+    
+* `stop_sequences` \- List of sequences (each one being a list of token IDs). If any one of these sequences is emitted by the model, inference will stop for that sample. For example, suppose you would like to stop inferring after either a newline character (e.g. token id 1), or a combination of a period (e.g. token id 2) followed by a space (e.g. token id 3). In this case, set stop\_sequences to \[\[1\], \[2, 3\]\]. To stop inferring after seeing a newline character only, set stop\_sequences to \[\[1\]\]. To disable this feature, set `stop_sequences` to an empty list \[\]. Additionally, the following optional parameters may be set:
+    
+* `max_tokens` \- Maximum tokens to infer for each sample.
+    
+* `loop_dim` \- Indicates the sequence dimension in the input and output data. Default value is 1. If set to 0, indicates that both input and output data is transposed (i.e. `sequence X samples` instead of `samples X sequence`).
+    
+
+Please update the YAML file to add these inference settings:
+```
+trainer:
+  init:
+    backend: # CSX
+      ...
+    model: # Llama3-8B
+      model_name: llama
+      ...
+      # Inference Settings
+      start_token: 128256                 # Set to `vocab_size`
+      stop_sequences: []                  # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens: 256                     # Default from HF implementations
+      loop_dim: 1
+    callbacks:
+    - BigCodeEvalHarness:
+        # BigCode Eval Harness settings
+        bceh_args:
+          tasks: humaneval
+        ...
+  ...
+```
+<Note>
+Note
+
+1.  For `start_token`, it is ideal to choose a value that’s not going to be generated by the model, i.e. `vocab_size` in the example above.
+    
+2.  The code generation task itself defines `stop_sequences`. For instance, see the specification of stop tokens for [humaneval](https://github.com/bigcode-project/bigcode-evaluation-harness/blob/334efb7feb1c6d18fc4be2c71ae73248f3de8440/bigcode_eval/tasks/humaneval.py#L52) . The flow will internally override the `stop_sequences` config with the value from the task, so you can also specify an arbitrary, valid value in the YAML as shown above.
+    
+</Note>
+### Putting it All Together
+Here’s what the full YAML configuration looks like once you follow this guide for configuring the individual pieces:
+```
+trainer:
+  init:
+    backend:  # CSX
+      backend_type: CSX
+      cluster_config:
+        num_csx: 1
+    model:
+      model_name: llama # This setting is required
+
+      # Embedding
+      vocab_size: 128256
+      hidden_size: 4096
+      position_embedding_type: "rotary"
+      pos_scaling_factor: 1.0
+      rope_theta: 500000.0
+      rotary_dim: 128
+      share_embedding_weights: false
+      max_position_embeddings: 8192
+      embedding_dropout_rate: 0.0
+      embedding_layer_norm: false
+
+      # Decoder
+      num_hidden_layers: 32
+      dropout_rate: 0.0
+      layer_norm_epsilon: 1.0e-5
+      norm_type: "rmsnorm"
+
+      # Decoder - Attention
+      num_heads: 32
+      attention_type: "scaled_dot_product"
+      attention_module: "multiquery_attention"
+      attention_dropout_rate: 0.0
+      use_projection_bias_in_attention: false
+      use_ffn_bias_in_attention: false
+      extra_attention_params:
+      num_kv_groups: 8
+
+      # Decoder - ffn
+      filter_size: 14336
+      nonlinearity: "swiglu"
+      use_ffn_bias: false
+
+      # Task-specific
+      use_bias_in_output: false
+      loss_scaling: "num_tokens"
+      loss_weight: 1.0
+
+      # Initializer
+      initializer_range: 0.02
+
+      # Inference Settings
+      start_token: 128256                 # Set to `vocab_size`
+      stop_sequences: []                  # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens: 256                     # Default from HF implementations
+      loop_dim: 1
+    callbacks:
+    - BigCodeEvalHarness:
+        # BigCode Eval Harness settings (exposed via CLI)
+        bceh_args:
+          tasks: humaneval
+        # CSX-specific eval harness settings (exposed via CLI)
+        keep_data_dir: false
+        hf_cache_dir: <path_to_directory_for_caching_HF_data>
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+```
+
+Running BCEH on CS-X[#](#running-bceh-on-cs-x "Permalink to this headline")
+---------------------------------------------------------------------------
+
+Once the YAML configuration is complete, use the run script `<path_to_cerebras_modelzoo>/cerebras/modelzoo/common/run_bigcode_eval_harness.py` from the Cerebras Model Zoo to run standalone BCEH.
+
+This script accepts the following command line interface (CLI) arguments:
+
+```
+python run_bigcode_eval_harness.py CSX [-h] [--prefix PREFIX] [--temperature TEMPERATURE] [--top_p TOP_P] [--top_k TOP_K] [--n_samples N_SAMPLES] [--eos EOS] [--seed SEED]
+                                    [--tasks TASKS] [--instruction_tokens INSTRUCTION_TOKENS] [--max_length_generation MAX_LENGTH_GENERATION] [--limit LIMIT] [--limit_start LIMIT_START]
+                                    [--save_every_k_tasks SAVE_EVERY_K_TASKS] [--load_generations_path LOAD_GENERATIONS_PATH] [--load_data_path LOAD_DATA_PATH]
+                                    [--metric_output_path METRIC_OUTPUT_PATH]
+                                    [--load_generations_intermediate_paths [LOAD_GENERATIONS_INTERMEDIATE_PATHS [LOAD_GENERATIONS_INTERMEDIATE_PATHS ...]]]
+                                    [--save_generations_path SAVE_GENERATIONS_PATH] [--save_references_path SAVE_REFERENCES_PATH] [--prompt PROMPT] [--check_references]
+                                    [--keep_data_dir]
+                                    -p PARAMS [-m {eval}] [-o MODEL_DIR] [--checkpoint_path CHECKPOINT_PATH]
+                                    [--disable_strict_checkpoint_loading] [--load_checkpoint_states LOAD_CHECKPOINT_STATES] [--logging LOGGING]
+                                    [--wsc_log_level WSC_LOG_LEVEL [WSC_LOG_LEVEL ...]] [--max_steps MAX_STEPS] [--eval_steps EVAL_STEPS] [--config CONFIG]
+                                    [--compile_only | --validate_only] [--num_workers_per_csx NUM_WORKERS_PER_CSX] [-c COMPILE_DIR]
+                                    [--job_labels JOB_LABELS [JOB_LABELS ...]] [--job_priority {p1,p2,p3}] [--debug_args_path DEBUG_ARGS_PATH]
+                                    [--mount_dirs MOUNT_DIRS [MOUNT_DIRS ...]] [--python_paths PYTHON_PATHS [PYTHON_PATHS ...]] [--credentials_path CREDENTIALS_PATH]
+                                    [--mgmt_address MGMT_ADDRESS] [--job_time_sec JOB_TIME_SEC] [--disable_version_check] [--num_csx NUM_CSX]
+                                    [--num_wgt_servers NUM_WGT_SERVERS] [--num_act_servers NUM_ACT_SERVERS] [--debug_args [DEBUG_ARGS [DEBUG_ARGS ...]]]
+                                    [--ini [INI [INI ...]]] [--transfer_processes TRANSFER_PROCESSES]
+```
+<Note>
+Note
+
+1.  We support only a subset of BigCode’s [command line interface (CLI) arguments](https://github.com/bigcode-project/bigcode-evaluation-harness/blob/main/main.py) as listed above.
+    
+2.  You may also specify these arguments in the YAML under the `bceh_args` key of the `BigCodeEvalHarness` configuration, but please note that the CLI setting will override the settings in the YAML.
+    
+3.  The `--params` CLI argument is required. Use it to specify the path to the YAML configuration file. Note that while we do support the old V1 YAML specification, it will soon be deprecated so we recommend using the new V2 YAML.
+    
+4.  Use the `--checkpoint_path` CLI argument to specify the path to the checkpoint file to load model weights from. If a checkpoint path is not provided, we support checkpoint autoloading in this flow such that the latest checkpoint file will be picked up from the specified `model_dir`.
+    
+</Note>
+### Code Generation on CSX
+
+We only support BCEH’s generation-only flow to generate model outputs and dump these generations to JSON files.
+
+Use the `--save_generations_path` CLI argument to specify the path for saving the generations. If no absolute path is provided, the generations will be dumped inside of `model_dir`.
+
+The code execution and evaluation flow is run on CPU, preferably in a sandboxed environment, using these dumped model outputs.
+
+### Example
+
+Let’s assume that the YAML configuration file above is written to `./llama3_8B_bceh.yaml`. Then, to run code generation for task `humaneval` set up a bash script as follows:
+```
+python <path_to_cerebras_modelzoo>/common/run_bigcode_eval_harness.py CSX \
+  --params ./llama3_8B_bceh.yaml \
+  --checkpoint_path <path_to_checkpoint_file> \
+  --python_paths <path(s)_to_export_to_PYTHONPATH_in_appliance_containers> \
+  --mount_dirs <path(s)_to_mount_to_appliance_containers> \
+```
+
+The output logs are as follows:
+```
+...
+2024-06-27 05:13:14,385 INFO:   | BigCode Generative Eval Device=CSX, GlobalStep=1, Batch=161, Rate=66.18 samples/sec, GlobalRate=46.96 samples/sec
+2024-06-27 05:13:14,410 INFO:   | BigCode Generative Eval Device=CSX, GlobalStep=1, Batch=163, Rate=74.92 samples/sec, GlobalRate=47.20 samples/sec
+generations were saved at <path_to_bigcode_model_dir>/20240627_051131/bigcode_0/generations_humaneval_1.json
+references were saved at <path_to_bigcode_model_dir>/20240627_051131/bigcode_0/references_humaneval_1.json
+```
+
+By default, the model will perform greedy sampling of the inferred tokens, i.e. for all of the model’s outputs, pick the token with the highest probability.
+
+In order to perform non-greedy sampling, you can pass in values for `temperature`, `top_k` or `top_p` sampling to either the bash script or under `bceh_args` of the YAML. For example:
+```
+python <path_to_cerebras_modelzoo>/common/run_bigcode_eval_harness.py CSX \
+  --params ./llama3_8B_bceh.yaml \
+  --checkpoint_path <path_to_checkpoint_file> \
+  --python_paths <path(s)_to_export_to_PYTHONPATH_in_appliance_containers> \
+  --mount_dirs <path(s)_to_mount_to_appliance_containers> \
+  --temperature 0.7 \
+  --top_k 10 \
+  --top_p 0.95 \
+
+```
+
+### Code Execution and Evaluation on CPU[#](#code-execution-and-evaluation-on-cpu "Permalink to this headline")
+
+To obtain the final eval scores, please clone [BigCode’s official repository](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main).
+
+Some BigCode tasks, such as `humaneval`, require executing the model’s generated code for processing the final eval scores. Thus, for security purposes, use the instructions [here](https://github.com/bigcode-project/bigcode-evaluation-harness/tree/main?tab=readme-ov-file#evaluation-only) to set up a containerized environment.
+
+Finally, to obtain the final eval scores, invoke the BCEH’s main script using the `--load_generations_path` CLI argument.
+
+### Example Output[#](#example-output "Permalink to this headline")
+
+Please make note of the path of the model’s output generations in the logs above, i.e. `<path_to_bigcode_model_dir>/20240627_051131/bigcode_0/generations_humaneval_1.json`.
+
+Set up a bash script as follows to invoke the BCEH script:
+```
+python <path_to_bigcode_repo>/main.py \
+  --tasks humaneval \
+  --allow_code_execution \
+  --load_generations_path <path_to_bigcode_model_dir>/20240627_051131/bigcode_0/generations_humaneval_1.json \
+  --metric_output_path ./evaluation_results.json \
+
+```
+
+The final code eval results will be saved in file `./evaluation_results.json` are as follows:
+```
+...
+{
+"humaneval": {
+  "pass@1": 0.13414634146341464
+},
+"config": {
+  "prefix": "",
+  "do_sample": true,
+  "temperature": 0.2,
+  "top_k": 0,
+  "top_p": 0.95,
+  "n_samples": 1,
+  "eos": "<|endoftext|>",
+  "seed": 0,
+  "model": "codeparrot/codeparrot-small",
+  "modeltype": "causal",
+  "peft_model": null,
+  "revision": null,
+  "use_auth_token": false,
+  "trust_remote_code": false,
+  "tasks": "humaneval",
+  "instruction_tokens": null,
+  "batch_size": 1,
+  "max_length_generation": 512,
+  "precision": "fp32",
+  "load_in_8bit": false,
+  "load_in_4bit": false,
+  "left_padding": false,
+  "limit": null,
+  "limit_start": 0,
+  "save_every_k_tasks": -1,
+  "postprocess": true,
+  "allow_code_execution": true,
+  "generation_only": false,
+  "load_generations_path": "<path_to_bigcode_model_dir>/20240627_051131/bigcode_0/generations_humaneval_1.json",
+  "load_data_path": null,
+  "metric_output_path": "evaluation_results.json",
+  "save_generations": false,
+  "load_generations_intermediate_paths": null,
+  "save_generations_path": "generations.json",
+  "save_references": false,
+  "save_references_path": "references.json",
+  "prompt": "prompt",
+  "max_memory_per_gpu": null,
+  "check_references": false
+}
+}
+
+```
+<Note>
+Note
+
+1.  The `config` section of the final output JSON contains all the default values from BigCode’s [CLI](https://github.com/bigcode-project/bigcode-evaluation-harness/blob/main/main.py). Feel free to ignore this section and consider only the final eval score, i.e. `"pass@1": 0.13414634146341464` above.
+    
+2.  Please ensure that `--allow_code_execution` is set for tasks that require code execution.
+    
+3.  Setting up a sandboxed environment to run code executions is optional.
+    
+4.  Please ensure that the `--tasks` argument specifies the correct task for which you produced the model’s output generations on CSX, i.e. `humaneval` in the example above.
+    
+</Note>
+### Run Multiple Generative Tasks[#](#run-multiple-generative-tasks "Permalink to this headline")
+
+You can run multiple tasks by configuring multiple [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callbacks (one per task) in the YAML.
+
+For example, you may update the YAML config as such to run downstream validation on generative tasks `mpbb` and `humaneval`:
+```
+trainer:
+  init:
+    backend: # CSX
+        ...
+    model: # Llama3-8B
+      model_name: llama # This setting is required
+      ...
+      # Inference Settings
+      start_token: 128256   # Set to `vocab_size`
+      stop_sequences: []    # Arbitrary value that will be overridden from the task spec
+      max_tokens: 256       # Default from HF implementations
+      loop_dim: 1
+    callbacks:
+    - BigCodeEvalHarness:
+        # BigCode Eval Harness settings (exposed via CLI)
+        bceh_args:
+          tasks: humaneval
+        # CSX-specific eval harness settings (exposed via CLI)
+        keep_data_dir: false
+        hf_cache_dir: <path_to_directory_for_caching_HF_data>
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+    - BigCodeEvalHarness:
+        # BigCode Eval Harness settings (exposed via CLI)
+        bceh_args:
+          tasks: mbpp
+        # CSX-specific eval harness settings (exposed via CLI)
+        keep_data_dir: false
+        hf_cache_dir: <path_to_directory_for_caching_HF_data>
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+```
+
+Supported Tasks[#](#supported-tasks "Permalink to this headline")
+-----------------------------------------------------------------
+
+* You may perform downstream validation on all BCEH tasks except for `DS1000`, since it requies Python version 3.7.10, but we support 3.8.0 in our packaged environment.
+    
+
+Adding New Tasks[#](#adding-new-tasks "Permalink to this headline")
+-------------------------------------------------------------------
+
+Please refer to BigCode’s new task implementation guide [here](https://github.com/bigcode-project/bigcode-evaluation-harness/blob/main/docs/guide.md) to add new tasks.
+
+Limitations[#](#limitations "Permalink to this headline")
+---------------------------------------------------------
+
+* You may only specify running a single generative task at a time. You should configure multiple BCEH tasks via separate callbacks, as shown above.
+    
+* We only support the generation flow for BCEH. In order to run the code execution and evalution flow, please create a separate clone of the BCEH repository to obtain the final eval scores using the outputs generated on CSX.
+    
+* Please turn on grad accumulation and choose a small micro batch size (between 16 to 32) under the `flags` configuration of the `BigCodeEvalHarness` callback of the YAML.
+    
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+In summary, by following this guide you have run standalone downstream validation for the Llama3-8B model on BCEH’s task `humaneval`.
+
+You should now be comfortable in configuring more downstream BCEH runs on your model of choice on even more code eval tasks.
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+To run downstream validation on general eval datasets and tasks, please see check out:
+
+* [Downstream Validation using Eleuther Eval Harness](downstream_eeh.html#wsc-modelzoo-downstream-eeh)
+    
+
+You can also perform downstream validation using BCEH as part of your pretraining runs with upstream validation. Check out the following guide:
+
+* [Pretraining with Downstream Validation](pretrain_downstream.html#wsc-modelzoo-pretrain-downstream-validation)

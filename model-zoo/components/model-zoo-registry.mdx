@@ -1,0 +1,109 @@
+---
+title: "      Model Zoo Registry     "
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+The [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo) serves as a centralized hub for accessing information about supported models, their file paths, associated losses, and dependencies.
+
+Below is an outline of the provided Registry APIs and their usage:
+
+Registry APIs[#](#registry-apis "Permalink to this headline")
+-------------------------------------------------------------
+
+### Registry Initialization[#](#registry-initialization "Permalink to this headline")
+
+The registry initializes automatically upon the usage of any query API.
+
+### Registry CLI Usage for Queries[#](#registry-cli-usage-for-queries "Permalink to this headline")
+
+Use the following syntax for registry queries:
+```
+<modelzoo path>/modelzoo/common/registry_cli.py [-h] [--list_models] [--list_losses] [--list_datasetprocessor] [--model MODEL]
+```
+Description:
+
+This is the command-line interface for querying the Cerebras Model Zoo Registry.
+
+Optional arguments:
+
+* `-h, --help`: Display this help message and exit.
+    
+* `--list_models`: List models supported in the Cerebras Model Zoo.
+    
+* `--list_losses`: List losses supported in the Cerebras Model Zoo.
+    
+* `--list_datasetprocessor`: List dataset processors supported in the Cerebras Model Zoo.
+    
+* `--model MODEL`: List specific information about a model from the Cerebras Model Zoo.
+    
+
+Example query:
+
+To retrieve information about GPT-J, use:
+```
+python <modelzoo path>/modelzoo/common/registry_cli.py --model gptj
+
+```
+
+Using Registry APIs[#](#using-registry-apis "Permalink to this headline")
+-------------------------------------------------------------------------
+
+To add a new model, loss, or dataloader to the registry:
+
+### Register the path[#](#register-the-path "Permalink to this headline")
+
+First, register the path of the Python package where the new model, loss, or dataloader is defined:
+
+* `registry.register_path("model_path", <directory path to model.py>)`
+    
+    Example: registry.register\_path(“model\_path”, os.path.join(cwd, “models”, “nlp”))
+    
+* `registry.register_path("loss_path", <directory path to loss implementation>)`
+    
+    Example: registry.register\_path(“loss\_path”, os.path.join(cwd, “losses”))
+    
+* `registry.register_path("dataloader_path", <directory path to dataloader implementation>)`
+    
+    Example: registry.register\_path(“dataloader\_path”, os.path.join(cwd, “data”, “multimodal”))
+    
+
+### Import the registry[#](#import-the-registry "Permalink to this headline")
+
+Ensure you import the registry in the Python module before registration:
+```
+from modelzoo.common.registry import registry
+
+```
+
+Registering models[#](#registering-models "Permalink to this headline")
+-----------------------------------------------------------------------
+
+To register models, use the decorator on the Model class:
+
+`@registry.register_model(<name>, dataloaders=[], dataset=[])` Example: @registry.register\_model(“vit\_mae”)
+
+Registering losses[#](#registering-losses "Permalink to this headline")
+-----------------------------------------------------------------------
+
+To register losses, use the decorator on the Loss class:
+
+`@registry.register_loss(<name>)`
+
+Example: @registry.register_loss(“DPOLoss”)
+
+Registering dataloader[#](#registering-dataloader "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+To register dataloader, use the decorator on the DataProcessor Class:
+
+`@registry.register_datasetprocessor(<name>)`
+
+Example: @registry.register_datasetprocessor(“SST2DataProcessor”)
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+Config classes provide a structured way to encapsulate the configurations of a model, typically defined in YAML files. These classes enhance manageability and ensure the validity of model configurations in the backend. For more information and practical insights into the Model Zoo’s utilization, including how to interact with Registry APIs and Config classes, consult the [Model Zoo usage examples](model_zoo_config_usage.html) page in the documentation.

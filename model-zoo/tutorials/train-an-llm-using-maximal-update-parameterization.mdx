@@ -1,0 +1,312 @@
+---
+title: "Train An Llm Using Maximal Update Parameterization"
+description: "In this guide, you will learn how to configure an LLM in [μP (Maximal Update Parametrization)](https://arxiv.org/abs/2203.03466) and perform [μTransfer](https://openreview.net/pdf?id=Bx6qKuBM2AD) in order to transfer optimized hyperparameters from a scaled-down version of the LLM (a “proxy model”) to the target model, thereby reducing the time and cost of hyperparameter sweeps."
+---
+
+If you are already familiar with the μP and μTransfer techniques, feel free to skip ahead to [Configuring μP Params For Your Model](#configuring-mup-params).
+
+## Background[#](#background "Permalink to this headline")
+
+Transformer models are commonly trained using Standard Parametrization (SP) where model weights are initialized from normal distributions with constant standard deviation or standard deviation based on the shape of each layer. However, as models scale to many parameters, the parametrization does not account for potential inter-layer interactions, resulting in unstable training. This instability can cause costly restarts. Furthermore, hyperparameters do not transfer well as models scale in size.
+
+μP addresses these challenges by enabling:
+
+* Stable training dynamics at a large scale by controlling the initialization, activations magnitude, and layer-wise adaptive learning rates independent of model width
+
+* Zero-shot hyperparameter transfer from a smaller model to larger model. Essentially, μP facilitates width invariance to the model’s hyperparameters.
+
+
+For example, the [Cerebras-GPT](https://arxiv.org/pdf/2304.03208.pdf) family of models was trained using both SP and μP parametrizations. For SP configuration, the hyperparameters were chosen from the best results found in the literature. For μP configurations, μTransfer enabled scaling hyperparameters from a 40M parameter model to models up to 2.7B parameters, resulting in a lower loss. These results highlight how μP can improve large model scaling, improving accuracy, and hyperparameter predictability at scale.
+<Info>
+Note
+
+Appendix G in [Cerebras-GPT paper](https://arxiv.org/pdf/2304.03208.pdf) contains the learnings from the Cerebras team while using μP, including implementation differences with versus SP, μP hyperparameter search details, and advice for practitioners regarding the critical batch size.
+
+In particular, we suggest looking at **Table 14: Cheat Sheet: All implementation details required to compare SP and μP**, to identify differences between μP and SP parametrizations.
+</Info>
+### Transferring hyperparameters[#](#transferring-hyperparameters "Permalink to this headline")
+
+[μTransfer](https://openreview.net/pdf?id=Bx6qKuBM2AD) is a hyperparameter transfer paradigm that makes zero-shot transfer of near-optimal hyperparameters possible from a small version of the model to a large model via μP. The “small model” is called the _proxy-model_ for which the hyperparameters are tuned, and the “large model” is referred to as the _target-model_.
+
+The μTransfer procedure can be broken down as follows:
+
+1.  Tune nearly optimal hyperparameters of the “proxy-model”. In particular, the optimal learning rate, the initialization standard deviation, and the embedding multiplier will be relevant to derive scaling formulas for the “target-model”.
+
+    As an example, the [Cerebras-GPT](https://arxiv.org/pdf/2304.03208.pdf) family used a 200 sample random hyperparameter search on a 40M parameter proxy model trained on 600M tokens with a batch size of 131k tokens. You can find results and details on the optimal hyperparameters in [Appendix G of the paper](https://arxiv.org/pdf/2304.03208.pdf).
+
+2.  Scale up the hyperparameters based on the size of the _target-model_. As of release 2.3, much of this scaling is now automated by default when μP params are specified in the config.
+    <Info>
+        Note
+
+        Old configs are still expected to work in the same manner as they did before, see [the legacy μP guide](mup_docs_legacy.html) for more information.
+
+        Scaling the hyperparameter values from proxy to target model is defined by a series of equations depending on the _layer width multiplier_ $$M_{\text{width}} = \frac{d_{\text{proxy}}}{d_{\text{target}}}$$ where d stands for the width of each layer.
+    </Info>
+    For example, let’s use the 40M parameter Cerebras-GPT model as a proxy model and 2.7B parameter Cerebras-GPT model as the target model. The 40M model has a hidden size of 256, and the 2.7B model has a hidden size of 2560. Thus $${d_{\text{proxy}=256}}$$,$${d_{\text{target}=2560}}$$ , and $$M_{\text{width}} = \frac{d_{\text{proxy}}}{d_{\text{target}}=10}$$. These equations are found in Table 14 Appendix G of [Cerebras-GPT paper](https://arxiv.org/pdf/2304.03208.pdf).
+
+
+In a transformer model, it is helpful to identify which hyperparameters can be μTransferred:
+
+|     |     |     |
+| --- | --- | --- |Table 6 Transferability of hyperparameters in μP[#](#id5 "Permalink to this table")
+| μTransferred Across (They define the training scale) | μTransferable | Not μTransferable (They depend on model and data size) |
+| --- | --- | --- |
+| Width, Depth, Batch Size, Training Time, Sequence Length | Optimization Params, Per-Layer Initialization Variance, Parameter Multipliers | Regularization Params |
+
+* Optimization params: learning rate (LR), momentum, Adam beta, LR schedule, etc.
+
+* Regularization params: Dropout, weight decay, etc.
+
+* Parameter multipliers describe multiplicative constants that apply to weights/biases (embeddings scale, output logits alpha, etc.)
+
+
+## Configuring μP Params For Your Model[#](#configuring-p-params-for-your-model "Permalink to this headline")
+
+In this example, you will perform μTransfer on a GPT-3 2.7B model using a 40M proxy model.
+
+You can enable and configure μP through the model and optimizer params. These parameters differ slightly depending on the backbone of the model for which you want to implement muP, but the overall structure stays the same.
+
+The corresponding config for the 2.7B model is:
+
+```Bash
+trainer:
+  init:
+    ...
+    model:
+      ...
+      hidden_size: 2560
+      filter_size: 10240
+      num_hidden_layers: 32
+      embedding_initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      output_layer_initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      attention_type: scaled_dot_product
+      ...
+    optimizer:
+      AdamW: ...
+    precision:
+      ...
+    schedulers:
+    - ...
+    callbacks:
+      ...
+  fit:
+    ...
+```
+
+### Base dimensions[#](#base-dimensions "Permalink to this headline")
+
+For each model, there is a set of base dimensions that are specifiable. They indicate width dimensions of the proxy model from which you are trying to perform hyperparameter transfer and are the bare minimum params required to enable μP scaling.
+
+In the case of GPT-3, the supported base dimensions are:
+
+* `mup_base_hidden_size` (Required to enable μP):
+
+    The hidden size of the proxy model.
+
+* `mup_base_filter_size` (Required to enable μP):
+
+    The filter size of the proxy model.
+
+<Info>
+Note
+
+Upon specifying base dimensions, the corresponding **learning rates, initialization values, and layer activations will be automatically scaled** according to the width ratio of the dimensions provided for the proxy model and the target model.
+</Info>
+In the case where GPT-3 40M as the proxy model and 2.7B is the target model, you would set `mup_base_hidden_size = 256` and `mup_base_filter_size = 1024` in the config of the target model since they correspond to the `hidden_size` and `filter_size` of the [40M model config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/muP/params_gpt3_40M.yaml).
+
+### Initialization Values[#](#initialization-values "Permalink to this headline")
+
+μP requires the addition of initialization scaling for certain layers. As of release 2.3, we now handle this scaling automatically based on the specified base dimensions. We use the width ratio of the dimensions and base dimensions to scale the standard deviation of the corresponding layers’ initializers. In addition to this, we also scale the initializers of the encoder/decoder output projection layers by `2 * num_(encoder/decoder)_blocks` to aid with transferring across depth.
+<Info>
+Note
+
+For models in which custom initializers can be specified, μP scaling is only compatible with Normal and Truncated Normal distributions.
+</Info>
+### Hyperparameters[#](#hyperparameters "Permalink to this headline")
+
+While specifying the required base dimensions is the bare minimum requirement to enable μP scaling on the model, it is necessary to additionally specify some μP specific hyperparameters to obtain better performance and stability in the model. These parameters modify the way we scale the embeddings, output logits, and the attention module projections in the transformer to stabilize gradient flow during training.
+
+For GPT-3, the following μP hyperparameters are supported:
+
+* `embeddings_scale`:
+
+    Scales the embedding hidden states (i.e. the tensor after embeddings & embedding layer norm are applied). Recommended to tune for stabilizing gradient flow during μP training.
+
+* `output_logits_alpha`:
+
+    Constant applied to the output logits scalar in μP training. The output logits are scaled by `output_logits_alpha * mup_base_hidden_size/hidden_size`. Recommended to tune for stabilizing output logits in μP training.
+
+* `scale_qk_dot_by_d`:
+
+    Scales attention QK dot product by d instead of sqrt(d). Must be enabled for muP training.
+
+* `attention_logits_alpha`:
+
+    Scales the attention QK dot product by the specified value. Recommended to tune for stabilizing attention logits in muP training.
+
+* `scale_output_logits_by_d`:
+
+    Scales the output logits in μP by `mup_base_hidden_size/hidden_size` if True and `sqrt(mup_base_hidden_size/hidden_size)` if False. It is traditionally set to `True` in the μP implementation of this model.
+
+
+### LR Adjustment Groups[#](#lr-adjustment-groups "Permalink to this headline")
+
+μP requires the addition of layer-wise scaling of learning rates to certain layers. As of release 2.3, we now handle this scaling automatically based on the specified base dimensions. The base dimensions are used to calculate the necessary scales on preset LR adjustment groups that apply the scale to layers that correspond to the group.
+
+Following the GPT-3 example, the supported LR adjustment groups are:
+
+* `embedding`: Targets the embedding weights.
+
+* `decoder_attention`: Targets the dense layers in the decoder (Q, K, V, Output projections)
+
+* `decoder_input_ffn`: Targets the first of the two FFN blocks in the decoder.
+
+* `decoder_output_ffn`: Targets the final FFN block in the decoder.
+
+
+You also have the option to override these scales in the YAML by specifying the group in the optimizer params. For example, in order to apply some custom scaling to the embedding weights, you will specify the params as such:
+
+```Bash
+
+optimizer:
+  ...
+  adjust_learning_rate:
+    embedding: <scale-value>
+```
+<Info>
+Note
+
+For those who are writing their own model or modifying those in Modelzoo, you can easily add new groups or modify existing groups by modifying the `create_default_lr_adjustment_groups` function in the `model.py` of a given model.
+</Info>
+### Final Config[#](#final-config "Permalink to this headline")
+
+Putting it all together, the appended params for a GPT-3 2.7B model with a 40M proxy model and custom embedding weights LR scaling would look like this:
+
+```Bash
+
+model:
+  ...
+  mup_base_hidden_size: 256
+  mup_base_filter_size: 1024
+  scale_qk_dot_by_d: True
+  scale_output_logits_by_d: True
+  embeddings_scale: <custom-value>
+  output_logits_alpha: <custom-value>
+  attention_logits_alpha: <custom-value>
+  ...
+
+optimizer:
+  ...
+  adjust_learning_rate:
+    embedding: <custom-value>
+```
+
+Where `<custom-value>` is a placeholder for a hyperparameter value you can determine via sweeping or some other means and is different for each parameter.
+
+Appending those params to the final config:
+
+```Bash
+
+trainer:
+  init:
+    ...
+    model:
+      ...
+      hidden_size: 2560
+      filter_size: 10240
+      num_hidden_layers: 32
+      embedding_initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      output_layer_initializer:
+        a: -0.04
+        b: 0.04
+        mean: 0.0
+        name: truncated_normal
+        std: 0.02
+      attention_type: scaled_dot_product
+
+      # Maximal Update Parametrization (muP) Settings
+      mup_base_hidden_size: 256
+      mup_base_filter_size: 1024
+      scale_qk_dot_by_d: True
+      scale_output_logits_by_d: True
+      embeddings_scale: <custom-value>
+      output_logits_alpha: <custom-value>
+      attention_logits_alpha: <custom-value>
+      ...
+    optimizer:
+      adjust_learning_rate:
+        embedding: <custom-value>
+      AdamW: ...
+    precision:
+      ...
+    schedulers:
+    - ...
+    callbacks:
+      ...
+  fit:
+    ...
+```
+
+## μP-Compatible Models[#](#p-compatible-models "Permalink to this headline")
+
+GPT-2, GPT-3, Bloom, Llama, Falcon, Starcoder, and MPT with decoder-only architecture and autoregressive language modeling objective are supported by μP. As of 2.3, we are also providing beta support for GPTJ, T5, and BERT Pretrain models. μP works with different types of position embeddings such as `ALiBi`, `RoPE`, `Relative` and `Fixed` position embeddings, with efficient attention architectures like Multi-Query Attention, and activation functions such as `SwiGLU`.
+
+Please refer to the following guides for a detailed breakdown of model-specific μP params:
+
+* [Configure μP for GPT-Style Models](gpt_mup.html)
+* [Configure μP for BERT Pretrain (Beta)](bert_mup.html)
+* [Configure μP for T5 (Beta)](t5_mup.html)
+
+## Implementation notes[#](#implementation-notes "Permalink to this headline")
+
+GPT and BERT type models are implemented based off Table 8 of the [Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer paper](https://arxiv.org/pdf/2203.03466), while T5’s implementation is based off Table 9 in order to circumvent some conflicts with its pre-existent initialization scheme.
+
+## Best Practices[#](#best-practices "Permalink to this headline")
+
+When picking the best configuration of the μP hyperparameters from your hyperparameter sweep, it is recommended to pick top-10 configurations from the `40M` base model with the best validation loss. Let’s say the goal is to transfer the hyperparameters to 13B model scale, it is advised to first transfer the hyperparameters to an intermediate sized model size such as `256M` or `590M`.
+
+At the `256M` or `590M` scale, run training with the `top-10` configs for `20` tokens per parameter and evaluate the model using a validation set. To pick the best configuration from validation loss metric, it is recommended to not just look at the lowest loss value but also the training dynamics.
+
+In our experience, for some configurations you may see very low loss values but few instabilities in the training dynamics (which manifest as loss spikes or exploding gradient norm). In that scenario it is best to pick a configuration with second or third best validation loss which exhibit stable training dynamics.
+
+Consult the base μP configuration for the GPT-3 model, available at [40M config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/muP/params_gpt3_40M.yaml). This configuration was employed internally for our hyperparameter optimization processes. Subsequently, we applied μTransfer techniques to upscale to the [256M model](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/muP/params_gpt3_256M.yaml). For different model architectures like Llama and Falcon, it’s necessary to develop a new 40M configuration that aligns with their specific structural requirements.
+
+If there is a significant change in the model architecture such as changing position embeddings from `Relative` to `RoPE` or `ALiBi`, changing activation function from `GeLU` to `SwiGLU`, it is advised to redo the hyperparameter sweep at 40M scale to pick the best configs. In such cases, using the optimal set of hyperparameters from [Cerebras-GPT paper](https://arxiv.org/pdf/2304.03208.pdf) is not recommended.
+
+## Related research[#](#related-research "Permalink to this headline")
+
+1.  Radford, A. et al. (2019). [Language Models are Unsupervised Multitask Learners](https://d4mucfpksywv.cloudfront.net/better-language-models/language-models.pdf).
+
+2.  Brown, T.B. et al. (2020). [Language Models are Few-Shot Learners](https://arxiv.org/abs/2005.14165).
+
+3.  Yang, G. et al. (2022). [Tensor Programs V: Tuning Large Neural Networks via Zero-Shot Hyperparameter Transfer](https://arxiv.org/abs/2203.03466).
+
+4.  Dey, N. et al. (2023). [Cerebras-GPT: Open Compute-Optimal Language Models Trained on the Cerebras Wafer-Scale Cluster](https://arxiv.org/abs/2304.03208).
+

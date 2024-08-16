@@ -1,0 +1,261 @@
+---
+title: "Quickstart Guide For Data Preprocessing"
+---
+  
+
+Overview
+---------------------------------------------------
+
+This guide provides a comprehensive overview of data preprocessing for the Cerebras platform. It covers the steps to set up the environment, preprocess text-only and multimodal datasets for pre-training and fine-tuning, and visualize the preprocessed data. By following this guide, you can ensure your data is prepared efficiently and effectively for machine learning tasks.
+
+Initial setup
+-------------------------------------------------------------
+
+### Preprocess a text-Only dataset for pre-training
+
+#### Setup the raw data
+
+Set up the directory for raw data which will be needed for preprocessing. In case of HuggingFace dataset, refer to &lt;insert-refernece-to-HuggingFace-section&gt;
+
+#### Input files format
+
+The preprocessing pipeline supports input data in various formats; namely - `.jsonl`, `.json.gz`, `.jsonl.zst`, `.jsonl.zst.tar`, `.parquet`, `.txt` and `.fasta`. For more details on how to structure these files, refer to the section on read hooks in the _read-hooks-section.
+<Note>
+Note
+
+To optimally process the files, it is recommended that all files other than `.txt` contain enough text in a single file. Recommended size for each file is in the order of GBs.
+
+If processiing smaller files with `.txt` format, please input a `metadata` file containing a list of paths for these files to better leverage multiprocessing.
+</Note>
+
+#### Prepare data config file
+
+To set up a config file, you will have to specify three sections, namely - `setup`, `processing` and `dataset`.
+
+Example of **data setup** section:
+```
+setup:
+  data:
+    source: "<path/to/dir>"
+    type: "local"
+    split: "test"
+    cache_dir: "path/to/cache_dir"
+    ...other parameters accepted by HuggingFace ``load_dataset`` API...
+
+  mode: "pretraining"
+  output_dir: "./output/dir/here/"
+  processes: 1
+
+```
+
+<Note>
+Note
+
+Set `type` to `huggingface` for HuggingFace data, and set the `source` to the name of the HuggingFace dataset.
+</Note>
+
+Example of **processing** section:
+
+```
+processing:
+  huggingface_tokenizer: "bert-base-uncased"
+  tokenizer_params:
+    param1: value1
+    param2: value2
+  read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.text_read_hook"
+  read_hook_kwargs:
+    data_keys:
+      text_key: "text"
+  resume_from_checkpoint: False
+  max_seq_length: 2048
+  read_chunk_size: 1024
+  write_chunk_size: 1024
+  shuffle: False
+  shuffle_seed: 0
+
+```
+
+Example of **dataset** section:
+```
+dataset:
+  ftfy_normalizer: NFC
+  use_ftfy: False
+  use_vsl: False
+  wikitext_detokenize: False
+  pack_sequences: True
+```
+
+<Note>
+
+Note
+
+Set `training_objective` to `mlm` for MLM tasks, and `fim` for FIM tasks.
+</Note>
+For a comprehensive list of configurations used in Model Zoo, [refer to](https://github.com/Cerebras/monolith/tree/rel-2.3.0/src/models/src/cerebras/modelzoo/data_preparation/data_preprocessing/configs)
+
+Procedure[#](#procedure "Permalink to this headline")
+-----------------------------------------------------
+
+### Applying read hook for pre-training[#](#applying-read-hook-for-pre-training "Permalink to this headline")
+
+This extracts and processes plain text data for reading tasks. It requires a key to extract text from input data.
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.text_read_hook"
+read_hook_kwargs:
+  data_keys:
+    text_key: "text"
+
+```
+```
+[
+  {
+    "content": [
+      {"text": "Extracted text data"}
+    ]
+  }
+]
+
+```
+
+### Preprocess a Multimodal local dataset for fine-tuning[#](#preprocess-a-multimodal-local-dataset-for-fine-tuning "Permalink to this headline")
+
+#### Setup the raw data[#](#id2 "Permalink to this headline")
+
+Set up the directory for raw data which will be needed for preprocessing. Also, set up the image directory needed.
+
+Example of **data setup** section:
+```
+setup:
+  data:
+    source: "/path/to/local/dataset"
+    type: "local"
+
+  mode: "finetuning"
+  output_dir: "./output/dir/here/"
+  processes: 1
+```
+
+Example of **processing** section:
+
+<Note>
+Note
+
+The tokenizer has a custom implementation because of a bug that is present on HuggingFace’s Llama3 tokenizer’s `offset_mapping` calculation. (see: [https://github.com/huggingface/tokenizers/issues/1553](https://github.com/huggingface/tokenizers/issues/1553)). Once that is fixed, this tokenizer need not be used.
+
+Also, the current preprocessing pipeline relies on the tokenizer’s `offset_mapping` to process semantic regions. Please use this implementation for Llama3.
+</Note>
+
+```
+processing:
+  custom_tokenizer: cerebras.modelzoo.data_preparation.data_preprocessing.custom_tokenizer_example.CustomLlama3Tokenizer:CustomLlama3Tokenizer
+  tokenizer_params:
+    pretrained_model_name_or_path: "meta-llama/Meta-Llama-3-8B-Instruct"
+    token: "<insert_auth_token>"
+  read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.finetuning_llava_hook_prompt_completion"
+  read_hook_kwargs:
+    data_keys:
+      multi_turn_key: "conversation"
+      image_key: "<name-of-image-column-in-raw-dataset>"
+    image_token: "<image>"
+    phase: 1
+  resume_from_checkpoint: False
+  max_seq_length: 2048
+  read_chunk_size: 1024
+  write_chunk_size: 1024
+  shuffle: False
+  shuffle_seed: 0
+
+```
+
+Example of **dataset** section:
+
+```
+dataset:
+  is_multimodal: True
+  ftfy_normalizer: NFC
+  use_ftfy: False
+  use_vsl: False
+  wikitext_detokenize: False
+  image_dir: "<path/to/image/dir>"
+
+```
+<Note>
+Note
+
+`use_vsl` needs to be set to True in the `train_input` or `eval_input` section of the model config. `use_vsl` is not supported for multimodal tasks.
+</Note>
+### Fine-tuning LLaVA hook prompt completion[#](#fine-tuning-llava-hook-prompt-completion "Permalink to this headline")
+
+This transforms conversation data for fine-tuning LLaVA, alternating between prompt and completion roles. It requires keys for conversation data and image paths. The hook implementation can be found [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/hooks.py#L530).
+
+```
+read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks.finetuning_llava_hook_prompt_completion"
+read_hook_kwargs:
+  data_keys:
+    multi_turn_key: "conversation"
+    image_key: "image_path"
+  image_token: "<image>"
+  phase: 1
+```
+```
+[
+  {
+    "type": "system",
+    "content": [{"text": "A chat between a curious human and an artificial intelligence assistant. "
+                         "The assistant gives helpful, detailed, and polite answers to the human's "
+                         "questions."}]
+  },
+  {
+    "type": "prompt",
+    "content": [
+      {"image": "path/to/image.jpg"},
+      {"text": "User's text before and after image"}
+    ],
+    "semantic_drop_mask": [False, True]
+  },
+  {
+    "type": "completion",
+    "content": [{"text": "Assistant's response"}],
+    "semantic_drop_mask": [False]
+  }
+]
+
+```
+
+For a detailed explanation of the configuration parameters, refer to: the Data preprocessing guide.
+
+You can also refer to some config templates [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/data_preprocessing/configs).
+
+### Running the preprocessing pipeline[#](#running-the-preprocessing-pipeline "Permalink to this headline")
+
+Once the configuration file is prepared, run the below command:
+```
+python preprocess_data.py --config /path/to/configuration/file
+
+```
+
+### Visualization[#](#visualization "Permalink to this headline")
+
+This tool visualizes preprocessed data efficiently and in an organized fashion, allowing for easy debugging and error-catching of the output data.
+```
+python launch_tokenflow.py --output_dir <directory/of/file(s)>
+
+```
+
+#### Arguments[#](#arguments "Permalink to this headline")
+
+* `output_dir`: Contains the file(s) that are to be viewed in the GUI. _\[Required\]_
+    
+* `data_params`: Location of the data_params.json file for the preprocessed dataset. _\[Optional\]_
+    
+* `port`: In case the user wants to specify a different port for the flask server. _\[Optional, default=5000\]_
+    
+
+#### Output[#](#output "Permalink to this headline")
+
+There are 4 sections in the visualization output. `input_strings` and `label_strings` are converted tokens from `input_ids` and `labels` respectively. The tokens in the string sections are highlighted in green when the loss weight is greater than zero for that specific token. Similarly, the tokens are highlighted in red when their attention mask is set to zero. For multimodal datasets, hovering over the image pad tokens also displays the corresponding image in the popup window.
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+By following this guide, you can efficiently set up and run data preprocessing pipelines on the Cerebras platform. This process ensures that your datasets are clean and optimized for further machine learning tasks, improving both performance and accuracy.

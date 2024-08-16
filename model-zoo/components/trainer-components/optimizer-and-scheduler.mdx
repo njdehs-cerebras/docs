@@ -1,0 +1,310 @@
+---
+title: "        Optimizer And Scheduler       "
+---
+  
+
+On this page, you will learn about how to add and configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") with a [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") and with one or more [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") classes. By the end you should have a cursory understanding on how to use the [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") class and [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") class in conjunction with the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+* You must have installed the Cerebras Model Zoo (click [here](../../../Getting-started/Setup-installation.html#setup-installation) if you haven’t).
+    
+* You must be familiar with the [Trainer](../../trainer-overview.html#trainer-overview).
+    
+* Please ensure you have an understanding of the CSTorch optimizer and scheduler classes by reading the [cerebras.pytorch.optim](../../../api/cerebras_pytorch/optim.html#cstorch-optim-class-docs) docs.
+    
+
+Basic Usage[#](#basic-usage "Permalink to this headline")
+---------------------------------------------------------
+
+An [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") implements an optimization algorithm to control how model parameters are updated. Various hyperparameters such as `lr`, `momentum`, and `weight_decay` can be passed to the [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") to give further control. A [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") is used in conjunction with an [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") to adjust the value of these hyperparameters over the course of a run. Currently, schedulers for `lr` and `weight_decay` are supported.
+
+The [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") takes in an `optimizer` argument. An optimizer is used to optimize model weights during training and is required for any run that does any training. `optimizer` can be passed as an [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") class. For details on all available optimizers, see the [CSTorch optimizer class](../../../api/cerebras_pytorch/optim.html#cstorch-optim-class-docs).
+
+The [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") also accepts a `schedulers` argument. Schedulers are used to adjust hyperparameters during training. Typically this adjustment is a decay following some algorithm. The CSTorch API supports schedulers that adjust either learning rate or weight decay. For a full list of available schedulers see [CSTorch scheduler class](../../../api/cerebras_pytorch/optim.html#lr-scheduler-class-docs).
+
+In the example below, you create an SGD optimizer with a single SequentialLR Scheduler that is a LinearLR Scheduler for the first 500 steps, then a CosineDecayLR Scheduler for the next 500 steps.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    optimizer:
+      # Corresponds to cstorch.optim.SGD
+      SGD:
+        lr: 0.01
+        momentum: 0.9
+    schedulers:
+      - SequentialLR:
+          schedulers:
+            - LinearLR:
+                initial_learning_rate: 0.01
+                end_learning_rate: 0.001
+                total_iters: 500
+            - CosineDecayLR:
+                initial_learning_rate: 0.001
+                end_learning_rate: 0.0001
+                total_iters: 500
+    ...
+  ...
+
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    optimizer=lambda model: cstorch.optim.SGD(
+        model.parameters(),
+        lr=0.01,
+        momentum=0.9,
+    ),
+    schedulers=[
+        lambda optimizer: cstorch.optim.lr_scheduler.SequentialLR(
+            optimizer,
+            schedulers=[
+                cstorch.optim.lr_scheduler.LinearLR(
+                    optimizer,
+                    initial_learning_rate=0.01,
+                    end_learning_rate=0.001,
+                    total_iters=500,
+                ),
+                cstorch.optim.lr_scheduler.CosineDecayLR(
+                    optimizer,
+                    initial_learning_rate=0.001,
+                    end_learning_rate=0.0001,
+                    total_iters=500,
+                ),
+            ]
+        ),
+        ...
+    ],
+    ...,
+)
+...
+
+```
+</CodeGroup>
+<Note>
+Note
+
+Note how in python, `optimizer` is passed as a callable, assumed to be a function that takes in a torch.nn.Module and returns a [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer"). It can also be passed as an [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") provided the `model` is already defined.
+
+Similarly `schedulers` is passed as a list of callables, where each element is assumed to be a function that takes in a [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") and returns a [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler"). It can also be passed as an [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") provided the `Optimizer` is already defined.
+
+Using callables allows us to pass in objects without having to predefine inputs to that object.
+</Note>
+Using Tags to Selectively Update[#](#using-tags-to-selectively-update "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
+
+You can use ModelZoo to filter what parameters a scheduler will update. This is done on the optimizer-side by tagging `param_groups` based on glob-like patterns and on the scheduler-side by specifying which tagged groups to update.
+
+### Generating tags in the Optimizer[#](#generating-tags-in-the-optimizer "Permalink to this headline")
+
+The optimizer contains an attribute `param_groups` which is a list of dictionaries containing all parameters. For more information see the [PyTorch documentation](https://pytorch.org/docs/stable/optim.html#per-parameter-options).
+
+Modelzoo has the ability to tag optimizer `param_groups` based on glob-like pattern matching of parameter names. These tagged `param_groups` can then be used to selectively adjust specific parameters.
+
+Parameters are partitioned and tagged via YAML. For example:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    optimizer:
+      Adam:
+        lr: 0.005
+        params:
+          - params: "*bias"
+            tag: "bias_params"
+
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.common.optim_utils import partition_params_group_with_tags
+
+filter_params = {
+    "params": [{"params": "*bias", "tag": "bias_params"}],
+}
+trainer = Trainer(
+    ...,
+    optimizer=lambda model: cstorch.optim.SGD(
+        partition_params_group_with_tags(model.parameters(), filter_params),
+        lr=0.01,
+        momentum=0.9,
+    ),
+    ...,
+)
+...
+
+```
+</CodeGroup>
+This specification would group all parameters whose names end in `"bias"` into one group with the tag `"bias_params"`. All remaining parameters would be in another group with no tags.
+
+For cases where multiple filters are specified and target overlapping subsets, `param_groups` will be partitioned into all unique combinations of tags.
+
+For example, if you had parameters named:
+```
+fc1.weight
+fc1.bias
+fc2.weight
+fc2.bias
+
+```
+
+Given these filters:
+```
+params:
+  -  params:  "*bias"
+  tag:  "bias_params"
+  -  params:  "fc1*"
+  tag:  "fc1_params"
+
+```
+
+You will end up with params groups partitioned like this:
+```
+[
+    {"tags": set("bias_params"), "params": ("fc2.bias", ...)},
+    {"tags": set("fc1_params"), "params": ("fc1.weight", ...)},
+    {"tags": set("bias_params", "fc1_params"), "params": ("fc1.bias", ...)},
+    {"params": ("fc2.weight", ...)},
+]
+```
+
+Currently, the main application for parameter tagging is for selectively applying schedulers to specific parameters.
+
+<Note>
+Note
+
+By default, ModelZoo may perform other partitioning operations on `param_groups`. This may affect the length of `param_groups` however the placement of `"tags"` will still be correctly preserved. See [`configure_param_groups`](../../../port/_autosummary/cerebras.modelzoo.common.optim_utils.configure_param_groups.html#cerebras.modelzoo.common.optim_utils.configure_param_groups "cerebras.modelzoo.common.optim_utils.configure_param_groups") for more details.
+</Note>
+### Specifying tags in the Scheduler[#](#specifying-tags-in-the-scheduler "Permalink to this headline")
+
+Using the `param_group_tags` argument, individual schedulers can be configured to only target specific optimizer `param_groups`. For example:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    schedulers:
+      - LinearLR:
+          initial_learning_rate: 0.01
+          end_learning_rate: 0.001
+          total_iters: 100
+          param_group_tags: "tag1"
+    ...
+  ...
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+trainer = Trainer(
+    ...,
+    schedulers=[
+        lambda optimizer: cstorch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            initial_learning_rate=0.01,
+            end_learning_rate=0.001,
+            total_iters=100,
+            param_group_tags="tag1",
+        ),
+        ...
+    ],
+    ...,
+)
+...
+
+```
+</CodeGroup>
+In the example above, the learning rate scheduler specified will only update optimizer `param_groups` that have the `"tag1"` tag.
+
+These tags can be added to `param_groups` manually but the most common use case is in conjunction with [optimizer tagging](#generating-tags-in-the-optimizer).
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    optimizer:
+      Adam:
+        lr: 0.005
+        params:
+          - params: "*bias"
+            tag: "bias_params"
+    schedulers:
+      - CosineDecayWD:
+          initial_weight_decay: 0.01
+          end_weight_decay: 0.001
+          total_iters: 100
+          param_group_tags: "bias_params"
+
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.common.optim_utils import partition_params_group_with_tags
+
+filter_params = {
+    "params": [{"params": "*bias", "tag": "bias_params"}],
+}
+trainer = Trainer(
+    ...,
+    optimizer=lambda model: cstorch.optim.SGD(
+        partition_params_group_with_tags(model.parameters(), filter_params),
+        lr=0.01,
+        momentum=0.9,
+    ),
+    schedulers=lambda optimizer: cstorch.optim.weight_decay_scheduler.CosineDecayWD(
+        optimizer,
+        initial_weight_decay=0.01,
+        end_weight_decay=0.001,
+        total_iters=100,
+        param_group_tags="bias_params",
+    )
+    ...,
+)
+...
+
+```
+</CodeGroup>
+In the example above, the `CosineDecayWD` scheduler would only adjust the weight decay of parameters whose names end in `"bias"`.
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That concludes this overview of using the [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") and the [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") in conjunction with the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer"). By this point, you should have a cursory understanding of how to construct and configure a [`Optimizer`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") and [`Scheduler`](../../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") inside a [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instance.
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+To learn more about how to configure checkpointing behaviour using the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer"), see Model Zoo Trainer - Checkpoint.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn about how you can configure a [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instance using a YAML configuration file, you can check out:
+
+* Trainer YAML Overview
+    
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

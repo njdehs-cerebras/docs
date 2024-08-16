@@ -1,0 +1,53 @@
+---
+title: " Modulenotfounderror "
+---
+
+## ModuleNotFoundError: No module named &lt;’\_bz2’, ‘\_sqlite3’&gt;[#](#modulenotfounderror-no-module-named-bz2-sqlite3 "Permalink to this headline")
+
+Users may experience a `ModuleNotFoundError` for some Python provided packages on their local machine.
+
+### Observed Error[#](#observed-error "Permalink to this headline")
+
+This line of code
+```bash
+import bz2
+```
+gives error:
+
+```bash
+Traceback (most recent call last):
+import bz2
+File "/usr/local/lib/python3.8/bz2.py", line 19, in <module>
+    from _bz2 import BZ2Compressor, BZ2Decompressor
+ModuleNotFoundError: No module named '_bz2'
+```
+
+### Explanation[#](#explanation "Permalink to this headline")
+
+Python installation was built from source but didn’t have all necessary system packages installed for full Python build.
+
+### Work around[#](#work-around "Permalink to this headline")
+
+Install _bzip2-devel_ and _sqlite-devel_ and rebuild Python, or download a pre-built Python binary.
+
+## ModuleNotFoundError: No module named &lt;…&gt;[#](#modulenotfounderror-no-module-named "Permalink to this headline")
+
+
+Users may experience a `ModuleNotFoundError` for some Python packages that are available on their local machine.
+
+### Explanation[#](#id1 "Permalink to this headline")
+
+The [Custom Worker Container Workflow](../Fundamentals/custom-worker.html#custom-worker) provides seamless support for importing user-specific dependency packages in the Python environments into the Cerebras appliances. In case of failure, a fallback policy has also been enabled to mount the site packages from the user node Python virtual environment to the worker environment via a predefined NFS-based cluster volume.
+
+### Work around[#](#id2 "Permalink to this headline")
+
+If you observe a `ModuleNotFoundError`, you can disable the Custom Worker Container Workflow by following the instructions [here](../Fundamentals/custom-worker.html#custom-worker), and follow the R1.8 approach:
+
+* pip install the packages in virtual environment
+
+* Copy the custom package directory from `venv/lib/python3.8/site-packages/<package_name>` to a NFS-mountable location for the Cerebras cluster. Only copy the custom packages, not the entire virtual environment.
+
+* Make sure to add this location to the `--mount_dirs` command line argument and the corresponding parent location to the `--python_paths` command line argument when calling run.py.
+
+
+

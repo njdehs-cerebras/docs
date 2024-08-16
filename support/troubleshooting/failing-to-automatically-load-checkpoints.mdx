@@ -1,0 +1,19 @@
+---
+title: " Failing To Automatically Load Checkpoints "
+description: "When adding a custom checkpoint into `model_dir`, the run command does not automatically pick that up in my model_dir and runs with it. Instead, it reports that no checkpoint is found."
+---
+
+
+## Explanation[#](#explanation "Permalink to this headline")
+
+
+Cerebras ModelZoo PyTorch runs have a feature (enabled by default) to auto-load the last available checkpoint in the `model_dir` if a `--checkpoint_path` is not explicitly provided. It is important to note that only a specific checkpoint naming scheme is checked to find the latest checkpoint. All files in the format `checkpoint_<step>.mdl` are checked in the model_dir. If one or more are found, the file with the highest value of `<step>` is chosen and model weights are initialized with that checkpoint. This feature can be turned off by setting `runconfig.autoload_last_checkpoint` to `False` in the params yaml file.
+
+## Work around[#](#work-around "Permalink to this headline")
+
+You can either
+
+* Provide a checkpoint inside `model_dir` with the naming format `checkpoint_<step>.mdl`, or
+
+* Specify checkpoint path by using the `--checkpoint_path` flag.
+

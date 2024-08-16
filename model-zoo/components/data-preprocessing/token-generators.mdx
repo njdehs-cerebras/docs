@@ -1,0 +1,223 @@
+---
+title: "        Token Generators       "
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Setting up token generators is a crucial step in the preprocessing pipeline for machine learning tasks on Cerebras Systems. Token generators convert raw data into tokenized formats suitable for machine learning models, ensuring efficient and effective data processing. This guide covers the configuration of pre-built and custom token generators, along with examples and use cases.
+
+Pre-Built Token Generators[#](#pre-built-token-generators "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+Cerebras Model Zoo provides a comprehensive suite of pre-built token generators tailored to support various stages and tasks in the development of LLMs. The initialization of these token generators is dependent on the `mode` parameter that is specified in the config file (refer to [Modes and Dataset Parameters](../../../port/prepare-data/data_preprocessing.html#modes-section)).
+
+### Supported token generators[#](#supported-token-generators "Permalink to this headline")
+
+#### For Pretraining mode[#](#for-pretraining-mode "Permalink to this headline")
+
+* `PretrainingTokenGenerator`: General-purpose pretraining on large text corpora. When `training_objective` is set to `mlm`, it does MLM task processing.
+    
+* `MultiModalPretrainingTokenGenerator`: For multimodal data, integrating text, and images. Initialized when `is_multimodal` is set to `True` in the config file.
+    
+* `FIMTokenGenerator`: Designed for fill-in-the-middle tasks. Initialized when `training_objective` is set to `fim` in the config file.
+    
+* `VSLPretrainingTokenGenerator`: For visual and language pretraining. Initialized when `use_vsl` is set to `True` in the config file.
+    
+
+#### For Fine-tuning mode[#](#for-fine-tuning-mode "Permalink to this headline")
+
+* `FinetuningTokenGenerator`: General-purpose fine-tuning.
+    
+* `MultiModalFinetuningTokenGenerator`: Fine-tuning with multimodal data. Initialized when `is_multimodal` is set to `True` in the config file.
+    
+* `VSLFinetuningTokenGenerator`: Fine-tuning for visual and language tasks. Initialized when `use_vsl` is set to `True` in the config file.
+    
+
+#### Other Supported Token Generators[#](#other-supported-token-generators "Permalink to this headline")
+
+* `DPOTokenGenerator`: Focused on direct preference optimization (DPO) during token generation. Initialized when `mode` is set to `dpo`.
+    
+* `NLGTokenGenerator`: Optimized for natural language generation tasks. Initialized when `mode` is set to `nlg`.
+    
+
+### Flags Supported by Pre-built Token Generators[#](#flags-supported-by-pre-built-token-generators "Permalink to this headline")
+
+This section lists all the flags that are supported by the various token generators, along with their default values.
+
+### Common Parameters[#](#common-parameters "Permalink to this headline")
+
+This section lists down parameters that are common and can be used across all the token generators.
+
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| use_ftfy | False | Fix text with ftfy. |
+| ftfy_normalizer | NFC | Choose what kind of unicode normalization is applied. Usually, we apply NFC normalization, so that letters followed by combining characters become single combined characters. Using None applies no normalization while fixing text. |
+| wikitext_detokenize | False | Use wikitext detokenizer to fix text. |
+| min\_sequence\_len | 10  | Minimum token length to skip the sample. |
+| input\_ids\_dtype | int32 | dtype of processed input_ids. |
+| input\_mask\_dtype | int32 | dtype of processed input loss masks. |
+| max\_seq\_length | 2048 | Maximum sequence length. |
+
+### Pretraining Parameters[#](#pretraining-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `PretrainingTokenGenerator`.
+
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| pack_sequences | True | Concatenate a document smaller than maximum sequence length with other documents, instead of filling it with Padding token. |
+| inverted_mask | False | If False, 0 represents masked positions. If True 1 represents masked positions. |
+| seed | 0   | Random seed used for generating short sequences |
+| short\_seq\_prob | 0.0 | Probability of creating sequences which are shorter than the maximum sequence length. |
+| split\_text\_to_tokenize | False | Whether to split the text into smaller chunks before tokenization. This is helpful for very long documents with tokenizers such as Llama tokenizer which performs quadratically in the text length. |
+| chunk\_len\_to_split | 2000 | Length of the text chunks to split the text into before tokenization for slower tokenizers. Could be optionally used with the above flag split\_text\_to_tokenize. Without the previous flag, this argument will be ignored. |
+| remove\_bos\_in_chunks | False | Whether to remove the BOS token from the beginning of the chunks. Set this to True when using split\_test\_to_tokenize and chunk\_len\_to_split to avoid having multiple BOS tokens in the middle of the text. Not applicable to all tokenizers. |
+
+<Note>
+Note
+
+In this case, it also uses all the config paramaters that are used by `PretrainingTokenGenerator`, in addition to the ones specified below.
+</Note>
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| mlm_fraction | 0.15 | Fraction of tokens to be masked in MLM tasks. |
+| mlm\_with\_gather | False | MLM processing mode. When set to True the length of the returned labels is equal to mlm_fraction * msl, else it is equal to msl |
+| ignore_index | -100 | Required when mlm\_with\_gather is set to False. Presence of ignore_index value at a position in the labels indicates that this position will not be used for loss calculation. |
+| excluded_tokens | \[‘&lt;cls&gt;’, ‘&lt;pad&gt;’, ‘&lt;eos&gt;’, ‘&lt;unk&gt;’, ‘&lt;null_1&gt;’, ‘&lt;mask&gt;’\] | Tokens to be excluded when masking. Provided only through YAML config. |
+
+### VSL Finetuning Token Generator Parameters[#](#vsl-finetuning-token-generator-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `VSLFineTuningTokenGenerator`.
+
+<Note>
+Note
+
+`VSLFineTuningTokenGenerator` also uses the config paramaters that are used by `FineTuningTokenGenerator`, in addition to the ones specified below.
+</Note>
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| use_vsl | True | Generate examples with multiple sequences packed together |
+| position\_ids\_dtype | int32 | dtype of token position ids. |
+
+<Note>
+Note
+
+Increasing the read chunk size will increase the packing factor of VSL. So, the user needs to figure out the tradeoff between higher packing and processing time depending on the dataset’s packing factor.
+</Note>
+### VSL Pretraining Token Generator Parameters[#](#vsl-pretraining-token-generator-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `VSLPretrainingTokenGenerator`. `use_vsl` needs to be set to True in the `train_input` or `eval_input` section of the model config.
+
+<Note>
+Note
+
+`VSLPretrainingTokenGenerator` also uses the config paramaters that are used by `PretrainingTokenGenerator`, in addition to the ones specified below.
+</Note>
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| use_vsl | True | Generate examples with multiple sequences packed together |
+| fold\_long\_doc | True | Fold documents larger than max\_seq\_length into multiple sequences, instead of dropping them. |
+
+### DPO Token Generator Parameters[#](#dpo-token-generator-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `DPOTokenGenerator`.
+
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| max\_prompt\_length | 512 | If the sequence exceeds the `max_seq_length`, this parameters caps the prompt length to the specified limit. |
+| response_delimiter | `<response>` | This is used to set the separator between `prompt` and `response`. The user need not set this value for general use-case. |
+
+### Multimodal Pretraining Token Generator Parameters[#](#multimodal-pretraining-token-generator-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `MultiModalPretrainingTokenGenerator`.
+
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| image_dir | None | Absolute path of image directory. Used along with the relative path under the image_key field in read\_hook\_kwargs to check that images exist, and throw out examples with no image. |
+| max\_num\_img | 1   | Maximum number of images allowed in one preprocessed sequence. Sequences with more than max\_num\_img images will be discarded |
+| num_patches | None | Number of patches to represent an image. This is determined by the patch-size (in pixels) of the image-encoder, and the pixel count of the input images. |
+| semantic\_attention\_mask | {}  | Dictionary which indicates the attention mask of the different semantic regions. |
+| semantic\_drop\_mask | {}  | Dictionary which indicates which semantic region to drop from input data before tokenization |
+| semantic\_loss\_weight | {}  | Dictionary which indicates the loss mask of the different semantic regions post tokenization |
+
+### Multimodal Finetuning Token Generator Parameters[#](#multimodal-finetuning-token-generator-parameters "Permalink to this headline")
+
+This section lists down parameters that can be used for `MultiModalFinetuningTokenGenerator`.
+<Note>
+Note
+
+`MultiModalFinetuningTokenGenerator` also uses config paramaters that are used by `FineTuningTokenGenerator`, in addition to the ones specifed below.
+</Note>
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| image_dir | None | Absolute path of image directory. Used along with the relative path under the image_key field in read\_hook\_kwargs to check that images exist, and throw out examples with no image. |
+| max\_num\_img | 1   | Maximum number of images allowed in one preprocessed sequence. Sequences with more than max\_num\_img images will be discarded |
+| num_patches | None | Number of patches to represent an image. This is determined by the patch-size (in pixels) of the image-encoder, and the pixel count of the input images. |
+| semantic\_attention\_mask | {}  | Dictionary which indicates the attention mask of the different semantic regions. |
+
+Custom Token Generators[#](#custom-token-generators "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+In addition to pre-built token generators, the Model Zoo allows users to implement custom token generators. This enables arbitrary transformations of the input data before tokenization.
+
+### Procedure[#](#procedure "Permalink to this headline")
+
+To use custom token generators, ensure the configuration file is properly set up. Follow these steps:
+
+**1.** Ensure that the `mode` param is set to `custom`, in order to be able to specify your own token generator. **2.** Specify the path to the custom token generator class in the config file, in the `token_generator` param, within the `setup` section. This would look like:
+```
+mode: "custom"
+token_generator: "<path/to/custom-generator-class>"
+
+```
+<Note>
+Note
+
+The `token_generator` path should be specified with the class name being separated with a colon **:** from the module name, for the custom token generator be instantiated correctly.
+</Note>
+### Class Implementation Guidelines[#](#class-implementation-guidelines "Permalink to this headline")
+
+The custom token generator must adhere to the following guidelines:
+
+**1.** The constructor’s signature must be as follows:
+
+```
+def __init__(
+    self, params: Dict[str, Any], tokenizer: Any, eos_id: int, pad_id: int
+):
+    """
+    Args:
+        params (Dict[str, Any]): Parameters for the dataset and processing.
+        tokenizer (Any): Tokenizer to use for tokenization.
+        eos_id (int): End-of-sequence token ID.
+        pad_id (int): Padding token ID.
+    """
+
+```
+
+**2.** The custom token generator must implement an `encode` method, which tokenizes and encodes the data according to the user definition. For more examples on how the `encode` method looks like, refer to the code of pre-built token generators that are present in Model Zoo.
+
+**3.** The signature of the `encode` method is given below, where it takes in a `semantic_data_array`:
+```
+def encode(
+    self, semantic_data_array: List[Dict[str, Any]]
+) -> Tuple[Dict[str, Any], Dict[str, int]]:
+
+```
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Configuring token generators is an important step in the preprocessing pipeline for machine learning tasks on Cerebras Systems. By leveraging the comprehensive suite of pre-built token generators provided by Cerebras ModelZoo, you can efficiently handle various stages and tasks in the development of large language models. Additionally, the flexibility to implement custom token generators allows for tailored transformations of input data, meeting specific project requirements.
+
+The introduction of **on-the-fly** data processing further enhances the preprocessing workflow by reducing storage needs and increasing adaptability during training and evaluation. The examples provided for pretraining and fine-tuning configurations illustrate how to set up these processes seamlessly.
+
+Finally, the **TokenFlow** utility offers an invaluable tool for visualizing and debugging preprocessed data, ensuring data integrity and facilitating error detection. By following the guidelines and leveraging the tools outlined in this guide, you can optimize your preprocessing pipeline, leading to more efficient training and improved performance of your machine learning models on Cerebras Systems

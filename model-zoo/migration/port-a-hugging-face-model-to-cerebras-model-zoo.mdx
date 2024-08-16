@@ -1,0 +1,75 @@
+---
+title: "      Port A Hugging Face Model To Cerebras Model Zoo     "
+---
+  
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+This guide presents you step-by-step intructions on how to convert a Hugging Face model to the Cerebras Model Zoo format.
+
+Procedure[#](#procedure "Permalink to this headline")
+-----------------------------------------------------
+
+**1.** **Download the Checkpoint and Config Files**
+
+First, you need to download the model’s checkpoint and configuration files from Hugging Face. Here’s how you can do it for `BertForPreTraining`:
+```
+from transformers import BertForPreTraining
+
+# Replace 'bert-base-uncased' with the model you are interested in
+model = BertForPreTraining.from_pretrained("bert-base-uncased")
+model.save_pretrained("bert_checkpoint")
+```
+
+This code will save two files in the `bert_checkpoint` directory:
+
+* config.json: The model’s configuration file.
+    
+* pytorch_model.bin: The model’s weights.
+    
+
+**2.** **Convert the Checkpoint to Cerebras Format**
+
+Now that you have the necessary files, you can convert them to a format compatible with the Cerebras Model Zoo. Use the provided conversion script in the Cerebras Model Zoo toolkit. Here’s the command:
+
+```
+# Navigate to the directory containing the convert_checkpoint.py script
+cd <modelzoo path>/modelzoo/common/model_utils/
+
+# Run the conversion
+python convert_checkpoint.py convert \
+   --model bert \  # Specify the model type
+   --src-fmt hf \  # Source format (Hugging Face)
+   --tgt-fmt cs-2.0 \  # Target format (Cerebras)
+   bert_checkpoint/pytorch_model.bin \  # Input checkpoint file
+   --config bert_checkpoint/config.json  # Configuration file
+
+```
+
+Replace `<modelzoo path>` with the actual path to the Model Zoo directory on your system.
+
+**3.** **Verify the Output**
+
+After running the conversion script, check the `bert_checkpoint` directory for the output files:
+
+* `pytorch_model_to_cs-2.0.mdl`: The converted model checkpoint.
+    
+* `config_to_cs-2.0.yaml`: The converted configuration file.
+    
+
+**4.** **Use the converted model**
+
+With the converted files, you can now use the Cerebras Model Zoo tools and workflows to further train or deploy the model on Cerebras hardware.
+
+Additional notes[#](#additional-notes "Permalink to this headline")
+-------------------------------------------------------------------
+
+* If you’re converting a different model (not BERT), replace `--model bert` with the appropriate model flag.
+    
+* If the model you’re converting has a specific variant or is a fine-tuning model, ensure you’re using the correct converter and flags as per the Cerebras documentation.
+    
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Converting a Hugging Face model to the Cerebras Model Zoo format enables users to leverage the powerful computational capabilities of Cerebras’s hardware for their pre-trained models. By following the step-by-step procedure to download the necessary files from Hugging Face and converting them using the provided script, users can seamlessly transition their models into the Cerebras environment. This process not only broadens the scope of models that can benefit from the Cerebras Wafer-Scale Engine but also facilitates a more versatile and comprehensive utilization of pre-trained models across different platforms, enhancing the adaptability and efficiency of machine learning workflows.

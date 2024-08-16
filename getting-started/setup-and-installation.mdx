@@ -1,0 +1,55 @@
+---
+title: "Setup And Installation"
+---
+
+
+## Overview
+
+In this setup guide, you will:
+
+*   Clone the Model Zoo repository
+
+*   Setup a virtual environment
+
+*   Install dependencies
+
+
+## Prerequisites
+
+Before you begin, you must have access to a Cerebras system. Contact Cerebras Support for any system configuration access and concerns.
+
+### Clone Model Zoo
+```
+git clone https://github.com/Cerebras/modelzoo.git
+```
+
+### Create virtual environment
+
+```bash
+python3.8 -m venv modelzoo_venv
+source modelzoo_venv/bin/activate
+```
+
+
+
+### Install dependencies
+```bash
+pip install --upgrade pip
+pip install -r modelzoo/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+```
+
+### Verify installation
+```
+cerebras_install_check
+```
+
+
+## What’s next?
+
+*   [Pre-train](Quickstart-for-pretrain.html) your first model.
+
+*   [Fine-tune](Quickstart-for-fine-tune.html) your first model.
+
+*   Learn the [data preprocessing](../Model-zoo/core_workflows/quick-start-guide.html) basics.
+
+*   Learn more about our [Model Zoo](../Model-zoo/MZ-overview.html).

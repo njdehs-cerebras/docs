@@ -1,0 +1,13 @@
+---
+title: "Dataloaders"
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Efficient data loading is essential for high-performance machine learning, as it directly impacts the speed and efficiency of training and inference. PyTorch’s “DataLoader” class provides robust support for this through parallelized data loading and batch retrieval. By utilizing “Dataset” and “IterableDataset”, users can manage and stream data efficiently, whether it’s stored locally or fetched from remote sources.
+
+The Cerebras Model Zoo builds on PyTorch’s capabilities by offering custom dataloaders tailored for specific tasks, such as `BertCSVDataProcessor` for reading CSV files and `GptHDF5MapDataProcessor` for handling HDF5 files. These enhancements are crucial for optimizing data pipelines, especially when working with the high-speed, parallel processing capabilities of Cerebras systems.
+
+For a deeper dive into optimizing PyTorch dataloaders for Cerebras systems, refer to our guides on [Dataloaders for PyTorch](Dataloaders/dataloader_pt.html) and [Creating Custom Dataloaders](Dataloaders/custom_dataloaders.html). These resources provide detailed insights and practical tips for maximizing data loading efficiency in your machine learning projects.

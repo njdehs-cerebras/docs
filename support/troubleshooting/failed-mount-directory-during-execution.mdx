@@ -1,0 +1,53 @@
+---
+title: "Failed Mount Directory During Execution"
+---
+
+## Observed Error[#](#observed-error "Permalink to this headline")
+
+During execution, your training job (e.g. `python ./models/nlp/gptj/run.py CSX --params ./models/nlp/gptj/configs/params_gptj_6B.yaml --mode train --python_paths /path/to/modelzoo/ --mount_dirs /path/to/data /path/to/modelzoo/ --num_epochs 1` fails with the error.
+
+```bash
+ERROR:   Uncaught exception:
+Traceback (most recent call last):
+ File "./transformers/pytorch/gptj/run.py", line 37, in <module>
+   main()
+ File "./transformers/pytorch/gptj/run.py", line 32, in main
+   GptjModel, train_input_dataloader, eval_input_dataloader, set_defaults,
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/run_utils.py", line 249, in run
+   return run_with_params(params, model_fn, train_data_fn, eval_data_fn)
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/run_utils.py", line 290, in run_with_params
+   params, model_fn, train_data_fn, eval_data_fn
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/run_utils.py", line 333, in run_base_model_flow
+   runner.train(train_loader)
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/pytorch_cs_appliance.py", line 388, in train
+   super().train(dataloader)
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/pytorch_base_runner.py", line 732, in train
+   exit_training = self.train_epoch(epoch, train_dataloader)
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/pytorch_base_runner.py", line 798, in train_epoch
+   self.on_train_batch_end(accum_loss, epoch, epoch_step)
+ File "./transformers/pytorch/gptj/../../../../modelzoo/common/pytorch/pytorch_cs_appliance.py", line 252, in on_train_batch_end
+   send_weights_grouper=self.send_weights_grouper,
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_pytorch/core/appliance.py", line 300, in execute
+   response = self.request_execute_job(mgmt_client, self._compile_resp)
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_appliance/appliance_manager.py", line 456, in request_execute_job
+   python_paths=self._mgmt_python_paths,
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_appliance/cluster_client.py", line 316, in init_execute_job
+   return self.get_job_handle(init_response.job_id, job_props, skip_ingress_creation)
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_appliance/cluster_client.py", line 351, in get_job_handle
+   ingress_response = self._poll_ingress_readiness(job_id)
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_appliance/cluster_client.py", line 235, in _poll_ingress_readiness
+   raise e
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/cerebras_appliance/cluster_client.py", line 222, in _poll_ingress_readiness
+   for response in responses:
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/grpc/_channel.py", line 426, in __next__
+   return self._next()
+ File "/home/venv_cerebras_pt/lib/python3.8/site-packages/grpc/_channel.py", line 826, in _next
+   raise self
+grpc._channel._MultiThreadedRendezvous: <_MultiThreadedRendezvous of RPC that terminated with:
+       status = StatusCode.INTERNAL
+       details = "Please contact the Cerebras Support Team. Poll ingress failed during wsjob initialization: job-operator/wsjob-00000 has failed because total 1 replica(s) failed: [name:"wsjob-000000-worker-0" lastTimestamp:"2023-01-01 00:00:00 +0000 UTC" reason:"FailedMount" message:"Unable to attach or mount volumes: unmounted volumes=[home-volume-111111111 training-data-volume-22222 workdir-volume], unattached volumes=[kube-api-access home-volume-11111111111 training-data-volume-22222 workdir-volume worker-cache-partition-ro-volume worker-cache-dir-volume worker-dev-shm-volume cfg]: timed out waiting for the condition"]"
+```
+
+## Work around[#](#work-around "Permalink to this headline")
+
+This error is under investigation by Cerebras team. In some intances, re-running the command could solve the problem.

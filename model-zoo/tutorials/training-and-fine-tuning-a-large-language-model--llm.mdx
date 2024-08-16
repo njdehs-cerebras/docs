@@ -1,0 +1,828 @@
+---
+title: "Training And Fine Tuning A Large Language Model  LLM"
+description: "If you are interested in using a different dataset, you can still use the [create HDF5 dataset tool](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/hdf5_preprocessing) from Cerebras Model Zoo used in [step 2](#toy-demo-data)."
+---
+**Estimated time: 30 mins to 1 hour** <br></br>
+In addition, if you are using a larger GPT model, change the YAML configuration used in steps [4](#toy-demo-scratch) and [5](#toy-demo-finetune). Here are some examples of GPT3 model configurations from [Cerebras Model Zoo GPT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/Cerebras_GPT) and [other GPT-3 configurations](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs).
+
+## Prerequisites
+
+You have access to the user node in the Cerebras Wafer-Scale cluster. Contact your sys admin if you face any issues in the system configuration.
+
+## Setting up the Cerebras Model Zoo
+
+For convenience, you will set up the data and code inside a parent folder called `demo` \- a directory that you will have to create yourself. In addition, you will define an environment variable called `PARENT_CS` to return to this parent directory at the anytime.
+
+**1.** Create a parent directory, `demo`, to include all the data, code, and checkpoints. Export an environment variable `PARENT_CS` with the full path to the parent directory. This environment variable will be helpful when pointing to the absolute path during the execution.
+```Bash
+mkdir demo
+```
+```Bash
+cd demo
+```
+```Bash
+export PARENT_CS=$(pwd)
+```
+**2.** Clone the Cerebras Model Zoo inside the demo folder, a repository with reference models and tools to run on the Cerebras Wafer-Scale cluster.
+
+```Bash
+git clone https://github.com/Cerebras/modelzoo.git
+```
+
+**Output**
+
+```Bash
+Cloning into 'modelzoo'...
+remote: Enumerating objects: 1690, done.
+remote: Counting objects: 100% (163/163), done.
+remote: Compressing objects: 100% (79/79), done.
+remote: Total 1690 (delta 105), reused 85 (delta 84), pack-reused 1527
+Receiving objects: 100% (1690/1690), 21.58 MiB | 27.35 MiB/s, done.
+Resolving deltas: 100% (942/942), done.
+```
+
+At this point, you should have a folder called `modelzoo` inside the `demo` parent directory.
+
+## Preparing data for the Cerebras Wafer-Scale cluster
+
+<Info>
+Cerebras Model Zoo contains customized scripts to download and prepare [OWT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/owt/) and [Pile](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/pile/) datasets. If interested, refer to them when training GPT-style models with OWT or Pile datasets. Hierarchical Data Format, Version 5(HDF5) files provide an efficient way of loading data in the Cerebras’s Wafer-Scale cluster. The Cerebras Model Zoo contains a `create_hdf5_dataset.py` script that tokenizes the input documents and creates token IDs, labels, and attention masks. For more information, refer to hdf5_dataset_gpt.
+</Info>
+
+**1.** Download the [WikiText-2](https://www.salesforce.com/products/einstein/ai-research/the-wikitext-dependency-language-modeling-dataset/) raw dataset by first creating a `data` folder, and in the folder, download the dataset’s `zip` file containing the dataset.
+
+```Bash
+cd $PARENT_CS
+```
+```Bash
+mkdir data
+```
+```Bash
+cd data
+```
+```Bash
+
+wget https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-raw-v1.zip
+```
+**Output**
+
+```Bash
+--2023-04-25 00:00:00--  https://s3.amazonaws.com/research.metamind.io/wikitext/wikitext-2-raw-v1.zip
+Resolving s3.amazonaws.com (s3.amazonaws.com)... 52.216.137.70, 52.217.89.246, 52.217.121.224, ...
+Connecting to s3.amazonaws.com (s3.amazonaws.com)|52.216.137.70|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 4721645 (4.5M) [application/zip]
+Saving to: ‘wikitext-2-raw-v1.zip’
+
+100%[===============================================================>] 4,721,645    917KB/s   in 6.3s
+
+2023-04-25 00:00:00 (738 KB/s) - ‘wikitext-2-raw-v1.zip’ saved [4721645/4721645]
+```
+
+Decompress the zip file.
+
+```Bash
+unzip wikitext-2-raw-v1.zip
+```
+
+**Output**
+
+```Bash
+Archive:  wikitext-2-raw-v1.zip
+   creating: wikitext-2-raw/
+  inflating: wikitext-2-raw/wiki.test.raw
+  inflating: wikitext-2-raw/wiki.valid.raw
+  inflating: wikitext-2-raw/wiki.train.raw
+```
+
+Remove the zip file.
+
+```Bash
+rm wikitext-2-raw-v1.zip
+```
+
+**2.** Inside the `wikitext-2-raw-v1` folder, you will find three files corresponding to train, validation, and test splits. Explore these files to understand the raw dataset format. The data is in `txt` format.
+
+```Bash
+head -n5 wikitext-2-raw/wiki.train.raw
+```
+**Output**
+
+```Bash
+= Valkyria Chronicles III =
+
+Senjō no Valkyria 3 : Unrecorded Chronicles ( Japanese : 戦場のヴァルキュリア3 , lit . Valkyria of the Battlefield 3 ) , commonly referred to as Valkyria Chronicles III outside Japan , is a tactical role @-@ playing video game developed by Sega and Media.Vision for the PlayStation Portable . Released in January 2011 in Japan , it is the third game in the Valkyria series . Employing the same fusion of tactical and real @-@ time gameplay as its predecessors , the story runs parallel to the first game and follows the " Nameless " , a penal military unit serving the nation of Gallia during the Second Europan War who perform secret black operations and are pitted against the Imperial unit " Calamaty Raven " .
+The game began development in 2010 , carrying over a large portion of the work done on Valkyria Chronicles II . While it retained the standard features of the series , it also underwent multiple adjustments , such as making the game more forgiving for series newcomers . Character designer Raita Honjou and composer Hitoshi Sakimoto both returned from previous entries , along with Valkyria Chronicles II director Takeshi Ozawa . A large team of writers handled the script . The game 's opening theme was sung by May 'n .
+```
+
+The `create_hdf5_dataset.py` script expects all the files in the same folder to belong to the same split. Therefore, create three folders - `train`, `test`, and `valid`, and move the corresponding files to each folder. In addition, add a `.txt` file extension to each file since each file is in a raw format.
+
+```Bash
+mkdir wikitext-2-raw/train
+```
+```Bash
+mv wikitext-2-raw/wiki.train.raw wikitext-2-raw/train/wiki.txt
+```
+```Bash
+mkdir wikitext-2-raw/test
+```
+```Bash
+mv wikitext-2-raw/wiki.test.raw wikitext-2-raw/test/wiki.txt
+```
+```Bash
+mkdir wikitext-2-raw/valid
+```
+```Bash
+mv wikitext-2-raw/wiki.valid.raw wikitext-2-raw/valid/wiki.txt
+```
+The `create_hdf5_dataset.py` script also parses file types `.json`, `.jsonl.zst`, and `.jsonl.zst.tar`. For more information on the input format, refer to hdf5\_dataset\_gpt
+
+## Preparing the data in HDF5 format[#](#preparing-the-data-in-hdf5-format "Permalink to this headline")
+
+**1.** Before you prepare the data in an HDF5 format, set up a Python virtual environment with all the dependencies needed for preprocessing. Create this virtual environment in the parent directory `demo`. For more informaion on HDF5 format, click [here](https://en.wikipedia.org/wiki/Hierarchical_Data_Format).
+
+```Bash
+cd $PARENT_CS
+```
+```Bash
+/opt/python3.8/bin/python3.8 -m venv venv\_cerebras\_pt
+```
+```Bash
+source venv\_cerebras\_pt/bin/activate
+```
+Note that now you should be in the `(venv_cerebras_pt)` environment.
+```Bash
+pip install --upgrade pip
+```
+**Output**
+```Bash
+Collecting ...
+Downloading ...
+Installing collected packages: ...
+```Bash
+Install Model Zoo dependencies. (See modelzoo)
+
+```Bash
+pip install -r modelzoo/requirements.txt --extra-index-url https://download.pytorch.org/whl/cpu
+```
+**Output**
+```Bash
+Collecting ...
+Downloading ...
+Installing collected packages: ...
+```
+**2.** Now that your `venv_cerebras_pt` virtual environment has been set up and activated, launch the `create_hdf5_dataset.py` script. This script resides in the `modelzoo` folder in the Cerebras Model Zoo repository. Launch this script for every data split you intend to use. In this case, you will preprocess the `train` and `valid` splits and save the preprocessed data in an HDF5 format in the `data/wikitext-2-hdf5/` folder.
+
+Prepare the data for the **train set**:
+```Bash
+mkdir data/wikitext-2-hdf5/
+```
+```Bash
+python modelzoo/data\_preparation/nlp/hdf5\_preprocessing/create\_hdf5\_dataset.py\
+     LMData \
+     --params ./configs/autoregressive\_lm\_preprocessing.yaml
+     --input_dir data/wikitext-2-raw/train/ \
+     --output_dir data/wikitext-2-hdf5/train/ \
+     --files\_per\_record 100 \
+```
+**Output**
+```Bash
+INFO:modelzoo/data_preparation/nlp/hdf5_preprocessing/create_hdf5_dataset.py:
+Writing data to data/wikitext-2-hdf5/train/.
+INFO:utils:User arguments can be found at data/wikitext-2-hdf5/train/data_params.json.
+Parsed 1 input files. Files written : : 12it [00:15,  1.27s/it]
+INFO:modelzoo/data_preparation/nlp/hdf5_preprocessing/create_hdf5_dataset.py:
+Finished writing data to data/wikitext-2-hdf5/train/. Runtime arguments and outputs can be found at data/wikitext-2-hdf5/train/data_params.json.
+INFO:modelzoo/data_preparation/nlp/hdf5_preprocessing/create_hdf5_dataset.py:Verifying the converted dataset at: data/wikitext-2-hdf5/train/
+INFO:modelzoo/data_preparation/nlp/hdf5_preprocessing/create_hdf5_dataset.py:Done verifying the converted dataset.
+```
+
+The `create_hdf5_dataset.py` is instrumented with [multiple flags](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/hdf5_preprocessing#generating-hdf5-files). Our version of the Python script uses the following flags:
+
+| Flag | Description |
+| --- | --- |
+| `LMData` | For processing language modelling datasets that are in `.jsonl` or `.txt` format. |
+| `--params ./configs/autoregressive_lm_preprocessing.yaml` | Path to YAML config file for setting dataset preprocessing parameters. Optional alternative for providing command line arguments. |
+| `--input_dir data/wikitext-2-raw/train/` | Folder where all the `.txt` files are located. In this case, you only have one `txt` file |
+| `--output_dir data/wikitext-2-hdf5/train/` | Destination folder |
+| `--files_per_record 100` | Files per record is set to 100 in comparison to the default setting, which is 50,000. Given that there are 1180 training samples, the number of files per record should be smaller than the total number of samples. After preprocessing, the total number of samples will be `floor(#samples/files_per_record) * files_per_record` |
+
+Table 2 HDF5 dataset flags[#](#id1 "Permalink to this table")
+
+After running the Python script, you should have an output directory: `data/wikitext-2-hdf5/train/`. The following list shows the content of the output directory:
+```Bash
+ls data/wikitext-2-hdf5/train/
+```
+**Output**
+
+```Bash
+├── checkpoint_0.txt
+├── data_params.json
+├── examples_0_0.h5
+├── examples_1_0.h5
+├── examples_2_0.h5
+├── examples_3_0.h5
+├── examples_4_0.h5
+├── examples_5_0.h5
+├── examples_6_0.h5
+├── examples_7_0.h5
+├── examples_8_0.h5
+├── examples_9_0.h5
+├── examples_10_0.h5
+├── examples_11_0.h5
+```
+
+**3.** Prepare the data in the **validation set** by changing the `--input_dir` to `data/wikitext-2-raw/valid/` and `--output_dir` to `data/wikitext-2-hdf5/valid/`:
+
+```
+python modelzoo/data_preparation/nlp/hdf5_preprocessing/create_hdf5_dataset.py \
+     LMData \
+     --params ./configs/autoregressive_lm_preprocessing.yaml
+     --input_dir data/wikitext-2-raw/valid/ \
+     --output_dir data/wikitext-2-hdf5/valid/ \
+     --files_per_record 100 \
+```
+
+You should have an output directory: `data/wikitext-2-hdf5/valid/`. The following list shows the content of the output directory:
+
+```
+ls data/wikitext-2-hdf5/valid/
+```
+**Output**
+
+```
+├── checkpoint_0.txt
+├── data_params.json
+├── examples_0_0.h5
+├── examples_1_0.h5
+```
+<Info>
+Note
+
+The `create_hdf5_dataset.py` script only tokenizes your dataset. Perform data cleaning and shuffling before preparing the data in the HDF5 format, as it depends on the quality of your dataset. Additional resources available in Cerebras Model Zoo can be found in [Data processing and dataloaders](../../port/prepare-data/index.html#wsc-preparedata).
+</Info>
+## Training GPT-3 111M model from scratch[#](#training-gpt-3-111m-model-from-scratch "Permalink to this headline")
+
+
+**1.** Create a copy of the [Cerebras-GPT 111M YAML configuration file](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/Cerebras_GPT/111m.yaml) to point to the WikiText-2 dataset preprocessed in [step 2](#toy-demo-data). Make sure that the `venv_cerebras_pt` is active.
+
+```Bash
+cd $PARENT_CS
+```
+```Bash
+cp /models/nlp/gpt3/configs/Cerebras\_GPT/111m.yaml custom\_config_GPT111M.yaml
+```
+**2.** Set the absolute path directory for `data/wikitext-2-hdf5/train`. You can obtain the absolute path using `realpath`, or appending `data/wikitext-2-hdf5/train/` to the absolute path in `$PARENT_CS`.
+```Bash
+cd $PARENT_CS
+```
+```Bash
+realpath data/wikitext-2-hdf5/train/
+
+<absolute_path>/demo/data/wikitext-2-hdf5/train/
+```
+
+**3.** With the absolute path set, modify the `custom_config_GPT111M.yaml` file.
+
+```Bash
+vi custom_config_GPT111M.yaml
+```
+
+**4.** Modify the `data_dir` flag for training and evaluation inputs:
+
+```Bash
+train_input:
+    data_processor: "GptHDF5DataProcessor"
+    data_dir: "<absolute_path>/demo/data/wikitext-2-hdf5/train/"
+    max_sequence_length: 2048
+    ...
+eval_input:
+    data_processor: "GptHDF5DataProcessor"
+    data_dir: "<absolute_path>/demo/data/wikitext-2-hdf5/valid/"
+    ...
+```
+
+**5.** To shorten the runtime, modify the number of `max_steps` for training, the `eval_steps` for evaluation, and the checkpoint frequency.
+
+```Bash
+runconfig:
+   max_steps: 10
+   eval_steps: 1
+   checkpoint_steps: 10
+```
+
+With the new YAML configuration, you are ready to launch the training job.
+
+Alternately, you can use [screen](https://quickref.me/screen.html), a terminal multiplex, so that your training does not stop if you lose access to the terminal. For this, start a new screen session called `train_wsc`.
+
+screen -S train_wsc
+
+**6.** Inside this screen session, if not already active, activate the Cerebras virtual environment `venv_cerebras_pt`.
+```Bash
+cd $PARENT_CS
+```
+```Bash
+source venv\_cerebras\_pt/bin/activate
+```
+**7.** Run the `run.py` script file associated with the GPT-3 models in Cerebras Model Zoo.
+
+Each model in Cerebras Model Zoo contains a `run.py` script instrumented to easily launch training and evaluation in the Cerebras Wafer-Scale cluster and other AI accelerators. To learn more on how to launch a training, visit [Launch your job](../../Fundamentals/cs-appliance.html#cs-appliance), and to view the `run.py` code for the GPT-3 model, visit [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/run.py).
+
+```Bash
+python models/nlp/gpt3/run.py \
+  CSX \
+  --params custom_config_GPT111M.yaml \
+  --num_csx=1 \
+  --model_dir train_from_scratch_GPT111M \
+  --mode train \
+  --mount_dirs $PARENT_CS $PARENT_CS/modelzoo \
+  --python_paths $PARENT_CS/modelzoo \
+  --job_labels model=GPT111M
+```
+
+The following list describes the flags and their description:
+
+| Flag | Description |
+| --- | --- |
+| `--params custom_config_GPT111M.yaml` | Points to the YAML configuration file you customed with the training data paths |
+| `--num_csx=1` | Number of `CS-X` systems used in the run |
+| `--model_dir train_from_scratch_GPT111M` | New directory containing all the checkpoints and logging information |
+| `--mode train` | Specifies that you are **training** the model as opposed to evaluation |
+| `--mount_dirs $PARENT_CS $PARENT_CS/modelzoo` | Mounts directories to the Cerebras Wafer-Scale cluster. In this case, all the data and code is in the parent directory `demo` (with absolute path `$PARENT_CS`) |
+| `--python_paths $PARENT_CS/modelzoo` | Enables adding the Cerebras Model Zoo to the list of paths to be exported to `PYTHONPATH` |
+| `--job_labels model=GPT111M` | A list of equal-sign-separated key value pairs served as job label, to query using [csctl](../../Cluster-monitoring/csctl.html#csctl). |
+
+Table 3 GPT-3 model run.py training flags[#](#id2 "Permalink to this table")
+
+<Info>
+Note
+
+Once you have submitted your job to execute in the Cerebras Wafer-Scale cluster, you can track the progress or kill your job using the [csctl tool](../../Cluster-monitoring/csctl.html#csctl). You can also monitor the performance using a [Grafana dashboard](../../Cluster-monitoring/grafana.html#job-dashboard)
+</Info>
+**8.** Detach the screen using `CTRL+A D` and reattach the screen using `screen -r train_wsc`.
+
+Once the training job is complete, you will find inside the `train_from_scratch_GPT111M` folder:
+
+```Bash
+ls train_from_scratch_GPT111M
+```
+
+**Output**
+
+```Bash
+├── cerebras_logs
+   └── latest
+      ├── latest_compile
+      ├── performance
+      └── run.log
+├── checkpoint_10.mdl
+└── train
+     ├── events.out.tfevents.########.#####
+     └── params_train.yaml
+```
+
+where `latest_compile` and `cerebras_logs` contain Cerebras-specific information collected while compiling and executing the model, `checkpoint_10.mdl` is the checkpoint saved after ten steps, `train` contains the metrics logged during execution, and the YAML configuration file, and `run_<data>_######.log` contains the command line output during execution.
+
+```Bash
+cat train_from_scratch_GPT111M/run_<date>_######.log
+```
+
+**Output**
+
+```Bash
+2023-04-25 16:47:58,410 INFO:   No checkpoint was provided, model parameters will be initialized randomly
+2023-04-25 16:48:06,871 INFO:   Compiling the model. This may take a few minutes.
+2023-04-25 16:48:29,129 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 16:48:29,205 INFO:   Initiating a new compile wsjob against the cluster server.
+2023-04-25 16:48:29,224 INFO:   compile job id: wsjob-bkto6uyvdwfmkwufj37jwk, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-bkto6uyvdwfmkwufj37jwk
+2023-04-25 16:48:39,236 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 16:48:49,245 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 16:48:49,245 INFO:   Ingress is ready.
+2023-04-25 16:48:49,245 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-bkto6uyvdwfmkwufj37jwk', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-bkto6uyvdwfmkwufj37jwk-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 16:48:49,249 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffec44a4950>, wsjob-bkto6uyvdwfmkwufj37jwk-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 16:54:14,027 INFO:   Compile successfully written to cache directory: cs_8947482215861706321
+2023-04-25 16:54:14,052 INFO:   Compile for training completed successfully!
+2023-04-25 16:54:14,052 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 16:54:14,053 INFO:   Initiating a new execute wsjob against the cluster server.
+2023-04-25 16:54:14,081 INFO:   execute job id: wsjob-c6twhzts4dky97yy8wsdyr, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-c6twhzts4dky97yy8wsdyr
+2023-04-25 16:54:24,090 INFO:   Poll ingress status: Waiting for job running, current status: LockGranted, msg: lock grant success
+2023-04-25 16:54:34,100 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 16:55:04,132 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 16:55:04,133 INFO:   Ingress is ready.
+2023-04-25 16:55:04,133 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-c6twhzts4dky97yy8wsdyr', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-c6twhzts4dky97yy8wsdyr-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 16:55:04,133 INFO:   Removing a framework GRPC client: 10.253.20.16:443
+2023-04-25 16:55:04,133 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffec445d9d0>, wsjob-c6twhzts4dky97yy8wsdyr-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 16:55:05,306 INFO:   Preparing to execute using 1 CSX
+2023-04-25 16:55:05,326 INFO:   Monitoring Coordinator for Runtime server errors
+2023-04-25 16:55:22,813 INFO:   About to send initial weights
+2023-04-25 16:55:41,352 INFO:   Finished sending initial weights
+2023-04-25 16:59:51,055 INFO:   | Train Device=CSX, Step=1, Loss=10.93750, Rate=211.62 samples/sec, GlobalRate=211.61 samples/sec
+2023-04-25 16:59:51,493 INFO:   | Train Device=CSX, Step=2, Loss=10.93750, Rate=249.29 samples/sec, GlobalRate=238.95 samples/sec
+2023-04-25 16:59:51,928 INFO:   | Train Device=CSX, Step=3, Loss=10.93750, Rate=265.14 samples/sec, GlobalRate=250.07 samples/sec
+2023-04-25 16:59:52,377 INFO:   | Train Device=CSX, Step=4, Loss=10.87500, Rate=266.36 samples/sec, GlobalRate=254.13 samples/sec
+2023-04-25 16:59:52,835 INFO:   | Train Device=CSX, Step=5, Loss=10.87500, Rate=263.95 samples/sec, GlobalRate=255.73 samples/sec
+2023-04-25 16:59:53,266 INFO:   | Train Device=CSX, Step=6, Loss=10.81250, Rate=272.41 samples/sec, GlobalRate=259.20 samples/sec
+2023-04-25 16:59:53,765 INFO:   | Train Device=CSX, Step=7, Loss=10.75000, Rate=253.24 samples/sec, GlobalRate=256.35 samples/sec
+2023-04-25 16:59:54,234 INFO:   | Train Device=CSX, Step=8, Loss=10.68750, Rate=254.73 samples/sec, GlobalRate=256.27 samples/sec
+2023-04-25 16:59:54,672 INFO:   | Train Device=CSX, Step=9, Loss=10.68750, Rate=266.52 samples/sec, GlobalRate=258.16 samples/sec
+2023-04-25 16:59:55,313 INFO:   | Train Device=CSX, Step=10, Loss=10.62500, Rate=218.96 samples/sec, GlobalRate=248.74 samples/sec
+2023-04-25 16:59:55,314 INFO:   Saving checkpoint at global step 10
+2023-04-25 17:00:31,361 INFO:   Saved checkpoint at global step: 10
+2023-04-25 17:00:31,361 INFO:   Training completed successfully.
+2023-04-25 17:00:31,361 INFO:   Processed 1200 sample(s) in 40.873082399368286 seconds.
+```
+
+## Validating during Training
+
+To enable periodic validation during training, set the `--mode` flag to `train_and_eval` and use the following additional flags in the `runconfig` to configure the run:
+
+
+| Runconfig Param | Description |
+| --- | --- |
+| `eval_frequency` | Frequency at which the evaluation loop runs during training |
+| `eval_steps` | Number of steps to run in each evaluation loop |
+
+If `eval_steps` isn’t specified, it will loop over the entire evaluation dataloader if the dataloader has a length. Otherwise, it will error out.
+
+### Important considerations
+
+**1.** Checkpoint and Evaluation Frequency:
+
+When using `train_and_eval` mode, make sure that `checkpoint_steps` is either a multiple of `eval_frequency` or vice versa, so that the frequency at which evaluations occurs lines up with the frequency at which checkpoints are taken.
+
+* Example 1: `eval_frequency=5`, `checkpoint_steps=5`
+
+    Take a checkpoint every 5 steps and run an evaluation every 5 steps.
+
+* Example 2: `eval_frequency=5`, `checkpoint_steps=10`
+
+    Take a checkpoint every 10 steps, but perform an evaluation every 5 steps. Note that at steps 5, 15, 25, … there are no checkpoints available, but evaluation results are available.
+
+* Example 3: `eval_frequency=10`, `checkpoint_steps=5`
+
+    Take a checkpoint every 5 steps, but perform an evaluation every 10 steps.
+
+
+A checkpoint will always be taken at the end of training if the `checkpoint_steps` is set to a positive number, regardless of whether the `num_steps` is a multiple of `checkpoint_steps`. Additionally, in the “Train and Eval” mode, an evaluation will always run at the final step, regardless of whether the `num_steps` is a multiple of the `eval_frequency`.
+
+**2.** Evaluation Code in the Model:
+
+Ensure that evaluation-specific code(such as eval metrics) is guarded by the PyTorch module’s training flag to distinguish between training and evaluation.
+
+For example:
+```
+  class Model(torch.nn.Module):
+  def __init__(self, ...):
+      ...
+      self.accuracy = cstorch.metrics.Accuracy(...)
+
+  def forward(self, ...):
+      ...
+      if not self.training:
+          self.accuracy(...)
+```
+### Limitations of Train and Eval mode
+
+**1.** Single Dataloader: Only a single training dataloader and a single evaluation dataloader can be used in the same configuration file. To evaluate with multiple datasets, they must be concatenated into a single dataloader.
+
+**2.** Eval Harness: Running the Eval Harness as part of `train_and_eval` mode is not yet supported.
+
+**3.** Runconfig Limitations: Settings in `runconfig` (such as `precision_opt_level` or POL) affect both training and evaluation graphs without nested configurations. This means that the settings specified in `runconfig` apply to both training and evaluation (e.g., POL). Note, however, that `micro_batch_size` is part of `train_input` / `eval_input`. Therefore, it is possible to specify different micro-batch size settings for the `train and eval` mode provided that the `micro_batch_size` for evaluation is less than or equal to the `micro_batch_size` for training.
+
+**4.** Cluster Configuration: It’s not currently possible to run training and evaluation on separate portions of a cluster. Separate `run.py` jobs must be manually executed for this.
+
+## Fine-tuning using checkpoints from Cerebras-GPT model
+
+**1.** Download the Cerebras-GPT 111M checkpoint compatible with the Cerebras Wafer-Scale Cluster from Cerebras Model Zoo.
+
+You can find all the Cerebras-GPT checkpoints in the [Cerebras-GPT site in Cerebras Model Zoo](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt3/configs/Cerebras_GPT#quickstart-for-pre-trained-checkpoints).
+
+```Bash
+cd $PARENT_CS
+```
+
+```Bash
+mkdir Cerebras-checkpoint
+```
+```Bash
+cd Cerebras-checkpoint
+```
+```Bash
+cd Cerebras-checkpoint
+```
+```Bash
+wget https://cerebras-public.s3.us-west-2.amazonaws.com/cerebras-gpt-checkpoints/dense/111M/sp/cerebras-gpt-dense-111m-sp-checkpoint_final.mdl
+```
+
+**Output**
+
+```Bash
+
+--2023-04-25 17:07:58--  https://cerebras-public.s3.us-west-2.amazonaws.com/cerebras-gpt-checkpoints/dense/111M/sp/cerebras-gpt-dense-111m-sp-checkpoint_final.mdl
+Resolving cerebras-public.s3.us-west-2.amazonaws.com (cerebras-public.s3.us-west-2.amazonaws.com)... 52.92.229.250, 52.92.181.130, 52.92.132.2, ...
+Connecting to cerebras-public.s3.us-west-2.amazonaws.com (cerebras-public.s3.us-west-2.amazonaws.com)|52.92.229.250|:443... connected.
+HTTP request sent, awaiting response... 200 OK
+Length: 1337938518 (1.2G) [binary/octet-stream]
+Saving to: ‘cerebras-gpt-dense-111m-sp-checkpoint_final.mdl’
+
+100%[=============================================================================================================>] 1,337,938,518 25.1MB/s   in 45s
+
+2023-04-25 17:08:44 (28.3 MB/s) - ‘cerebras-gpt-dense-111m-sp-checkpoint_final.mdl’ saved [1337938518/1337938518]
+```
+
+Once you have the checkpoint, you are ready to launch the training job. For this, you can start a new screen session or reuse the screen session used during [training from scratch](#toy-demo-scratch). To reattached the `train_wsc` screen, use
+
+screen -r train_wsc
+
+**2.** Inside this screen session, if not already active, you will activate the Cerebras virtual environment `venv_cerebras_pt`.
+
+```Bash
+cd $PARENT_CS
+```
+```
+source venv_cerebras_pt/bin/activate
+```
+
+You will now run the same `run.py` script used during the [training from scratch](#toy-demo-scratch) with new flags.
+
+**3.** Change the following flags:
+
+| Flag | Description |
+| --- | --- |
+| `--model_dir finetune_GPT111M` | Specifies a different model directory to save checkpoints and logging information |
+| `--checkpoint_path Cerebras-checkpoint/cerebras-gpt-dense-111m` `-sp-checkpoint_final.mdl` | Specifies the path where the Cerebras-GPT 111M model is. You will be using this checkpoint to initialize the model weights |
+| `--load_checkpoint_states="model"` | Flag used in conjunction with `checkpoint_path`, to enforce resetting of optimizer states and training steps after loading a given checkpoint. By setting this flag, all the model weights are initialized from checkpoint provided by `checkpoint_path`, training starts from step 0, and optimizer states present in the checkpoint are ignored. Useful for fine-tuning runs on different tasks (e.g., classification, Q&A, etc.) where weights from a pre-trained model trained on language modeling (LM) tasks are loaded or fine-tuning on a different dataset on the same LM task. |
+
+Table 4 GPT-3 model run.py finetuning flags[#](#id3 "Permalink to this table")
+
+```Bash
+python models/nlp/gpt3/run.py \
+  CSX \
+  --params custom_config_GPT111M.yaml \
+  --num_csx=1 \
+  --model_dir finetune_GPT111M \
+  --mode train \
+  --mount_dirs $PARENT_CS $PARENT_CS/modelzoo \
+  --python_paths $PARENT_CS/modelzoo \
+  --checkpoint_path Cerebras-checkpoint/cerebras-gpt-dense-111m-sp-checkpoint_final.mdl \
+  --load_checkpoint_states="model" \
+  --job_labels model=finetune_GPT111M
+```
+
+Once the training job is over, you will find inside the `finetune_GPT111M` folder:
+
+```Bash
+ls finetune_GPT111M
+```
+
+**Output**
+
+```Bash
+├── cerebras_logs
+     └── latest
+         ├── performance
+         └── run.log
+├── checkpoint_10.mdl
+└── train
+     ├── events.out.tfevents.########.#####
+     └── params_train.yaml
+```
+
+The `run_<data>_######.log` contains the command line output generated during execution.
+
+```Bash
+
+cat finetune_GPT111M/run_<date>_######.log
+```
+
+**Output**
+
+```Bash
+
+2023-04-25 17:14:38,683 INFO:   Loading weights from checkpoint Cerebras-checkpoint/cerebras-gpt-dense-111m-sp-checkpoint_final.mdl
+2023-04-25 17:14:41,002 WARNING:   Using an older checkpoint format 0.1 (current version: 0.2). Using it to load the state dict may cause unexpected behaviour.
+2023-04-25 17:14:48,441 INFO:   Compiling the model. This may take a few minutes.
+2023-04-25 17:15:05,468 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 17:15:05,483 INFO:   Initiating a new compile wsjob against the cluster server.
+2023-04-25 17:15:05,495 INFO:   compile job id: wsjob-sf96htcijwqwcu2mqd9cyc, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-sf96htcijwqwcu2mqd9cyc
+2023-04-25 17:15:15,504 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 17:15:25,510 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 17:15:25,511 INFO:   Ingress is ready.
+2023-04-25 17:15:25,511 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-sf96htcijwqwcu2mqd9cyc', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-sf96htcijwqwcu2mqd9cyc-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 17:15:25,513 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffed1a4b410>, wsjob-sf96htcijwqwcu2mqd9cyc-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 17:15:25,725 INFO:   Compile successfully written to cache directory: cs_8947482215861706321
+2023-04-25 17:15:25,741 INFO:   Compile for training completed successfully!
+2023-04-25 17:15:25,741 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 17:15:25,742 INFO:   Initiating a new execute wsjob against the cluster server.
+2023-04-25 17:15:25,769 INFO:   execute job id: wsjob-wnadhxzntbisyzal9fdjx7, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-wnadhxzntbisyzal9fdjx7
+2023-04-25 17:15:35,780 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 17:16:15,818 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 17:16:15,819 INFO:   Ingress is ready.
+2023-04-25 17:16:15,819 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-wnadhxzntbisyzal9fdjx7', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-wnadhxzntbisyzal9fdjx7-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 17:16:15,819 INFO:   Removing a framework GRPC client: 10.253.20.16:443
+2023-04-25 17:16:15,819 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffed1a29cd0>, wsjob-wnadhxzntbisyzal9fdjx7-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 17:16:15,839 INFO:   Preparing to execute using 1 CSX
+2023-04-25 17:16:15,853 INFO:   Monitoring Coordinator for Runtime server errors
+2023-04-25 17:16:31,447 INFO:   About to send initial weights
+2023-04-25 17:16:49,469 INFO:   Finished sending initial weights
+2023-04-25 17:21:01,176 INFO:   | Train Device=CSX, Step=1, Loss=3.84375, Rate=206.34 samples/sec, GlobalRate=206.34 samples/sec
+2023-04-25 17:21:01,621 INFO:   | Train Device=CSX, Step=2, Loss=3.82812, Rate=244.47 samples/sec, GlobalRate=233.88 samples/sec
+2023-04-25 17:21:02,049 INFO:   | Train Device=CSX, Step=3, Loss=3.82812, Rate=266.12 samples/sec, GlobalRate=247.61 samples/sec
+2023-04-25 17:21:02,502 INFO:   | Train Device=CSX, Step=4, Loss=3.78125, Rate=265.31 samples/sec, GlobalRate=251.69 samples/sec
+2023-04-25 17:21:02,935 INFO:   | Train Device=CSX, Step=5, Loss=3.82812, Rate=272.36 samples/sec, GlobalRate=256.38 samples/sec
+2023-04-25 17:21:03,393 INFO:   | Train Device=CSX, Step=6, Loss=3.78125, Rate=266.22 samples/sec, GlobalRate=257.32 samples/sec
+2023-04-25 17:21:03,838 INFO:   | Train Device=CSX, Step=7, Loss=3.81250, Rate=268.26 samples/sec, GlobalRate=259.01 samples/sec
+2023-04-25 17:21:04,276 INFO:   | Train Device=CSX, Step=8, Loss=3.79688, Rate=271.54 samples/sec, GlobalRate=260.76 samples/sec
+2023-04-25 17:21:04,740 INFO:   | Train Device=CSX, Step=9, Loss=3.75000, Rate=263.77 samples/sec, GlobalRate=260.52 samples/sec
+2023-04-25 17:21:05,339 INFO:   | Train Device=CSX, Step=10, Loss=3.76562, Rate=225.80 samples/sec, GlobalRate=252.94 samples/sec
+2023-04-25 17:21:05,341 INFO:   Saving checkpoint at global step 10
+2023-04-25 17:21:37,871 INFO:   Saving step 10 in dataloader checkpoint
+2023-04-25 17:21:38,542 INFO:   Saved checkpoint at global step: 10
+2023-04-25 17:21:38,543 INFO:   Training completed successfully.
+2023-04-25 17:21:38,543 INFO:   Processed 1200 sample(s) in 37.947919607162476 seconds.
+```
+## Evaluating the trained models and visualize using TensorBoard
+
+For all models, you can use the `run.py` script found in the Cerebras Model Zoo for evaluation purposes (i.e., only forward pass). GPT style models use the data specified in `eval_input.data_dir`, which you had set up in [step 2](#toy-demo-data). The `run.py` script provides three types of evaluation with the `--mode` flag:
+
+| Flag | Description |
+| --- | --- |
+| `eval` | Evaluates a specific checkpoint. The latest checkpoint will be used if you don’t provide the `--checkpoint_path` flag |
+| `eval_all` | Evaluates all the checkpoints inside a model directory once the model has been trained |
+| `train` | Evaluates the model periodically during the training process. |
+| `train_and_eval` | Evaluates a model at a fixed frequency during training. This is convenient for identifying issues early in long training runs |
+
+Table 5 GPT-3 model run.py evaluation flags[#](#id4 "Permalink to this table")
+
+<Info>
+Note
+
+The `train` and `eval` modes require different fabric programming in the CS-X system. Therefore, using `train_and_eval` mode in the Cerebras Wafer-Scale cluster results in additional overheads any time training is stopped to perform evaluation. When possible, we recommend using the `eval_all` mode instead.
+</Info>
+Given that you have already trained the model in this demo, you will use the `eval_all` mode. To learn more about the different types of evaluation, visit eval.
+
+<Info>
+Note
+
+When evaluating a model with `run.py`, the latest saved checkpoint will be used by default. If no checkpoint exists, then weights will be initialized as stated in the YAML file, and the model will be evaluated using these weights. If you want to evaluate **a previously trained model**, make sure that the checkpoints are available in the `model_dir` or provide the `--checkpoint_path` flag.
+</Info>
+**1.** To launch evaluation, reattach the `train_wsc` screen.
+
+```Bash
+screen -r train_wsc
+```
+
+**2.** Inside this screen session, if not already active, activate the Cerebras virtual environment `venv_cerebras_pt`.
+
+```Bash
+
+cd $PARENT_CS
+```
+```Bash
+source venv_cerebras_pt/bin/activate
+```
+### Evaluating the model trained from scratch
+
+To evaluate the model trained from scratch, run the `run.py` script associated with the GPT-3 models in the Cerebras Model Zoo. This is the same `run.py` script used during [training from scratch](#toy-demo-scratch), but you will change the following flag:
+
+|     |     |
+| --- | --- |
+| `--mode eval_all` | Specifies the evaluation mode |
+
+
+```Bash
+
+python models/nlp/gpt3/run.py \
+  CSX \
+  --params custom_config_GPT111M.yaml \
+  --num_csx=1 \
+  --model_dir train_from_scratch_GPT111M \
+  --mode eval_all \
+  --mount_dirs $PARENT_CS $PARENT_CS/modelzoo \
+  --python_paths $PARENT_CS/modelzoo
+  --job_labels model=eval_GPT111M
+```
+After the validation job is complete, you will find additional files inside the `train_from_scratch_GPT111M` folder, including an `eval` folder that contains the metrics logged during the model evaluation and a new `run_<data>_######.log` with the command line output during model evaluation. Here is an example of the command line output.
+
+```Bash
+2023-04-25 19:53:51,947 INFO:   Loading weights from checkpoint train_from_scratch_GPT111M/checkpoint_10.mdl
+2023-04-25 19:53:54,879 INFO:   Compiling the model. This may take a few minutes.
+2023-04-25 19:53:56,869 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 19:53:56,883 INFO:   Initiating a new compile wsjob against the cluster server.
+2023-04-25 19:53:56,895 INFO:   compile job id: wsjob-kzid8uvxjgp7i3yvarv34i, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-kzid8uvxjgp7i3yvarv34i
+2023-04-25 19:54:06,907 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 19:54:16,917 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 19:54:16,917 INFO:   Ingress is ready.
+2023-04-25 19:54:16,917 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-kzid8uvxjgp7i3yvarv34i', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-kzid8uvxjgp7i3yvarv34i-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 19:54:16,920 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffe1c33f1d0>, wsjob-kzid8uvxjgp7i3yvarv34i-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 19:54:17,004 INFO:   Compile successfully written to cache directory: cs_14188819967248100901
+2023-04-25 19:54:17,014 INFO:   Compile for evaluation completed successfully!
+2023-04-25 19:54:17,014 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 19:54:17,015 INFO:   Initiating a new execute wsjob against the cluster server.
+2023-04-25 19:54:17,040 INFO:   execute job id: wsjob-lzqvtr3vt7fv8atvuwowoc, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-lzqvtr3vt7fv8atvuwowoc
+2023-04-25 19:54:27,052 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 19:55:07,098 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 19:55:07,099 INFO:   Ingress is ready.
+2023-04-25 19:55:07,099 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-lzqvtr3vt7fv8atvuwowoc', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-lzqvtr3vt7fv8atvuwowoc-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 19:55:07,099 INFO:   Removing a framework GRPC client: 10.253.20.16:443
+2023-04-25 19:55:07,099 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffe1c024710>, wsjob-lzqvtr3vt7fv8atvuwowoc-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 19:55:07,117 INFO:   Preparing to execute using 1 CSX
+2023-04-25 19:55:07,129 INFO:   Monitoring Coordinator for Runtime server errors
+2023-04-25 19:55:19,293 INFO:   About to send initial weights
+2023-04-25 19:55:32,292 INFO:   Finished sending initial weights
+2023-04-25 19:59:37,167 INFO:   | Eval Device=CSX, Step=1, Loss=10.56250, Rate=2363.12 samples/sec, GlobalRate=2362.78 samples/sec
+2023-04-25 19:59:37,168 INFO:   Avg eval_metrics = {'eval/lm_perplexity': 37632.0, 'eval/accuracy': 0.037353515625}
+2023-04-25 19:59:37,168 INFO:   Avg Eval. Loss = 10.5625
+2023-04-25 19:59:37,173 INFO:   Evaluation completed successfully.
+2023-04-25 19:59:37,173 INFO:   Processed 120 sample(s) in 0.05668282508850098 seconds.
+```
+
+### Evaluating the model fine-tuned from Cerebras-GPT
+
+To evaluate the fine-tuned model, run the `run.py` script associated with the GPT-3 models in the Cerebras Model Zoo. This is the same `run.py` script used during [evaluating model trained from scratch](#toy-demo-eval-finetune), but you will change the following flag:
+
+|     |     |
+| --- | --- |
+| `--model_dir finetune_GPT111M` | Specifies the model directory that contains the checkpoints from the fine-tuned model |
+
+```Bash
+python models/nlp/gpt3/run.py \
+  CSX \
+  --params custom_config_GPT111M.yaml \
+  --num_csx=1 \
+  --model_dir finetune_GPT111M \
+  --mode eval_all \
+  --mount_dirs $PARENT_CS $PARENT_CS/modelzoo \
+  --python_paths $PARENT_CS/modelzoo
+  --job_labels model=eval_finetune_GPT111M
+```
+
+After the validation job is complete, you will find additional files inside the `finetune_GPT_111M` folder, including an `eval` folder that contains the metrics logged during the model evaluation and a new `run_<data>_######.log` with the command line output during model evaluation. Here is an example of the command line output.
+
+```Bash
+2023-04-25 19:39:00,020 INFO:   Loading weights from checkpoint finetune_GPT111M/checkpoint_10.mdl
+2023-04-25 19:39:02,718 INFO:   Compiling the model. This may take a few minutes.
+2023-04-25 19:39:04,807 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 19:39:04,822 INFO:   Initiating a new compile wsjob against the cluster server.
+2023-04-25 19:39:04,836 INFO:   compile job id: wsjob-jkaa5xqkq6fa7qkettakcd, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-jkaa5xqkq6fa7qkettakcd
+2023-04-25 19:39:14,846 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 19:39:24,852 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 19:39:24,852 INFO:   Ingress is ready.
+2023-04-25 19:39:24,852 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-jkaa5xqkq6fa7qkettakcd', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-jkaa5xqkq6fa7qkettakcd-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 19:39:24,861 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffe1bf88190>, wsjob-jkaa5xqkq6fa7qkettakcd-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 19:43:54,599 INFO:   Compile successfully written to cache directory: cs_14188819967248100901
+2023-04-25 19:43:54,625 INFO:   Compile for evaluation completed successfully!
+2023-04-25 19:43:54,625 INFO:   ClusterClient: server=10.253.20.16:443, authority=cluster-server.mb-systemf159.cerebras.com, cert=/opt/cerebras/certs/tls.crt
+2023-04-25 19:43:54,626 INFO:   Initiating a new execute wsjob against the cluster server.
+2023-04-25 19:43:54,655 INFO:   execute job id: wsjob-fkerxr57pmw8sq2bxa7hgy, log path: /cb/tests/cluster-mgmt/mb-systemf159/workdir/wsjob-fkerxr57pmw8sq2bxa7hgy
+2023-04-25 19:44:04,682 INFO:   Poll ingress status: Waiting for coordinator to be ready.
+2023-04-25 19:44:44,727 INFO:   Poll ingress status: Coordinator svc ready, poll ingress success.
+2023-04-25 19:44:44,727 INFO:   Ingress is ready.
+2023-04-25 19:44:44,727 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-fkerxr57pmw8sq2bxa7hgy', 'service_url': '10.253.20.16:443', 'service_authority': 'wsjob-fkerxr57pmw8sq2bxa7hgy-coordinator-0.cluster-server.mb-systemf159.cerebras.com', 'credentials_path': '/opt/cerebras/certs/tls.crt'}
+2023-04-25 19:44:44,728 INFO:   Removing a framework GRPC client: 10.253.20.16:443
+2023-04-25 19:44:44,728 INFO:   Creating a framework GRPC client: 10.253.20.16:443, <grpc.ChannelCredentials object at 0x7ffe1bfbae10>, wsjob-fkerxr57pmw8sq2bxa7hgy-coordinator-0.cluster-server.mb-systemf159.cerebras.com
+2023-04-25 19:44:44,746 INFO:   Preparing to execute using 1 CSX
+2023-04-25 19:44:44,761 INFO:   Monitoring Coordinator for Runtime server errors
+2023-04-25 19:44:58,143 INFO:   About to send initial weights
+2023-04-25 19:45:14,240 INFO:   Finished sending initial weights
+2023-04-25 19:49:15,781 INFO:   | Eval Device=CSX, Step=1, Loss=3.76562, Rate=616.63 samples/sec, GlobalRate=616.61 samples/sec
+2023-04-25 19:49:15,783 INFO:   Avg eval_metrics = {'eval/lm_perplexity': 43.0, 'eval/accuracy': 0.353515625}
+2023-04-25 19:49:15,783 INFO:   Avg Eval. Loss = 3.765625
+2023-04-25 19:49:15,786 INFO:   Evaluation completed successfully.
+2023-04-25 19:49:15,786 INFO:   Processed 120 sample(s) in 0.19986581802368164 seconds.
+```
+
+### Visualizing the results using TensorBoard[#](#visualizing-the-results-using-tensorboard "Permalink to this headline")
+
+Launch TensorBoard to visualize the metrics recorded during training and evaluation of the models. Make sure that the Cerebras virtual environment is active.
+
+```Bash
+cd $PARENT_CS
+```
+
+```Bash
+tensorboard \
+  --logdir . \
+  --bind_all
+
+TensorBoard 2.2.2 at http://<url-to-user-node>:6006/ (Press CTRL+C to quit)
+```
+<Info>
+Note
+
+When hosting multiple TensorBoard instances concurrently, you may see the error `Port 6006 is in use by another program. Either identify and stop that program, or start the server with a different port.`. As a work around, you can launch TensorBoard by specifying a different port with the `--port` flag.
+</Info>
+After launching TensorBoard, you will get a URL link to access the results in your local network.
+
+[![wsc/images/Toy_Demo_TB1.png](wsc/images/Toy_Demo_TB1.png)](wsc/images/Toy_Demo_TB1.png)
+
+Fig. 8 Metrics logged in GPT implementation in Cerebras Model Zoo[#](#id5 "Permalink to this image")
+
+[![wsc/images/Toy_Demo_TB2.png](wsc/images/Toy_Demo_TB2.png)](wsc/images/Toy_Demo_TB2.png)
+
+Fig. 9 Value of training and validation loss after 10 steps for model train from scratch (`train_from_scratch_GPT111M`) and fine-tuning from Cerebras-GPT checkpoint (`finetune_GPT111M`)[#](#id6 "Permalink to this image")
+
+## What’s next?
+Now that you have trained and fine-tuned your GPT model in Cerebras’s Wafer-Scale Cluster, try porting your model to Hugging face to generate outputs. The Cerebras Model Zoo contains conversion scripts to convert from Cerebras Model Zoo to Hugging Face. For more information on conversion scripts, refer [Convert checkpoints and model configs](../Migration/porting-checkpoints.html#convert-checkpoints-hf-cs).
+
+In addition, if you want to fine-tune your LLM model on a dataset using intstructions, refer to our How-To ../how\_to\_guides/train\_with\_instruction_tuning.

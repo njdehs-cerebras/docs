@@ -1,0 +1,29 @@
+---
+title: "Model Is Too Large To Fit In Memory"
+---
+
+## Observed Error[#](#observed-error "Permalink to this headline")
+```
+Model is too large to fit in memory. This can happen because of a large batch size, large input tensor dimensions, or other network parameters. Please refer to the Troubleshooting section in the documentation for potential workarounds
+```
+
+Causes and Possible Solutions[#](#causes-and-possible-solutions "Permalink to this headline")
+
+The memory requirements of your model are too large to fit on the device. Potential workarounds include:
+
+* On transformer models, please compile again with the batch size set to 1 using one CS-2 system to determine if the specified maximum sequence length is feasible.
+
+* You can try a smaller batch size per device or enable batch tiling (only on transformer models) by setting the `micro_batch_size` parameter in the `train_input` or `eval_input` section of your model’s yaml file (see working_with_microbatches). * If you ran with batch tiling with a specific `micro_batch_size` value, you can try compiling with a decreased `micro_batch_size`. The [Using “explore” to Search for a Near-Optimal Microbatch Size](../Model-zoo/tutorials/microbatching.html#automatic-batch-exploration) flow can recommend performant micro batch sizes that will fit in memory.
+
+* On CNN models where batch tiling isn’t supported, try manually decreasing the batch size and/or the image/volume size.
+
+<Info>
+Note
+
+For more information on working with batch tiling and selecting performant `micro_batch_size` values, visit working\_with\_microbatches
+</Info>
+<Info>
+Note
+
+The `batch_size` parameter set on the yaml configuration is the **global batch size**. This means that the batch size per CS-2 system is computed as the global batch size divided by the number of CS-2s used.
+</Info>

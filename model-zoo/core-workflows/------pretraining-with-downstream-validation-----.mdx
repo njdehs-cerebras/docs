@@ -1,0 +1,711 @@
+---
+title: "Pretraining With Downstream Validation"
+---
+
+On this page, you’ll build on the [Pretraining with Upstream Validation](pretrain.html#wsc-modelzoo-pretrain-upstream-validation) guide to also configure downstream validation as part of your pre-training run.
+
+The example will be for pre-training Llama-3-8B model. For downstream validation, you will use the external frameworks Eleuther Eval Harness (EEH) and BigCode Eval Harness (BCEH).
+
+By the end of this guide, you should be comfortable kicking off your own pre-training run for the model of your choice, combining both upstream and downstream validation.
+
+## Prerequisites
+
+Please ensure that you have installed the Cerebras Model Zoo package by going through the installation guide.
+
+Make sure to have read through [Trainer Overview](../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models.
+
+Please also make sure to read [Pretraining with Upstream Validation](pretrain.html#wsc-modelzoo-pretrain-upstream-validation) since this page directly builds on the walkthrough there.
+
+Lastly, please read though [Downstream Validation using Eleuther Eval Harness](downstream_eeh.html#wsc-modelzoo-downstream-eeh) and [Downstream Validation using BigCode Eval Harness](downstream_bceh.html#wsc-modelzoo-downstream-bceh) for a detailed description on the supported external downstream validation frameworks, along with the limitations of each (see [EEH limitations](downstream_eeh.html#wsc-modelzoo-eeh-limitations) and [BCEH limitations](downstream_bceh.html#wsc-modelzoo-bceh-limitations)).
+
+Specifically, this guide presupposes your understanding of the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") and [`EleutherEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness "cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness") callbacks.
+
+## Configuring the Run
+
+Similar to [Pretraining with Upstream Validation](pretrain.html#wsc-modelzoo-pretrain-upstream-validation), this page will present the YAML configuration file as well as the equivalent pure Python setup side-by-side for your ease of comparison.
+
+You will add downstream validation to the pre-training configuration set up in [Pretraining with Upstream Validation](pretrain.html#wsc-modelzoo-pretrain-upstream-validation) for Llama-3-8B. Recall the full configuration you put together from that tutorial:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    backend:
+      backend_type: CSX
+      cluster_config:
+        num_csx: 16
+    seed: 2024
+    model:
+      # Embedding
+      vocab_size: 128256
+      hidden_size: 4096
+      position_embedding_type: "rotary"
+      pos_scaling_factor: 1.0
+      rope_theta: 500000.0
+      rotary_dim: 128
+      share_embedding_weights: false
+      max_position_embeddings: 8192
+      embedding_dropout_rate: 0.0
+      embedding_layer_norm: false
+
+      # Decoder
+      num_hidden_layers: 32
+      dropout_rate: 0.0
+      layer_norm_epsilon: 1.0e-5
+      norm_type: "rmsnorm"
+
+      # Decoder - Attention
+      num_heads: 32
+      attention_type: "scaled_dot_product"
+      attention_module: "multiquery_attention"
+      attention_dropout_rate: 0.0
+      use_projection_bias_in_attention: false
+      use_ffn_bias_in_attention: false
+      extra_attention_params:
+          num_kv_groups: 8
+
+      # Decoder - ffn
+      filter_size: 14336
+      nonlinearity: "swiglu"
+      use_ffn_bias: false
+
+      # Task-specific
+      use_bias_in_output: false
+      loss_scaling: "num_tokens"
+      loss_weight: 1.0
+
+      # Initializer
+      initializer_range: 0.02
+
+      # Cerebras parameters
+      mixed_precision: True
+      fp16_type: "cbfloat16"
+
+    optimizer:
+      AdamW:
+        betas: [0.9, 0.95]
+        correct_bias: True
+        weight_decay: 0.1
+
+    schedulers:
+    - CosineDecayLR:
+        initial_learning_rate: 3.0e-5
+        end_learning_rate: 3.0e-6
+        total_iters: 528
+
+    precision:
+      fp16_type: cbfloat16
+      loss_scaling_factor: dynamic
+      max_gradient_norm: 1.0
+
+    loop:
+      num_steps: 10000
+      eval_frequency: 1000
+      eval_steps: 1000
+
+    checkpoint:
+      steps: 1000
+
+    callbacks:
+    - ComputeNorm: {}
+    - CheckLoss: {}
+    - ModelEvalMetrics: {}
+
+    loggers:
+    - ProgressLogger: {}
+    - TensorBoardLogger: {}
+  fit:
+    train_dataloader:
+      data_processor: GptHDF5MapDataProcessor
+      data_dir: "/data/llama_v3_dataset_vocab128256/train"
+      batch_size: 80
+      micro_batch_size: 20
+      shuffle: False
+      shuffle_seed: 1337
+      num_workers: 8
+      prefetch_factor: 10
+      persistent_workers: True # Important to avoid seeding at each epoch
+    val_dataloader:
+    - data_processor: GptHDF5MapDataProcessor
+      data_dir: "/data/llama_v3_dataset_vocab128256/val"
+      batch_size: 80
+      micro_batch_size: 20
+      shuffle: False
+      shuffle_seed: 1337
+      num_workers: 8
+      prefetch_factor: 10
+      persistent_workers: True # Important to avoid seeding at each epoch
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    CheckLoss,
+    Checkpoint,
+    ComputeNorm,
+    MixedPrecision,
+    ModelEvalMetrics,
+    TrainingLoop,
+)
+from cerebras.modelzoo.trainer.loggers import (
+      ProgessLogger,
+      TensorBoardLogger,
+)
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model as LLaMA3
+
+
+trainer = Trainer(
+    backend=cstorch.backend(
+        backend_type="CSX",
+        cluster_config=cstorch.distributed.ClusterConfig(
+            num_csx=16,
+        ),
+    ),
+    seed=2024,
+    model=lambda: LLaMA3(
+        # Embedding
+        vocab_size=128256,
+        hidden_size=4096,
+        position_embedding_type="rotary",
+        pos_scaling_factor=1.0,
+        rope_theta=500000.0,
+        rotary_dim=128,
+        share_embedding_weights=False,
+        max_position_embeddings=8192,
+        embedding_dropout_rate=0.0,
+        embedding_layer_norm=False,
+
+        # Decoder
+        num_hidden_layers=32,
+        dropout_rate=0.0,
+        layer_norm_epsilon=1.0e-5,
+        norm_type="rmsnorm",
+
+        # Decoder - Attention
+        num_heads=32,
+        attention_type="scaled_dot_product",
+        attention_module="multiquery_attention",
+        attention_dropout_rate=0.0,
+        use_projection_bias_in_attention=False,
+        use_ffn_bias_in_attention=False,
+        extra_attention_params=dict(
+            num_kv_groups=8,
+        ),
+
+        # Decoder - ffn
+        filter_size=14336,
+        nonlinearity="swiglu",
+        use_ffn_bias=False,
+
+        # Task-specific
+        use_bias_in_output=False,
+        loss_scaling="num_tokens",
+        loss_weight=1.0,
+
+        # Initializer
+        initializer_range=0.02,
+
+        # Cerebras parameters
+        mixed_precision=True,
+        fp16_type="cbfloat16",
+    ),
+    optimizer=lambda model: cstorch.optim.AdamW(
+        model.parameters(),
+        lr=0.01,  # This is a placeholder
+        betas=[0.9, 0.95],
+        correct_bias=True,
+        weight_decay: 0.1,
+    ),
+    schedulers=[
+        lambda optimizer: cstorch.optim.lr_scheduler.CosineDecayLR(
+            initial_learning_rate=3.0e-5,
+            end_learning_rate=3.0e-6,
+            total_iters=528,
+        )
+    ],
+    precision=MixedPrecision(
+        fp16_type="cbfloat16",
+        loss_scaling_factor="dynamic",
+        max_gradient_norm=1.0,
+    ),
+    loop=TrainingLoop(
+      num_steps=10000,
+      eval_frequency=1000,
+      eval_steps=1000,
+    ),
+    checkpoint=Checkpoint(steps=1000),
+    callbacks=[
+        ComputeNorm(),
+        CheckLoss(),
+        ModelEvalMetrics(),
+    ],
+    loggers=[
+        ProgessLogger(),
+        TensorBoardLogger(),
+    ],
+)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(
+        registry.get_data_processor("GptHDF5MapDataProcessor"),
+        data_dir="/data/llama_v3_dataset_vocab128256/train",
+        batch_size=80,
+        micro_batch_size=20,
+        shuffle=False,
+        shuffle_seed=1337,
+        num_workers=8,
+        prefetch_factor=10,
+        persistent_workers=True, # Important to avoid seeding at each epoch
+    ),
+    val_dataloader=[
+        cstorch.utils.data.DataLoader(
+            registry.get_data_processor("GptHDF5MapDataProcessor"),
+            data_dir="/data/llama_v3_dataset_vocab128256/val",
+            batch_size=80,
+            micro_batch_size=20,
+            shuffle=False,
+            shuffle_seed=1337,
+            num_workers=8,
+            prefetch_factor=10,
+            persistent_workers=True, # Important to avoid seeding at each epoch
+        ),
+    ]
+)
+
+```
+</CodeGroup>
+### Configure EEH
+
+Let’s add downstream validation on a single EEH multiple-choice task `winogrande` as part of the pre-training run. To do this, you will need to augment the configuration with the [`EleutherEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness "cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness") callback as such:
+
+<CodeGroup>
+```Tab YAML
+
+Simply add the callback to the list of callbacks in the YAML.
+trainer:
+  init:
+    backend:  # CSX
+      ...
+    model:  # llama
+      ...
+    optimizer:  # AdamW
+      ...
+    schedulers:  # CosineDecayLR
+      ...
+    precision:  # DLS
+      ...
+    loop:
+      ...
+    checkpoint:
+      ...
+    callbacks:
+      ...
+      - EleutherEvalHarness:
+        # Eleuther Eval Harness settings
+        eeh_args:
+          tasks: winogrande
+          num_fewshot: 0
+        # CSX-specific eval harness settings
+        keep_data_dir: false
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+    loggers:
+      ...
+    seed: 2024
+    ...
+```
+
+```Tab Python
+Construct an [`EleutherEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness "cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness") callback object and pass it to the Trainer’s constructor as follows. Note that the EEH arguments are passed to the callback via the [`EleutherCLIArgs`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherCLIArgs "cerebras.modelzoo.trainer.extensions.eleuther.EleutherCLIArgs") object, comprising the list of supported EEH command line arguments.
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    MixedPrecision,
+    TrainingLoop,
+)
+from cerebras.modelzoo.trainer.extensions.eleuther import (
+    EleutherEvalHarness,
+)
+from cerebras.modelzoo.trainer.extensions.eleuther.eval_harness_utils import (
+    EleutherCLIArgs,
+)
+from cerebras.modelzoo.trainer.loggers import (
+      ProgessLogger,
+      TensorBoardLogger,
+)
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model as LLaMA3
+
+eval_harness = EleutherEvalHarness(
+    # Eleuther Eval Harness settings
+    eeh_args=EleutherCLIArgs(
+        tasks="winogrande",
+        num_fewshot=0,
+    ),
+    # CSX-specific eval harness settings
+    keep_data_dir=False,
+    # DataLoader Settings
+    data_dir=<path_to_mounted_dir>,
+    batch_size=4,
+    max_sequence_length=8192,
+    tokenizer_file_path=<path_to_llama3_tokenizer_json_file>,
+    eos_id=128001,
+)
+
+trainer = Trainer(
+    backend=cstorch.backend("CSX", ...),
+    model=lambda: LLaMA3(...),
+    optimizer=lambda model: cstorch.optim.AdamW(...),
+    schedulers=[...],
+    precision=MixedPrecision(...),
+    loop=TrainingLoop(...),
+    checkpoint=Checkpoint(...),
+    callbacks=[
+      eval_harness,
+      ...
+    ],
+    loggers=[...],
+    seed=2024,
+)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(...),
+    val_dataloader=[
+        cstorch.utils.data.DataLoader(...),
+    ]
+)
+
+```
+    </CodeGroup>
+And that is all! As part of your pre-training run’s configuration, you have now set up downstream validation on EEH task `winogrande`.
+
+<Note>
+Note
+
+1.  The `eval_frequency` specified as part of the trainer’s loop (YAML) or in the [`TrainingLoop`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") object (Python) also controls the frequency of downstream validation; i.e., for your example above, validation on EEH task `winogrande` will be run every 1K steps.
+    
+2.  Update the `tasks` argument to configure downstream validation for more EEH tasks. Note that only a single generative EEH task may be specified per callback.
+    
+</Note>
+### Configure BCEH
+
+Configuring downstream validation using BCEH is no different than it is for EEH. For example, if you want to configure the pre-training run on the code generative task `humaneval`, please augment the YAML configuration file with the the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback as such:
+
+<CodeGroup>
+```Tab YAML
+
+Simply add the callback to the list of callbacks in the YAML. Don’t forget to include the inference settings under model configuration!
+
+trainer:
+  init:
+    backend:  # CSX
+      ...
+    model:  # llama
+      ...
+      # Inference Settings
+      start_token: 128256   # Set to `vocab_size`
+      stop_sequences: []    # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens: 256       # Default from HF implementations
+      loop_dim: 1
+    optimizer:  # AdamW
+      ...
+    schedulers:  # CosineDecayLR
+      ...
+    precision:  # DLS
+      ...
+    loop:
+      ...
+    checkpoint:
+      ...
+    callbacks:
+      ...
+      - BigCodeEvalHarness:
+        # BigCode Eval Harness settings
+        bceh_args:
+          tasks: humaneval
+        # CSX-specific eval harness settings
+        keep_data_dir: false
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+    loggers:
+      ...
+    seed: 2024
+    ...
+```
+```Tab Python
+Construct a [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback object and pass it to the Trainer’s constructor as follows. Note that the BCEH arguments are passed to the callback via the [`BigCodeCLIArgs`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeCLIArgs "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeCLIArgs") object, comprising the list of supported BCEH command line arguments.
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    MixedPrecision,
+    TrainingLoop,
+)
+from cerebras.modelzoo.trainer.extensions.bigcode import (
+    BigCodeCLIArgs,
+    BigCodeEvalHarness,
+)
+from cerebras.modelzoo.trainer.loggers import (
+      ProgessLogger,
+      TensorBoardLogger,
+)
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model as LLaMA3
+
+bc_eval_harness = BigCodeEvalHarness(
+    # BigCode Eval Harness settings
+    bch_args=BigCodeCLIArgs(tasks="humaneval"),
+    # CSX-specific eval harness settings
+    keep_data_dir=False,
+    # DataLoader Settings
+    data_dir=<path_to_mounted_dir>,
+    batch_size=4,
+    max_sequence_length=8192,
+    tokenizer_file_path=<path_to_llama3_tokenizer_json_file>,
+    eos_id=128001,
+)
+
+trainer = Trainer(
+    backend=cstorch.backend("CSX", ...),
+    model=lambda: LLaMA3(
+      ...,
+      # Inference Settings
+      start_token=128256,   # Set to `vocab_size`
+      stop_sequences=[],    # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens=256,       # Default from HF implementations
+      loop_dim=1,
+    ),
+    optimizer=lambda model: cstorch.optim.AdamW(...),
+    schedulers=[...],
+    precision=MixedPrecision(...),
+    loop=TrainingLoop(...),
+    checkpoint=Checkpoint(...),
+    callbacks=[
+      bc_eval_harness,
+      ...
+    ],
+    loggers=[...],
+    seed=2024,
+)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(...),
+    val_dataloader=[
+        cstorch.utils.data.DataLoader(...),
+    ]
+)
+
+```
+
+    </CodeGroup>
+And that is all! As part of your pre-training run’s configuration, you have now set up downstream validation on BCEH task `humaneval`.
+
+<Note>
+Note
+
+1.  Since only running one generative eval harness task is supported per callback, please create a separate [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") callback to run downstream validation for more BCEH tasks.
+    
+2.  To obtain the final eval metrics for BCEH, please run the code execution and evaluation flow separately using the [Downstream Validation using BigCode Eval Harness](downstream_bceh.html#wsc-modelzoo-downstream-bceh) guide.
+    
+</Note>
+### Configure EEH and BCEH
+
+Configuring downstream validation for both EEH and BCEH is also straightforward via the use of both the [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") and [`EleutherEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness "cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness") callbacks.
+
+Let’s augment the full YAML configuration file to run downstream validation on EEH tasks `hellaswag`, `gsm8k` and `winogrande`, and BCEH task `mbpp` with the callbacks as follows:
+<CodeGroup>
+```Tab YAML
+
+Simply add both callbacks to the list of callbacks in the YAML. Since you are running generative eval harness tasks, don’t forget to include the inference settings under model configuration!
+
+trainer:
+  init:
+    backend:  # CSX
+      ...
+    model:  # llama
+      ...
+      # Inference Settings
+      start_token: 128256   # Set to `vocab_size`
+      stop_sequences: []    # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens: 256       # Default from HF implementations
+      loop_dim: 1
+    optimizer:  # AdamW
+      ...
+    schedulers:  # CosineDecayLR
+      ...
+    precision:  # DLS
+      ...
+    loop:
+      ...
+    checkpoint:
+      ...
+    callbacks:
+      ...
+      - BigCodeEvalHarness:
+        # BigCode Eval Harness settings
+        bceh_args:
+          tasks: mbpp
+        # CSX-specific eval harness settings
+        keep_data_dir: false
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+      - EleutherEvalHarness:
+        # Eleuther Eval Harness settings
+        eeh_args:
+          tasks: hellaswag,gsm8k,winogrande
+          num_fewshot: 0
+        # CSX-specific eval harness settings
+        keep_data_dir: false
+        # Dataloader settings
+        batch_size: 4
+        shuffle: false
+        max_sequence_length: 8192
+        num_workers: 1
+        data_dir: <path_to_mounted_dir>
+        tokenizer_file_path: <path_to_llama3_tokenizer_json_file>
+        eos_id: 128001
+        pretrained_model_name_or_path: null
+    loggers:
+      ...
+    seed: 2024
+    ...
+
+```
+```Tab Python
+
+Construct [`BigCodeEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeEvalHarness") and [`EleutherEvalHarness`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness "cerebras.modelzoo.trainer.extensions.eleuther.EleutherEvalHarness") objects and pass it to the Trainer’s constructor as follows. Note that the EEH and BCEH arguments are passed to the callback via the [`EleutherCLIArgs`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.eleuther.EleutherCLIArgs "cerebras.modelzoo.trainer.extensions.eleuther.EleutherCLIArgs") and [`BigCodeCLIArgs`](../api/generated/cerebras.modelzoo.trainer.extensions.html#cerebras.modelzoo.trainer.extensions.bigcode.BigCodeCLIArgs "cerebras.modelzoo.trainer.extensions.bigcode.BigCodeCLIArgs") objects, respectively.
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    MixedPrecision,
+    TrainingLoop,
+)
+from cerebras.modelzoo.trainer.extensions.bigcode import (
+    BigCodeCLIArgs,
+    BigCodeEvalHarness,
+)
+from cerebras.modelzoo.trainer.extensions.eleuther import (
+    EleutherEvalHarness,
+)
+from cerebras.modelzoo.trainer.extensions.eleuther.eval_harness_utils import (
+    EleutherCLIArgs,
+)
+from cerebras.modelzoo.trainer.loggers import (
+      ProgessLogger,
+      TensorBoardLogger,
+)
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model as LLaMA3
+
+eval_harness = EleutherEvalHarness(
+    # Eleuther Eval Harness settings
+    eeh_args=EleutherCLIArgs(
+        tasks="hellaswag,gsm8k,winogrande",
+        num_fewshot=0,
+    ),
+    # CSX-specific eval harness settings
+    keep_data_dir=False,
+    # DataLoader Settings
+    data_dir=<path_to_mounted_dir>,
+    batch_size=4,
+    max_sequence_length=8192,
+    tokenizer_file_path=<path_to_llama3_tokenizer_json_file>,
+    eos_id=128001,
+)
+
+bc_eval_harness = BigCodeEvalHarness(
+    # BigCode Eval Harness settings
+    bch_args=BigCodeCLIArgs(tasks="mbpp"),
+    # CSX-specific eval harness settings
+    keep_data_dir=False,
+    # DataLoader Settings
+    data_dir=<path_to_mounted_dir>,
+    batch_size=4,
+    max_sequence_length=8192,
+    tokenizer_file_path=<path_to_llama3_tokenizer_json_file>,
+    eos_id=128001,
+)
+
+trainer = Trainer(
+    backend=cstorch.backend("CSX", ...),
+    model=lambda: LLaMA3(
+      ...,
+      # Inference Settings
+      start_token=128256,   # Set to `vocab_size`
+      stop_sequences=[],    # Left empty as stop_sequences are overridden from the BCEH task
+      max_tokens=256,       # Default from HF implementations
+      loop_dim=1,
+    ),
+    optimizer=lambda model: cstorch.optim.AdamW(...),
+    schedulers=[...],
+    precision=MixedPrecision(...),
+    loop=TrainingLoop(...),
+    checkpoint=Checkpoint(...),
+    callbacks=[
+      eval_harness,
+      bc_eval_harness,
+      ...
+    ],
+    loggers=[...],
+    seed=2024,
+)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(...),
+    val_dataloader=[
+        cstorch.utils.data.DataLoader(...),
+    ]
+)
+```
+    </CodeGroup>
+And that is all! As part of your pre-training run’s configuration, you have now set up downstream validation on both BCEH and EEH tasks.
+
+## Start Pre-Training
+
+Once you have a fully configured Trainer, with your choice of downstream validation, all you need to do now is to kick off the run and start pre-training.
+<CodeGroup>
+```Tab YAML
+
+Let’s assume that the YAML configuration that you put together above is written to a file called `./pretrain_downstream_llama_8b.yaml`.
+
+Then, to run pre-training using the training script that comes packaged as part of ModelZoo, you can run the following on the command line
+
+python modelzoo/models/nlp/llama/run.py CSX \
+    --mode train_and_eval \
+    --params ./pretrain_downstream_llama_8b.yaml \
+
+```
+```Tab Python
+Let’s assume that the python code that you put together above is written to a file called `./pretrain_downstream_llama_8b.py`.
+
+Then, to run pre-training, all there is to do is to execute that python script.
+
+python ./pretrain\_downstream\_llama_8b.py
+
+```
+</CodeGroup>
+
+## Conclusion
+-------------------------------------------------------
+
+With that, you have augmented your pre-training run with downstream validation on the Cerebras Wafer-Scale Cluster using the ModelZoo Trainer!
+
+Now you have what it takes to write your own Trainer configuration to set up training jobs on your choice of models as well as downstream validation tasks on the Cerebras Wafer-Scale Cluster.

@@ -1,0 +1,440 @@
+---
+title: "      Cli For Job Monitoring Csctl      "
+description: " The **csctl** command-line interface (CLI) tool is preinstalled on the user node for efficient interaction with the Cerebras Cluster’s resource manager. "
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+This tool is pivotal for managing jobs within the cluster, which adheres to a first-come, first-served queuing system for resource allocation.
+
+## Key Features of csctl[#](#key-features-of-csctl "Permalink to this headline")
+* [Job Tracking](#job-tracking): Inspect the state of submitted jobs, and cancel your own jobs if necessary.
+
+* [Job Labelling](#job-labelling): Apply labels to a job.
+
+* [Queue Tracking](#queue-tracking): Review which jobs are queued and which jobs are running on the Cerebras cluster.
+
+* [Get Configured Volumes](#get-volumes): Get a list of configured volumes on the Cerebras cluster. These volumes can be used to stage code and training data.
+
+* [Update the priority for a given job](#update-priority): Update the priority for a given job.
+
+* [Log Export](#export-logs): Export Cerebras cluster logs of a given job to the user node. These logs can be useful when debugging a job failure and working with the Cerebras support team.
+
+* [Worker SSD Cache](#worker-cache): Query worker SSD cache usage.
+
+* [Cluster Status](#cluster-status): Query cluster status.
+
+
+## Usage Guidelines[#](#usage-guidelines "Permalink to this headline")
+
+Use the `csctl` tool directly from the terminal of your user node.
+
+### csctl –help[#](#csctl-help "Permalink to this headline")
+
+To get the help message:
+```Bash
+csctl --help
+Cerebras cluster command line tool.
+
+Usage:
+  csctl [command]
+
+Available Commands:
+  cancel             Cancel job
+  check-volumes      Check volume validity on this usernode
+  clear-worker-cache Clear the worker cache
+  config             View csctl config files
+  get                Get resources
+  job                Job management commands
+  label              Label resources
+  log-export         Gather and download logs.
+  stypes              Display resource types
+
+Flags:
+       --csconfig string    config file /opt/cerebras/config_v2 (default "/opt/cerebras/config_v2")
+   -d, --debug int          higher debug values will display more fields in output objects
+   -h, --help               help for csctl
+   -n, --namespace string   configure csctl to talk to different user namespaces
+   --version            version for csctl
+
+Use "csctl [command] --help" for more information about a command.
+```
+
+### Job Tracking[#](#job-tracking "Permalink to this headline")
+
+Each training job submitted to the Cerebras cluster launches two sequential jobs. First, a compilation job is launched. When compilation is completed, an execution job is launched. Each of these is identified by a `jobID`. The `jobID` for each job will be printed on the terminal after they start running on the Cerebras Wafer-Scale cluster.
+
+```Bash
+Extracting the model from framework. This might take a few minutes.
+WARNING:root:The following model params are unused: precision_opt_level, loss_scaling
+2023-02-05 02:00:00,450 INFO:   Compiling the model. This may take a few minutes.
+2023-02-05 02:00:00,635 INFO:   Initiating a new compile wsjob against the cluster server.
+2023-02-05 02:00:00,761 INFO:   Compile job initiated
+...
+2023-02-05 02:02:00,899 INFO:   Ingress is ready.
+
+2023-02-05 02:02:00,899 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-aaaaaaaaaa000000000', 'service_url': 'cluster-server.cerebras.local:443', 'service_authority': 'wsjob-aaaaaaaaaa000000000-coordinator-0.cluster-server.cerebras.local', 'compile_dir_absolute_path': '/cerebras/cached_compile/cs_0000000000111111'}
+
+2023-02-05 02:02:00,901 INFO:   Creating a framework GRPC client: cluster-server.cerebras.local:443
+2023-02-05 02:07:00,112 INFO:   Compile successfully written to cache directory: cs_000000000011111
+2023-02-05 02:07:30,118 INFO:   Compile for training completed successfully!
+2023-02-05 02:07:30,120 INFO:   Initiating a new execute wsjob against the cluster server.
+2023-02-05 02:07:30,248 INFO:   Execute job initiated
+...
+2023-02-05 02:08:00,321 INFO:   Ingress is ready.
+
+2023-02-05 02:08:00,321 INFO:   Cluster mgmt job handle: {'job_id': 'wsjob-bbbbbbbbbbb11111111', 'service_url': 'cluster-server.cerebras.local:443', 'service_authority': 'wsjob-bbbbbbbbbbb11111111-coordinator-0.cluster-server.cerebras.local', 'compile_artifact_dir': '/cerebras/cached_compile/cs_0000000000111111'}
+
+...
+```
+
+The `jobID` is also recorded in a file `run_meta.json` inside the `<model_dir>/cerebras_logs` folder. All `jobIDs` that use the same model directory `<model_dir>` are appended in the `run_meta.json` . `run_meta.json` contains two sections: `compile_jobs` and `execute_jobs`. Once a training job is submitted and before compilation is done, the compile job will be recorded under `compile_jobs`. For this example you will see:
+
+```Bash
+{
+     "compile_jobs": [
+        {
+
+                    "id": "wsjob-aaaaaaaaaa000000000",
+
+                    "log_path": "/cerebras/workdir/wsjob-aaaaaaaaaa000000000",
+                    "start_time": "2023-02-05T02:00:00Z",
+        },
+     ]
+}
+```
+
+After the compilation job has been completed and the training job is scheduled, then the compile job will report additional log information and the jobID of the training job will be recorded under `execute_jobs`. To correlate between compilation job and training job, you can correlate between the available time of the compilation job and the start time of the training job. For this example, you will see
+
+```Bash
+{
+    "compile_jobs": [
+        {
+
+            "id": "wsjob-aaaaaaaaaa000000000",
+
+            "log_path": "/cerebras/workdir/wsjob-aaaaaaaaaa000000000",
+            "start_time": "2023-02-05T02:00:00Z",
+            "cache_compile": {
+                "location": "/cerebras/cached_compile/cs_0000000000111111",
+
+                "available_time": "2023-02-05T02:02:00Z"
+
+            }
+        }
+    ],
+    "execute_jobs": [
+        {
+
+            "id": "wsjob-bbbbbbbbbbb11111111",
+
+            "log_path": "/cerebras/workdir/wsjob-bbbbbbbbbbb11111111",
+
+            "start_time": "2023-02-05T02:02:00Z"
+
+        }
+    ]
+}
+```
+
+Using the `jobID`, you can query information about status of a job in the system using
+```Bash
+csctl \[-d int\] get job &lt;jobID&gt; \[-o json|yaml\]
+```
+where:
+
+
+| Flag | Default | Description |
+| --- | --- | --- |
+| -o  | table | Output Format: table, json, yaml |
+| -d, -debug | 0   | Debug level. Choosing a higher level of debug prints more fields in the output objects. Only applicable to json or yaml output format. |
+
+```Bash
+csctl -d0 get job wsjob-000000000000 -oyaml
+meta:
+  createTime: "2022-12-07T05:10:16Z"
+  labels:
+    label: customed_label
+    user: user1
+  name: wsjob-000000000000
+  type: job
+spec:
+  user:
+    gid: "1001"
+    uid: "1000"
+  volumeMounts:
+  - mountPath: /data
+    name: data-volume-000000
+    subPath: ""
+  - mountPath: /dev/shm
+    name: dev-shm
+    subPath: ""
+status:
+  phase: SUCCEEDED
+  systems:
+  - systemCS2_1
+```
+<Info>
+Note
+
+Compilation and execution jobs are queued and executed sequentially in the Cerebras cluster. This means that the compilation job is completed before the execution job is scheduled. Compilation jobs do not require CS-X resources, but it requires some resources on the server nodes. In 1.8, we allow only one concurrent compilation running in the cluster. Execution jobs require CS-X resources, they will be queued up until sufficient CS-X resources are available. Compilation and execution jobs have different `jobID`.
+</Info>
+### Job Termination[#](#job-termination "Permalink to this headline")
+
+You can terminate any compilation or execution job before completion by providing the `jobID`. More details on `jobID` in [Job Tracking](#job-tracking). To cancel a job, you can use
+
+```Bash
+csctl cancel job <jobID>
+```
+
+Terminating a job releases all resources and sets the job to a cancelled state. An example output to cancel a job is
+
+```Bash
+csctl cancel job wsjob-000000000000
+Job cancelled success
+```
+
+In 1.8, this command might cause the client logs to print
+
+```Bash
+cerebras.appliance.errors.ApplianceUnknownError: Received unexpected gRPC error (StatusCode.UNKNOWN) : 'Stream removed' while monitoring Coordinator for Runtime server errors
+```
+
+This is expected.
+
+### Job Labelling[#](#job-labelling "Permalink to this headline")
+
+You can add labels to your jobs, to help categorize your jobs better. There are 2 ways to add labels to your jobs.
+
+One way is to use the flag `--job_labels` when you submit your training job. You can use a list of equal-sign-separated key value pairs served as job labels.
+
+For example, to assign a job label to training a GPT-2 model using **PyTorch**, you would use:
+
+```Bash
+python run.py \
+   CSX \
+   --job_labels framework=pytorch model=GPT2 \
+   --params params.yaml \
+   --num_csx=1 \
+   --model_dir=model_dir \
+   --mode train \
+   --mount_dirs <paths to data> \
+   --python_paths <paths to modelzoo and other python code if used> \
+```
+
+The other way to add labels to your jobs is through csctl command
+```Bash
+csctl label job wsjob-000000000000 framework=pytorch
+```
+You can use this command to remove a label from your job
+```Bash
+csctl label job wsjob-000000000000 framework=pytorch
+```
+### Queue Tracking[#](#queue-tracking "Permalink to this headline")
+
+To obtain a full list of running and queued jobs on the Cerebras cluster, you can use
+```Bash
+csctl get jobs
+```
+By default, this command produces a table including:
+
+
+| Field | Description |
+| --- | --- |
+| Name | jobID identification |
+| Age | Time since job submission |
+| Duration | How long the job ran |
+| Phase | One of QUEUED, RUNNING, SUCCEDED, FAILED, CANCELLED |
+| Systems | CS-X systems used in this job |
+| User | User that starts this job |
+| Labels | Customized labels by user |
+| Dashboard | Grafana dashboard link for this job |
+
+For example:
+
+```Bash
+csctl get jobs
+NAME                AGE  DURATION  PHASE      SYSTEMS                   USER  LABELS             DASHBOARD
+wsjob-000000000001  18h  20s       RUNNING    systemCS2_1, systemCS2_2  user2 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000001
+wsjob-000000000002   1h  6m25s     QUEUED                               user2 model=neox,team=ml https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000002
+wsjob-000000000003  10m  2m01s     QUEUED                               user1 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000003
+```
+
+Directly executing the command prints out a long list of current and past jobs. You can use -l options to return jobs that match with the given set of labels as
+
+```Bash
+csctl get jobs -l model=neox,team=ml
+NAME                AGE  DURATION  PHASE      SYSTEMS                   USER  LABELS             DASHBOARD
+wsjob-000000000002   1h  6m25s     QUEUED                               user2 model=neox,team=ml https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000002
+```
+If you only want to see your own jobs, use the -m option.
+
+```Bash
+csctl get jobs -m
+NAME                AGE  DURATION  PHASE      SYSTEMS                   USER  LABELS             DASHBOARD
+wsjob-000000000003  10m  2m01s     QUEUED                               user1 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000003
+```
+
+To also include completed and failed jobs, use the -a option.
+
+csctl get jobs -a
+```Bash
+csctl get jobs -a
+NAME                AGE  DURATION  PHASE      SYSTEMS                   USER  LABELS             DASHBOARD
+wsjob-000000000000  43h  6m27s     SUCCEEDED  systemCS2_1               user1 model=gpt3xl       https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000000
+wsjob-000000000001  18h  20s       RUNNING    systemCS2_1, systemCS2_2  user2 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000001
+wsjob-000000000002   1h  6m25s     QUEUED                               user2 model=neox,team=ml https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000002
+wsjob-000000000003  10m  2m01s     QUEUED                               user1 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000003
+```
+
+These filter options can be combined.
+
+For example, to see your complete job history:
+
+```Bash
+csctl get jobs -a -m
+NAME                AGE  DURATION  PHASE      SYSTEMS                   USER  LABELS             DASHBOARD
+wsjob-000000000000  43h  6m27s     SUCCEEDED  systemCS2_1               user1 model=gpt3xl       https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000000
+wsjob-000000000003  10m  2m01s     QUEUED                               user1 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000003
+```
+
+You also can use `grep` to extract relevant information of what jobs are queued versus running and how many systems are occupied.
+
+When you `grep 'RUNNING'`, you see a list of jobs that are currently running on the cluster.
+
+For example, as shown below, there is one job running:
+
+```Bash
+csctl get jobs | grep 'RUNNING'
+wsjob-000000000001  18h  20s       RUNNING    systemCS2_1, systemCS2_2  user2 model=gpt3-tiny    https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000001
+```
+
+When you `grep 'QUEUED'`, you see a list of jobs that are currently queued and waiting for system availability to start training.
+
+For example, at the same time of the above running job, there is another job currently queued, as shown below:
+
+```Bash
+csctl get jobs | grep 'QUEUED'
+wsjob-000000000002   1h  6m25s     QUEUED                               user2 model=neox,team=ml https://grafana.cerebras.local/d/WebHNShVz/wsjob-dashboard?orgId=1&var-wsjob=wsjob-000000000002
+```
+
+### Get Configured Volumes[#](#get-configured-volumes "Permalink to this headline")
+
+After installing Cerebras cluster, the system admin will configure a few volumes to be used in your jobs to access code and training data. To get a list of mounted volumes on the Cerebras cluster, you can use
+```Bash
+csctl get volume
+```
+For example:
+
+```Bash
+csctl get volume
+NAME                  TYPE  CONTAINERPATH  SERVER       SERVERPATH  READONLY
+training-data-volume  nfs   /ml            10.10.10.10  /ml         false
+```
+
+### Update the priority for a given job[#](#update-the-priority-for-a-given-job "Permalink to this headline")
+
+To update the priority for a given job, use the following command:
+
+```Bash
+csctl job set-priority <wsjob_id> <bucket_name | priority_value>
+```
+For example:
+```Bash
+$ csctl job set-priority wsjob-xxxxxx p2
+```
+This updates the job’s priority to P2. Confirmation is displayed:
+
+```Bash
+job-operator/wsjob-jv58f5mb95kwpe5hwuujrk priority successfully updated.
+```
+
+### Log Export[#](#log-export "Permalink to this headline")
+
+To download Cerebras cluster logs of a given job to the user node, you can use
+
+```Bash
+csctl log-export <jobID> [-b]
+```
+
+with optional flags:
+
+
+| Flag | Default Value | Description |
+| --- | --- | --- |
+| -b, –binaries | False | Include binary debugging artifacts |
+| -h, –help |     | Informative message for log-export |
+
+For example:
+
+```Bash
+csctl log-export wsjob-example-0
+Gathering log data within cluster...
+Starting a fresh download of log archive.
+Downloaded 0.55 MB.
+Logs archive: ./wsjob-example-0.zip
+```
+
+Cerebras cluster logs can be useful when debugging a job failure and working with Cerebras support.
+
+### Worker SSD Cache[#](#worker-ssd-cache "Permalink to this headline")
+
+To speed up the process of large amount of input data, we allow the users to stage their data in the worker nodes’ local SSD cache. This cache is shared among different users.
+
+#### Get Worker Cache Usage[#](#get-worker-cache-usage "Permalink to this headline")
+
+Use this command to obtain the current worker cache usage on each worker node:
+
+```Bash
+csctl get worker-cache
+NODE       DISK USAGE
+worker-01  57.86%
+worker-02  50.84%
+worker-03  49.47%
+worker-04  63.56%
+worker-05  63.56%
+worker-06  63.71%
+worker-07  63.22%
+worker-09  65.80%
+```
+
+#### Clear Worker Cache[#](#clear-worker-cache "Permalink to this headline")
+
+If the cache is full, use the clear command to delete the contents of all caches on all nodes.
+```Bash
+csctl get worker-cache
+Worker caches cleared successfully
+```
+### Cluster Status[#](#cluster-status "Permalink to this headline")
+
+You can check the status and system load of all CS-X systems and all cluster nodes by running
+
+```Bash
+csctl get cluster
+```
+In this table, note that the `CPU` and `MEM` columns are only relevant for nodes, and `system-in-use` is only relevant for CS-X systems. The `CPU` percentage is scaled so that 100% indicates that all CPU cores are fully utilized.
+
+For example:
+
+```Bash
+csctl get cluster
+NAME               TYPE             CPU     MEM     SYSTEM-IN-USE  JOBID                         JOBLABELS     STATE  NOTES
+systemf103         system           n/a     n/a     InUse          wsjob-jcvs23zpsxopvu9ymd2e5u  wsjob-label=  ok
+systemf116         system           n/a     n/a     InUse          wsjob-jcvs23zpsxopvu9ymd2e5u  wsjob-label=  ok
+cs-swx001-sx-sr18  broadcastreduce  22.17%  14.20%  n/a            n/a                                         ok
+cs-wse002-mg-sr01  management       3.23%   9.45%   n/a            n/a                                         ok
+cs-wse005-mx-sr04  memory           13.00%  12.93%  n/a            n/a                                         ok
+```
+
+You can filter the output with the following options:
+
+
+| Flag | Description |
+| --- | --- |
+| -e, -error-only | Only show nodes/systems in an error state |
+| -n, -node-only | Only show nodes, omit the system list |
+| -s, -system-only | Only show CS-X systems, omit the node list |
+
+## Conclusion[#](#conclusion "Permalink to this headline")
+
+By leveraging **csctl**, users can effectively manage their jobs and resources on the Cerebras Cluster, ensuring optimal use of available computational assets.

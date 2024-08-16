@@ -1,0 +1,257 @@
+---
+title: "        Logging       "
+---
+  
+
+The [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class features an extendable logging mechanism that can be used to log metrics to various backends.
+
+On this page, you will learn about how to set up logging to the console via the [`Logging`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Logging "cerebras.modelzoo.trainer.callbacks.Logging") class as well as how to add [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") classes to the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") as well.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Please ensure that you have read through the Cerebras Model Zoo Trainer Overview beforehand. The rest of this page assumes that you already have at least a cursory understanding of what the Cerebras Model Zoo Trainer is and how to use the python API.
+
+Also, make sure that you’ve read through [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks) as this page will assume that you are familiar with the [`Callback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback") mechanism.
+
+Logging to Console[#](#logging-to-console "Permalink to this headline")
+-----------------------------------------------------------------------
+
+The [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") exposes a [`logger`](../../api/index.html#cerebras.modelzoo.Trainer.logger "cerebras.modelzoo.Trainer.logger") attr which returns a Python logger object which can be used to log various messages to the console with different levels.
+
+For example,
+```
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(...)
+
+trainer.loggers.info("This is an INFO message")
+trainer.loggers.debug("This is a DEBUG message")
+trainer.loggers.warning("This is a WARNING message")
+trainer.loggers.error("This is a ERROR message")
+
+```
+
+The [`logger`](../../api/index.html#cerebras.modelzoo.Trainer.logger "cerebras.modelzoo.Trainer.logger") can be configured by passing in a [`Logging`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Logging "cerebras.modelzoo.trainer.callbacks.Logging") object to the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s constructor.
+<CodeGroup>
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Logging
+
+trainer = Trainer(
+    ...,
+    logging=Logging(
+        log_steps=1,
+        log_level="INFO",
+    ),
+    ...,
+)
+...
+
+```
+```Tab YAML
+trainer:
+  init:
+  ...
+  logging:
+  log_steps:  1
+  log_level:  INFO
+  ...
+  ...
+
+```
+</CodeGroup>
+
+In the above example, the [`logger`](../../api/index.html#cerebras.modelzoo.Trainer.logger "cerebras.modelzoo.Trainer.logger") has been configured to print `INFO` messages to the console by default.
+
+See [Control Logging Frequency](#control-logging-frequency) for an explanation of the `log_steps` argument.
+
+Logging Metrics[#](#logging-metrics "Permalink to this headline")
+-----------------------------------------------------------------
+
+The way to log metrics using the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") is to construct and pass in [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") subclasses.
+
+Included out-of-the-box are
+
+* [`ProgressLogger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.ProgressLogger "cerebras.modelzoo.trainer.loggers.ProgressLogger"): Logs progress metrics to the console
+    
+* [`TensorBoardLogger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.TensorBoardLogger "cerebras.modelzoo.trainer.loggers.TensorBoardLogger"): Logs metrics to a TensorBoard event file.
+    
+
+These [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") subclasses can be constructed and passed into the trainer via the `loggers` argument:
+<CodeGroup>
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.loggers import (
+      ProgressLogger,
+      TensorBoardLogger,
+)
+
+trainer = Trainer(
+    ...,
+    loggers=[
+        ProgressLogger(),
+        TensorBoardLogger(),
+    ]
+    ...,
+)
+...
+
+```
+```Tab YAML
+
+trainer:
+  init:
+  ...
+  loggers:
+  -  ProgressLogger:  {}
+  -  TensorBoardLogger:  {}
+  ...
+  ...
+
+```
+</CodeGroup>
+
+With these loggers, you can now call [`trainer.log_metrics`](../../api/index.html#cerebras.modelzoo.Trainer.log_metrics "cerebras.modelzoo.Trainer.log_metrics") to log some metric to all loggers.
+```
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.loggers import TensorBoardLogger
+
+trainer = Trainer(
+    ...,
+    loggers=[TensorBoardLogger()]
+    ...,
+)
+
+trainer.log_metrics(loss=...)
+```
+
+In the above example, the `loss` is being logged to the [`TensorBoardLogger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.TensorBoardLogger "cerebras.modelzoo.trainer.loggers.TensorBoardLogger") at the current global step.
+
+Logging Name Scope[#](#logging-name-scope "Permalink to this headline")
+-----------------------------------------------------------------------
+
+The trainer also features a [`name_scope`](../../api/index.html#cerebras.modelzoo.Trainer.name_scope "cerebras.modelzoo.Trainer.name_scope") mechanism for logging which is intended to be used to group related logs together.
+```
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.loggers import TensorBoardLogger
+
+trainer = Trainer(
+    ...,
+    loggers=[TensorBoardLogger()]
+    ...,
+)
+
+with trainer.name_scope("train"):
+    trainer.log_metrics(loss=...)
+    trainer.log_metrics(accuracy=...)
+
+```
+
+In the above example, the metrics get recorded in the log as `train/loss` and `train/accuracy`.
+
+Control Logging Frequency[#](#control-logging-frequency "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+It is often the case in very long runs that logging metrics every step is undesirably verbose. To remedy this, you can specify `log_steps` to the [`Logging`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Logging "cerebras.modelzoo.trainer.callbacks.Logging") class.
+<CodeGroup>
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Logging
+
+trainer = Trainer(
+    ...,
+    logging=Logging(log_steps=10),
+    ...,
+)
+...
+```
+```Tab YAML
+
+trainer:
+  init:
+  ...
+  logging:
+  log_steps:  10
+  ...
+  ...
+
+```
+</CodeGroup>
+
+In the above example, the trainer is configured to log metrics every 10 steps. This means that even if [`log_metrics`](../../api/index.html#cerebras.modelzoo.Trainer.log_metrics "cerebras.modelzoo.Trainer.log_metrics") is called every step, only every 10 steps does the metric actually get logged.
+
+To query whether or not current step is a log step, you can call [`trainer.is_log_step`](../../api/index.html#cerebras.modelzoo.Trainer.is_log_step "cerebras.modelzoo.Trainer.is_log_step").
+
+Writing a Custom Logger[#](#writing-a-custom-logger "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+Now that you know all about the [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") class and how it’s integrated into the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, it is fairly straightforward to write your own custom loggers.
+
+To write your own custom Logger class, all you need to do is inherit from the base [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") class and override the following methods:
+
+* `log_metrics`: Logs the provided metrics at the provided step.
+    
+* `flush`: Flushes the logs
+    
+
+For example, let’s implement a simple logger that just logs the metrics to console
+```
+from cerebras.modelzoo.trainer.logger import Logger
+
+class ConsoleLogger(Logger):
+    def setup(self, trainer):
+        self.trainer = trainer
+
+    def flush(self):
+        for handler in self.trainer.loggers.handlers:
+            handler.flush()
+
+    def log_metrics(self, metrics, step):
+        for name, value in metrics.items():
+            self.trainer.loggers.info(
+                f"Step={step}, {name}={value}
+            )
+```
+<Note>
+Note
+
+All [`Logger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") instances inherit from [`Callback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback"). This means that loggers may override any of the hooks that are exposed via the [`Callback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback") mechanism too.
+</Note>
+That is all there is to it. This logger can now be used inside the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") as follows:
+<CodeGroup>
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    logger=[ConsoleLogger()],
+    ...
+)
+...
+
+```
+```Tab YAML
+
+As long as the logger class exists in the Python global namespace, you can add any custom logger to a YAML configuration file in exactly the same way you would any other pre-packaged loggers.
+
+trainer:
+  init:
+  ...
+  loggers:
+  -  ConsoleLogger:  {}
+  ...
+
+```
+</CodeGroup>
+
+In order for the callback class to exist in the Python global namespace, the Python interpreter must have seen it at some point. Implementing your custom logger in the `run.py` or in the same file as the model class are two ways to ensure that the logger is seen by the Python interpreter and loaded into the Python global namespace.
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+By this point, you should have a cursory understanding of how Loggers are integrated into the Trainer. There are a few useful loggers that come pre-packaged inside the Model Zoo. If there is someplace you wish to write logs to that is not covered, you should be confortable with writing your own to implement that logging functionality.

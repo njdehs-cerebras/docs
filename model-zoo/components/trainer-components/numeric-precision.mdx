@@ -1,0 +1,199 @@
+---
+title: "        Numeric Precision       "
+---
+  
+
+One thing you can do to enhance performance is to play around with the numeric precision level. Using lower precisions can drastically improve performance at the cost of numeric precision. For optimal performance and numeric stability, it is essential to utilize all the recommended methods.
+
+This page will cover how you can configure numeric precision using the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") and ways you can mitigate some of the adverse effects of using lower precision.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Please ensure that you have read through the [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) beforehand. The rest of this page assumes that you already have at least a cursory understanding of what the Cerebras Model Zoo Trainer is and how to use the python API.
+
+Also, read through the [Gradient scaling](../../../tutorials/gradient-scaling.html#gradient-scaling) guide for more context on the concepts being used below.
+
+Automatic Mixed Precision[#](#automatic-mixed-precision "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+Using a lower precision for computating activations while storing weights in a higher precision is a good way to get improved performance whilst keeping some numeric stability.
+
+To facilitate this, you can construct a [`MixedPrecision`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision") instance and pass it into the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s `precision` argument as follows.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    precision:
+      fp16_type: cbfloat16
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import MixedPrecision
+
+trainer = Trainer(
+    ...,
+    precision=MixedPrecision(
+        fp16_type="cbfloat16",
+    ),
+)
+```
+</CodeGroup>
+
+In the above example, the lower precision type is set to `cbfloat16`. The supported lower precision values include:
+
+* `float16`
+    
+* `bfloat16`
+    
+* `cbfloat16` (see [CB16 Half-Precision](../../../../original/general/cs-1-data-formats.html#cb16-original) for more details on the `cbfloat16` data format)
+    
+
+Gradient Scaling[#](#gradient-scaling "Permalink to this headline")
+-------------------------------------------------------------------
+
+When using a lower numeric precision, you will often encounter gradient underflow. To mitigate this, you can employ gradient scaling (see [Gradient scaling](../../../tutorials/gradient-scaling.html#gradient-scaling) for a more in-depth explanation).
+
+To configure gradient scaling, you can pass in the `loss_scaling_factor` argument to [`MixedPrecision`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision") as follows:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    precision:
+      fp16_type: cbfloat16
+      loss_scaling_factor: dynamic
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import MixedPrecision
+
+trainer = Trainer(
+    ...,
+    precision=MixedPrecision(
+        fp16_type="cbfloat16",
+        loss_scaling_factor="dynamic",
+    ),
+)
+
+```
+</CodeGroup>
+
+`loss_scaling_factor` accepts either some `float` for static loss scaling, or the string `"dynamic"` to facilitate dynamic loss scaling (see [Dynamic loss scaling](../../tutorials/dynamic-loss-scaling.html#dynamic-loss-scaling) for more details).
+
+Gradient Clipping[#](#gradient-clipping "Permalink to this headline")
+---------------------------------------------------------------------
+
+Even with all of the above, you may encounter exploding gradients (`inf` or `NaN` gradients). To mitigate this, you can employ the use of gradient clipping.
+
+To configure gradient clipping, you can pass in one of `max_gradient_norm` or `max_gradient_value` to [`MixedPrecision`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision") as follows:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    precision:
+      fp16_type: cbfloat16
+      loss_scaling_factor: dynamic
+      max_gradient_norm: 1.0
+      # OR
+      max_gradient_value: 2.0
+
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import MixedPrecision
+
+trainer = Trainer(
+    ...,
+    precision=MixedPrecision(
+        fp16_type="cbfloat16",
+        loss_scaling_factor="dynamic",
+        max_gradient_norm=1.0,
+        # OR
+        max_gradient_value=2.0,
+    ),
+)
+```
+</CodeGroup>
+
+These two arguments correspond directly to calls to
+
+* [torch.nn.utils.clip\_grad\_norm_](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_norm_.html)
+    
+* [torch.nn.utils.clip\_grad\_value_](https://pytorch.org/docs/stable/generated/torch.nn.utils.clip_grad_value_.html)
+    
+
+<Note>
+Note
+
+`max_gradient_norm` and `max_gradient_value` are mutually exclusive. So, only one may be passed in.
+</Note>
+
+Precision Optimization Level (POL)[#](#precision-optimization-level-pol "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------
+
+One additional setting you can configure to improve performance is to set the precision optimization level used by the Cerebras compiler.
+
+The precision optimization level (POL) to use when compiling the model. The POL determines the level of precision to use for the model’s weights and activations and can thus affect the model’s accuracy and performance.
+
+You can set the precision optimization level by passing in the `precision_opt_level` argument to [`MixedPrecision`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision") as follows:
+
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    precision:
+      fp16_type: cbfloat16
+      loss_scaling_factor: dynamic
+      max_gradient_norm: 1.0
+      precision_opt_level: 1
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import MixedPrecision
+
+trainer = Trainer(
+    ...,
+    precision=MixedPrecision(
+        fp16_type="float16",
+        loss_scaling_factor="dynamic",
+        max_gradient_norm=1.0,
+        precision_opt_level=1,
+    ),
+)
+
+```
+</CodeGroup>
+The value must be one of `[0, 1, 2]`. The precision optimization level is set to `1` by default.
+
+You can read [Control numerical precision level](../../../how_to_guides/cs-1-data-formats.html#data-formats) page for more details on what each of these levels represents.
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That is all there is to know about configuring numeric precision in the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")!
+
+### Further Reading[#](#further-reading "Permalink to this headline")
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

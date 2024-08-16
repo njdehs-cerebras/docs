@@ -1,0 +1,97 @@
+---
+title: "        Using Hf Datasets For Auto Regressive Lm       "
+---
+  
+Using HF datasets for auto-regressive LM[#](#using-hf-datasets-for-auto-regressive-lm "Permalink to this headline")
+===================================================================================================================
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+This guide explains how to utilize Hugging Face datasets for training auto-regressive language models, offering two primary methods: offline and online:
+
+* **Offline**: Convert Hugging Face dataset to an HDF5 format, and then use a [HDF5DataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/common/HDF5IterableDataset.py) with a Cerebras Model Zoo model, such as [GptHDF5DataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/gpt/GptHDF5DataProcessor.py) for [GPT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt2).
+    
+* **Online** Use a Hugging Face dataset directly as an dataloader with Cerebras Model Zoo to train and evaluate a language model (such as [GPT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt2)).
+    
+
+Offline conversion of Hugging Face dataset to HDF5 format[#](#offline-conversion-of-hugging-face-dataset-to-hdf5-format "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------------------------------------------------------
+
+When converting a Hugging Face dataset to an HDF5 format, we recommend iterating over the dataset and writing samples to `h5` files, which are later used by the [HDF5IterableDataset](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/common/HDF5IterableDataset.py) class inside a [HDF5DataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/common/HDF5IterableDataset.py).
+
+To write samples to h5 files, you can call the script [convert\_dataset\_to_HDF5.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/hdf5_preprocessing/convert_dataset_to_HDF5.py). For more information, refer to Converting a PyTorch dataset to HDF5 format for a detailed explanation of this function.
+
+The Cerebras Model Zoo has two examples that showcase the conversion of Hugging Face datasets. These examples contain two files. The first one, named `Hugging Face_<example>.py` defines a dataset using Hugging Face API. The second one, named `HF_converter_example_<example>.py`, that calls the [convert\_dataset\_to_HDF5](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/nlp/hdf5_preprocessing/convert_dataset_to_HDF5.py) function using the dataset defined by the first file.
+
+  
+| Dataset | Dataset definition | Conversion to HDF5 | Additional notes |
+| --- | --- | --- | --- |
+| [ELI5](https://huggingface.co/datasets/eli5) | [HuggingFace_Eli5.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFace_Eli5.py) | [HF\_converter\_example_Eli5.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HF_converter_example_Eli5.py) | Based on this Hugging Face [tutorial](https://huggingface.co/docs/transformers/tasks/language_modeling) |
+| [BookCorpus](https://huggingface.co/datasets/bookcorpus) | [HuggingFace_BookCorpus.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFace_BookCorpus.py) | [HF\_converter\_example_BookCorpus.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HF_converter_example_BookCorpus.py) | Example of a Hugging Face dataset similar to Eli5 but larger |
+
+<Note>
+Note
+
+Cerebras GPT models expect the labels to be shifted in the dataloader rather than the model in contrast to Hugging Face. To address this difference, we have implemented a custom data collator function [CSDataCollatorForLanguageModeling](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/CSDataCollatorForLanguageModeling.py) based on [DataCollatorForLanguageModeling](https://huggingface.co/docs/transformers/v4.27.2/en/main_classes/data_collator#transformers.DataCollatorForLanguageModeling). Examples on using this function can be found in the examples [HuggingFace_Eli5.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFace_Eli5.py) and [HuggingFace_BookCorpus.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFace_BookCorpus.py).
+</Note>
+Once the samples are written into `.h5` files, you will use a [HDF5DataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/common/HDF5IterableDataProcessor.py). For example, to train a GPT-style model, you will specify in the configuration yaml file:
+```
+train_input:
+data_dir: <path to samples saved into h5 files>
+data_processor: "GptHDF5DataProcessor"
+...
+eval_input:
+data_dir: <path to samples saved into h5 files>
+data_processor: "GptHDF5DataProcessor"
+...
+
+```
+
+Online usage of Hugging Face dataset with Cerebras Model Zoo[#](#online-usage-of-hugging-face-dataset-with-cerebras-model-zoo "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------------------------------------------------------------
+
+Alternatively, you can stream samples directly from your Hugging Face dataset without converting to HDF5. Since the preprocessing/tokenization can be CPU intensive and hurt the performance of the dataloader, we advise that users avoid this approach for large datasets.
+
+The script file [HuggingFaceDataProcessor.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFaceDataProcessor.py) provides the required tools to connect any Hugging Face dataset (Map-Style or Iterable) to CS GPT models.
+
+As an example, the DataProcessor [HuggingFaceDataProcessorEli5](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/gpt/HuggingFaceDataProcessorEli5.py) class showcases the Hugging Face Eli5 (Map-Style) dataset directly streamed to GPT-2 model, as shown in this snippet
+```
+from modelzoo.data_preparation.huggingface.HuggingFace_Eli5 import (
+    HuggingFace_Eli5,
+)
+from modelzoo.data_preparation.huggingface.HuggingFaceDataProcessor import (
+    HuggingFaceDataProcessor,
+)
+
+from modelzoo.models.nlp.input_utils import num_tasks
+
+class HuggingFaceDataProcessorEli5(HuggingFaceDataProcessor):
+    def __init__(self, params):
+        num_workers = params.get("num_workers", 0)
+        split = params["split"]
+
+        self.dataset, self.data_collator = HuggingFace_Eli5(
+            split=split, num_workers=num_workers
+        )
+
+        # The supper class will take care of sharding the dataset and creating the dataloader
+        super().__init__(params)
+```
+
+Notice that this code uses the [HuggingFace_Eli5.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFace_Eli5.py) script to define the [ELI5](https://huggingface.co/datasets/eli5) dataset using HuggungFace API. Then it inherits from the [HuggingFaceDataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/huggingface/HuggingFaceDataProcessor.py) class.
+
+Alternatively, Cerebras Model Zoo also includes the DataProcessor [HuggingFaceIterableDataProcessorEli5](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/gpt/HuggingFaceIterableDataProcessorEli5.py) class as an example of using the same dataset in the Iterable format.
+
+To use the DataProcessor [HuggingFaceDataProcessorEli5](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/gpt/HuggingFaceDataProcessorEli5.py) to train a GPT-style model, modify the configuration yaml file:
+```
+train_input:
+    data_processor: "HuggingFaceDataProcessorEli5"
+    split: "train"
+    batch_size: 128
+    shuffle: True
+    shuffle_seed: 1337
+    num_workers: 8
+    prefetch_factor: 10
+    persistent_workers: True # Important to avoid seeding at each epoch
+```

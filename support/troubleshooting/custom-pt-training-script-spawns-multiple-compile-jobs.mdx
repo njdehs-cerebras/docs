@@ -1,0 +1,16 @@
+---
+title: "Custom Pt Training Script Spawns Multiple Compile Jobs"
+---
+
+## Observed Error[#](#observed-error "Permalink to this headline")
+
+Custom PyTorch training/evaluation script spawns multiple compile jobs (or custom PyTorch script recursively executing itself in infinite loop).
+
+## Explanation[#](#explanation "Permalink to this headline")
+
+The main reason why this happens is that the Python script is not guarded with an **if \_\_name\_\_ == “\_\_main\_\_”** section. In various places during execution, subprocesses are spun off (e.g., weight transfer, creating surrogate jobs, etc.) which could lead to the whole module being executed.
+
+## Work around[#](#work-around "Permalink to this headline")
+
+Add an **if \_\_name\_\_ == “\_\_main\_\_”** to your Python script.
+

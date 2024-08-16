@@ -1,0 +1,86 @@
+---
+title: " Evaluation Metrics "
+description: "We provide Cerebras-compatible metrics that can be used during evaluation to measure how well the model has been trained."
+---
+## Overview[#](#overview "Permalink to this headline")
+
+These metrics can be found in the [metrics.Metric](../api/cerebras_pytorch/metrics.html#metrics) module.
+
+For example:
+
+```Bash
+model = Model()
+compiled_model = cstorch.compile(model, backend)
+
+accuracy = cstorch.metrics.AccuracyMetric("accuracy")
+
+@cstorch.trace
+def eval_step(batch):
+    inputs, targets = batch
+    outputs = compiled_model(inputs)
+
+    accuracy(
+        labels=targets.clone(),
+        predictions=outputs.argmax(-1).int(),
+    )
+
+...
+for batch in executor:
+    ...
+
+
+# Log accumulated eval metric
+print(f"Accuracy: {float(accuracy)}")
+```
+
+## Writing Custom Metrics[#](#writing-custom-metrics "Permalink to this headline")
+
+To define a Cerebras compliant metrics, create a subclass of [`cerebras.pytorch.metrics.Metric`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric "cerebras.pytorch.metrics.Metric").
+
+For example,
+
+```Bash
+class CustomMetric(cstorch.metrics.Metric):
+
+    def __init__(self, name: str):
+        super().__init__(name)
+        ...
+
+    ...
+
+    def reset(self):
+        pass
+
+    def update(self, *args, **kwargs):
+        ...
+
+    def compute(self):
+        ...
+```
+
+As can be seen in the above example, the base [`Metric`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric "cerebras.pytorch.metrics.Metric") class expects one argument. Namely, the metric name.
+
+In addition, there are three abstract methods that must be overridden:
+
+*   [`reset`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric.reset "cerebras.pytorch.metrics.Metric.reset")
+
+    This method resets (or defines if its the first time its called) the metrics’ internal state.
+
+    States can be registered via calls to [`register_state`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric.register_state "cerebras.pytorch.metrics.Metric.register_state")
+
+*   [`update`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric.update "cerebras.pytorch.metrics.Metric.update")
+
+    This method is used to update the metric’s registered states.
+
+    Note that to remain Cerebras compliant, no tensor may be evaluated/inspected here. The update call is intended to be fully traced.
+
+*   [`compute`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric.compute "cerebras.pytorch.metrics.Metric.compute")
+
+    This method is used to compute the final accumulated metric value using the state that was updated in [`update`](../api/cerebras_pytorch/metrics.html#cerebras.pytorch.metrics.Metric.update "cerebras.pytorch.metrics.Metric.update")
+
+
+## Conclusion[#](#conclusion "Permalink to this headline")
+
+In the provided guide, the focus is on the utilization and development of metrics within a Cerebras environment, specifically tailored for evaluating model performance in PyTorch. The document highlights the process of employing pre-defined metrics, such as `AccuracyMetric`, and elaborates on the creation of custom metrics compliant with Cerebras standards. It outlines the essential components of a custom metric: initialization, state management, update logic, and final computation. Through these steps, users can craft metrics that align with their specific evaluation needs, ensuring their models are assessed accurately within the Cerebras ecosystem.
+
+

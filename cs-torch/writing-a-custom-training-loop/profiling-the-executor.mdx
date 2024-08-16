@@ -1,0 +1,32 @@
+---
+title: " Profiling The Executor "
+description: "We provide tools through the [`DataExecutor`] to profile its performance during the run."
+---
+
+Currently, the supported activities can be profiled as follows:
+
+
+| Activity | Description |
+| --- | --- |
+| `total_samples` | Total number of samples processed so far |
+| `total_time` | Elapsed time so far, in seconds |
+| `rate` | Client side smoothed samples/second of all the samples added since last queried |
+| `global_rate` | Non-smoothed samples/second since the beginning of when the executor context was entered. For a more detailed explanation see [Measure throughput of your model](../Fundamentals/rate_global_rate.html#rate-global-rate) |
+| `samples_per_sec` | Non-smoothed samples/second since the beginning of when the executor context was entered. This value is the same as `global_rate` |
+| `flops_utilization` | Real flops utilization for the run |
+
+You can track activity performance using names and the [`DataExecutor`](../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataExecutor "cerebras.pytorch.utils.data.DataExecutor") profiler.
+
+For example:
+
+```Bash
+executor = cstorch.utils.data.DataExecutor(...)
+...
+print(f"Total samples: {executor.profiler.rate_tracker.total_samples}")
+print(f"Total time: {executor.profiler.rate_tracker.total_time}")
+print(f"Rate: {executor.profiler.rate_tracker.rate}")
+print(f"Global rate: {executor.profiler.rate_tracker.global_rate}")
+print(f"Samples/sec: {executor.profiler.rate_tracker.samples_per_sec}")
+print(f"Flops utilization: {executor.profiler.rate_tracker.flops_utilization}")
+```
+

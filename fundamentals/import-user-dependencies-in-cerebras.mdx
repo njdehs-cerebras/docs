@@ -1,0 +1,51 @@
+---
+title: "Import User Dependencies In Cerebras"
+description: "If you are developing your own data loader, you might need to provide specific dependency packages in the virtual Python environments to support your data loader functions."
+---
+## Overview[#](#overview "Permalink to this headline")
+Before 1.8.0, you could store these dependency packages in the shared storage that Cerebras appliance can access to, and specify `--mount_dir` and `--python_path` when invoking `run.py` to allow the workers inside the appliance to find these dependency packages. This approach is hard to use and can be error-prone.
+
+As of release 1.9.0, the `Custom Worker Container Workflow` provides seamless support for importing user-specific dependency packages in the Python environments into Cerebras appliance. With this feature, you do not need any special handling. The `run.py` script will automatically find all pip-installed dependency packages on the user node, and apply them on Cerebras appliance when the data loader functions are deployed.
+
+In the event where the custom worker container failed to be created, a fallback policy would take into effect by mounting the site packages from the user node Python virtual environment to the worker environment via a predefined NFS-based cluster volume.
+
+In 1.9.0, both the custom worker container feature and the venv mounting fallback policy has been enabled by default. If you would like to disable the features, there are two Cerebras-specific options that can support that. We call these options `debug_args`.
+
+  - To disable the custom worker container feature, the option is named `debug_args.debug_usr.skip_image_build`.
+Setting this option to True will disable this feature.
+
+  - To disable the venv mounting fallback policy, the option is named
+
+`debug_args.debug_usr.skip_user_venv_mount`. Setting this option to True will disable the fallback policy.
+
+## Procedure[#](#procedure "Permalink to this headline")
+To disable custom worker container workflow, follow the steps below:
+
+1. Save the following script as `debug_args_writer.py` on any accessible directory on the user node:
+
+```Bash
+from cerebras.appliance.run_utils import write_debug_args
+from cerebras.appliance.pb.workflow.appliance.common.common_config_pb2 import DebugArgs
+
+debug_args = DebugArgs()
+debug_args.debug_usr.skip_image_build = True
+debug_args.debug_usr.skip_user_venv_mount = True
+
+out_file = "debug_args.out"
+write_debug_args(debug_args, out_file)
+```
+2. Run it inside a Cerebras virtual environment you have setup on the user node, see [Setup and installation](../getting-started/setup-and-installation.mdx):
+
+```Bash
+(venv_cerebras_pt) $ python debug_args_writer.py
+```
+This script will produce a file debug_args.out. You can then add the additional option when invoking `run.py` as follows:
+
+```Bash
+(venv_cerebras_pt) $ python run.py <other args> --debug_args_path debug_args.out
+```
+<Info>
+  Note
+
+  Currently, the custom worker container workflow only accounts for Python dependencies that were pip installed on the user node and assumes Internet and PyPI access from the workers in Cerebras appliance. If workers do not have access to the Internet or PyPI, the workflow will fail and the fallback policy will take into effect.
+</Info>

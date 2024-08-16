@@ -1,0 +1,28 @@
+---
+title: "          Cerebras Modelzoo Common Pytorch Utils         "
+---
+  
+General purpose Pytorch Utilities.
+
+Functions
+
+|     |     |
+| --- | --- |  
+| [`check_checkpoint_compatibility`](cerebras.modelzoo.common.pytorch_utils.check_checkpoint_compatibility.html#cerebras.modelzoo.common.pytorch_utils.check_checkpoint_compatibility "cerebras.modelzoo.common.pytorch_utils.check_checkpoint_compatibility") | Checks that the checkpoint is compatible with the current version of modelzoo. |
+| [`get_checkpoints`](cerebras.modelzoo.common.pytorch_utils.get_checkpoints.html#cerebras.modelzoo.common.pytorch_utils.get_checkpoints "cerebras.modelzoo.common.pytorch_utils.get_checkpoints") | Gather checkpoints in a model directory. |
+| [`load_from_checkpoint_file`](cerebras.modelzoo.common.pytorch_utils.load_from_checkpoint_file.html#cerebras.modelzoo.common.pytorch_utils.load_from_checkpoint_file "cerebras.modelzoo.common.pytorch_utils.load_from_checkpoint_file") | Loads state dict from checkpoint path and checks for version compatibilty. |
+| [`setup_artifact_dir`](cerebras.modelzoo.common.pytorch_utils.setup_artifact_dir.html#cerebras.modelzoo.common.pytorch_utils.setup_artifact_dir "cerebras.modelzoo.common.pytorch_utils.setup_artifact_dir") | Create a unique subdirectory for this run by generating a time stamp so that parallel runs using the same model_dir don't overwrite common files. |
+| [`setup_logging`](cerebras.modelzoo.common.pytorch_utils.setup_logging.html#cerebras.modelzoo.common.pytorch_utils.setup_logging "cerebras.modelzoo.common.pytorch_utils.setup_logging") | Configure default logging format. |
+| [`setup_logging_excepthook`](cerebras.modelzoo.common.pytorch_utils.setup_logging_excepthook.html#cerebras.modelzoo.common.pytorch_utils.setup_logging_excepthook "cerebras.modelzoo.common.pytorch_utils.setup_logging_excepthook") | Setup a logging hook that runs whenever an exception is raised that catches and logs the exception to ensure that the full traceback is printed in the log file. |
+| [`to_cpu`](cerebras.modelzoo.common.pytorch_utils.to_cpu.html#cerebras.modelzoo.common.pytorch_utils.to_cpu "cerebras.modelzoo.common.pytorch_utils.to_cpu") | Move tensor from device to cpu. |
+| [`to_tensor`](cerebras.modelzoo.common.pytorch_utils.to_tensor.html#cerebras.modelzoo.common.pytorch_utils.to_tensor "cerebras.modelzoo.common.pytorch_utils.to_tensor") | If the provided value is a Python int or float, it converts them into PyTorch Tensors of type int32 and float32 respectively. |
+| [`visit_structure`](cerebras.modelzoo.common.pytorch_utils.visit_structure.html#cerebras.modelzoo.common.pytorch_utils.visit_structure "cerebras.modelzoo.common.pytorch_utils.visit_structure") | Recursively traverse nested structure and return the items accepted by the selector. |
+
+Classes
+
+|     |     |
+| --- | --- |  
+| [`BufferedShuffleDataset`](cerebras.modelzoo.common.pytorch_utils.BufferedShuffleDataset.html#cerebras.modelzoo.common.pytorch_utils.BufferedShuffleDataset "cerebras.modelzoo.common.pytorch_utils.BufferedShuffleDataset") | Dataset shuffled from the original dataset. |
+| [`IterableDatasetSampler`](cerebras.modelzoo.common.pytorch_utils.IterableDatasetSampler.html#cerebras.modelzoo.common.pytorch_utils.IterableDatasetSampler "cerebras.modelzoo.common.pytorch_utils.IterableDatasetSampler") | This sampler can be used with a multi-worker distributed dataloader. |
+| [`RunConfigParamsValidator`](cerebras.modelzoo.common.pytorch_utils.RunConfigParamsValidator.html#cerebras.modelzoo.common.pytorch_utils.RunConfigParamsValidator "cerebras.modelzoo.common.pytorch_utils.RunConfigParamsValidator") | Validate Run Configs. |
+| [`SampleGenerator`](cerebras.modelzoo.common.pytorch_utils.SampleGenerator.html#cerebras.modelzoo.common.pytorch_utils.SampleGenerator "cerebras.modelzoo.common.pytorch_utils.SampleGenerator") | Iterator which returns multiple samples of a given input data. |

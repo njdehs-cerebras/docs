@@ -1,0 +1,27 @@
+---
+title: "Cerebras Job Scheduling And Monitoring"
+description: "Jobs submitted to the Cerebras Wafer-Scale cluster follow a first-come, first-served      queuing system for resource allocation. This means that jobs are processed in the order they are received, and resources are assigned accordingly."
+---
+
+To keep track of and manage your jobs in the Cerebras Wafer-Scale cluster, you can use various monitoring and management tools provided by Cerebras. While the specific tools may evolve over time, some common tools and techniques for monitoring the cluster include:
+
+*   [CLI for job monitoring(csctl)](csctl.html#csctl): The csctl tool is designed to provide comprehensive job monitoring capabilities. With csctl, you can:
+
+    *   Inspect submitted jobs, gathering information about their status and configuration.
+
+    *   Assign labels to jobs for better organization and categorization.
+
+    *   Retrieve details about mounted volumes, which are crucial for data access.
+
+    *   Export logs to investigate job execution and troubleshoot issues efficiently.
+
+*   [Job priority](job-priority.html#job-priority): The job priority feature allows users to prioritize jobs in the Cerebras Wafer-Scale cluster based on priority buckets and values, enhancing job scheduling beyond the FIFO approach. Users can assign and adjust job priorities during submission or post-submission, with administrative controls over priority modifications, facilitating more efficient and organized job scheduling and execution.
+
+*   [Cluster monitoring with Grafana](grafana.html#job-dashboard): Cerebras offers a Grafana dashboard that offers a visual representation of job resource usage and relevant software and hardware errors tied to specific jobs. Grafana provides an intuitive interface for tracking and analyzing cluster performance and job metrics.
+
+*   slurm-integration: Cerebras has implemented a lightweight integration with the Slurm workload manager. Slurm is a job scheduler and resource manager widely used in high-performance computing environments. This integration streamlines job submission and management within the Cerebras Wafer-Scale cluster, allowing for efficient resource allocation and job scheduling.
+
+*   resource\_parallel\_compile: You can define resource requirements for parallel training and compilation jobs running inside the Cerebras Wafer-Scale cluster. This includes setting limits on memory and CPU usage to ensure efficient resource allocation and prevent resource contention.
+
+
+These tools and integrations collectively empower users to effectively monitor, manage, and optimize their workloads on the Cerebras Wafer-Scale cluster. They provide visibility into job status, resource utilization, and potential issues, facilitating streamlined job execution and cluster operation. Additionally, they enhance user experience by simplifying job management tasks and promoting efficient resource allocation.

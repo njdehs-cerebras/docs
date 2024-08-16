@@ -1,0 +1,100 @@
+---
+title: "Kernel Autogeneration With Autogen"
+description: "To optimize model performance on Cerebras hardware, we use a mix of pre-written and AutoGen (automatically generated) kernels."
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+While the core library of handwritten kernels addresses many standard operations, AutoGen kernels step in under certain conditions:
+- Missing Operations: If a model needs an operation that’s not in the handwritten library, AutoGen kernels are generated to support these operations.
+
+- Performance Optimization: AutoGen can create specialized, fused kernels for operations, even for those operations that already have existing handwritten implementations. This is especially useful for complex operations, such as loss functions, where AutoGen kernels can offer superior performance.
+
+The Cerebras compiler automatically generates these custom kernels to enhance your model’s efficiency.
+
+## Autogenerating fused kernels for loss operations[#](#autogenerating-fused-kernels-for-loss-operations "Permalink to this headline")
+
+AutoGen supports numerous PyTorch loss functions by creating fused kernels that replace or outperform handwritten versions. To use AutoGen for a PyTorch loss:
+
+**1.** Import the PyTorch loss from the Model Zoo
+
+**2.** Set `use_autogen=True`. The default value of `use_autogen` is False.
+
+```Bash
+from cerebras_pytorch/src/cerebras/pytorch/nn/modules import BCELoss
+
+loss = BCELoss(reduction='mean', use_autogen=True)
+```
+## List of supported losses[#](#list-of-supported-losses "Permalink to this headline")
+  - BCELoss
+
+  - CrossEntropyLoss
+
+  - Loss.BCEWithLogitsLoss
+
+  - Loss.GaussianNLLLoss
+
+  - Loss.HingeEmbeddingLoss
+
+  - Loss.HuberLoss
+
+  - Loss.KLDivLoss
+
+  - Loss.L1Loss
+
+  - Loss.MarginRankingLoss
+
+  - Loss.MSELoss
+
+  - Loss.MultiLabelSoftMarginLoss
+
+  - Loss.MultiMarginLoss
+
+  - Loss.NLLLoss
+
+  - Loss.PoissonNLLLoss
+
+  - Loss.SmoothL1Loss
+
+  - Loss.TripletMarginLoss
+
+  - Loss.TripletMarginWithDistanceLoss Unsupported losses:
+
+  - Loss.CosineEmbeddingLoss (Will compile to handwritten kernels)
+
+  - Mish
+
+## Unsupported losses[#](#unsupported-losses "Permalink to this headline")
+All unsupported losses will still compile using a custom-written kernel.
+
+  - Loss.CosineEmbeddingLoss (Will compile to handwritten kernels)
+
+## Autogenerate kernels for customized losses[#](#autogenerate-kernels-for-customized-losses "Permalink to this headline")
+
+Creating custom losses may result in compilation failure. If this occurs, enable AutoGen for the custom loss by adding the `@autogen_loss` decorator for the loss class.
+
+```Bash
+from cerebras_pytorch/src/cerebras/pytorch/nn/modules import autogen_loss
+
+@autogen_loss
+
+class CustomLoss(nn.Module):
+
+   def __init__(self, ...):
+   ...
+```
+## Implementation notes[#](#implementation-notes "Permalink to this headline")
+        ## Release 2.2.0[#](#release-2-2-0 "Permalink to this headline")
+        In Release 2.2.0, the Autogen feature is temporarily unavailable.
+
+        ## Release 2.1.1[#](#release-2-1-1 "Permalink to this headline")
+        In Release 2.1.1, the automatic kernel generation feature (autogen) is temporarily unavailable. Make sure that in your runconfig file, you set `autogen_policy:disabled` if you were previously using it.
+
+        ## Release 1.9.1[#](#release-1-9-1 "Permalink to this headline")
+        In Release 1.9.1, we enabled the following AutoGen capabilities
+          - Support for PyTorch operations (e.g., nonlinearities)
+          - Improving the performance of PyTorch losses through fused kernels
+          - Support for user-defined loss functions
+
+For any issues transitioning to a version with mandatory AutoGen, please contact Cerebras Support for guidance.
+

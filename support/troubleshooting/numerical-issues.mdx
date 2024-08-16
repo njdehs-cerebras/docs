@@ -1,0 +1,16 @@
+---
+title: " Numerical Issues "
+---
+
+## Observed Error[#](#observed-error "Permalink to this headline")
+
+During low-precision training (POL=1), particularly with large output vocabularies (30,000-60,000 words), the final projection layer, converting internal representations to words, frequently exhibits accuracy issues.
+
+## Explanation[#](#explanation "Permalink to this headline")
+
+During the backward pass, the final projection layer accumulates a large number of values (equal to the vocabulary size) for each output, using low-precision 16-bit arithmetic. This extensive accumulation can introduce inaccuracies, hindering convergence. Additionally, the inputs to this layer typically originate from a softmax cross-entropy layer, whose non-normal distribution deviates significantly from the typical normal distributions observed in most layers, further contributing to inaccuracy on the backward pass.
+
+## Work around[#](#work-around "Permalink to this headline")
+
+To mitigate potential convergence issues arising from numerical instability in the final projection layer during low-precision training (POL=1), a per-layer setting of POL=0 should be applied to this specific layer. This ensures the highest numerical precision for the final projection while maintaining the performance advantages of POL=1 throughout the rest of the model. This modification has already been incorporated into the Model Zoo variants of Cerebras large language models.
+

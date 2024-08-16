@@ -1,0 +1,164 @@
+---
+title: " Instruction Fine Tuning For Llms "
+description: "Instruction fine-tuning (IFT) was introduced by Google Research in the [FLAN paper](https://arxiv.org/pdf/2109.01652.pdf) , where they showed that large language models (LLMs) can produce better outputs for a variety of tasks when fine-tuned with datasets of explicit **instructions** (sometimes called prompts) and corresponding **responses** (sometimes called completions)."
+---
+## Overview
+
+ Base pre-trained models have a lot of knowledge, but they often cannot take this knowledge and immediately produce outputs in a way that users want. For example, if you ask a base model to summarize a document, it will sometimes generate continuations of the document instead. This is because the model is originally only trained to predict the next token. IFT teaches the model to take its general knowledge and respond to specific prompts, such as requests summarization, sentiment analysis, or dialogue. Since this paper, IFT has grown tremendously, and there is now a huge focus on cultivating IFT datasets to adapt the response style of pre-trained LLMs.
+
+## Instruction fine-tuning dataset
+
+Data for instruction fine-tuning contains two parts: a `prompt` (also known as `instruction`) and a `completion` (also known as `response`). Here is a simple example:
+
+```Bash
+ {
+ "prompt": "Identify which instrument is string or percussion: Samphor, Viola toeria",
+ "completion": "Viola toeria is string, Samphor is percussion."
+ }
+ ```
+
+## Procedure
+
+In general, refer to our hdf5-preprocessing documentation for broad instructions on preprocessing data in the Cerebras ecosystem.
+
+Now we address the IFT-specific aspects of data-preprocessing. There are two ways that we can perform instruction fine-tuning. The first we describe below. The second is a new flow with higher throughput that we describe under the section on [Variable Sequence Length](#variable-sequence-length-vsl). The first way to perform IFT data-preprocessing is to use the `Summarization` mode within `create_hdf5_dataset.py`.
+
+For example, for a maximum sequence length of `2048` tokens:
+
+```Bash
+python create_hdf5_dataset.py Summarization \
+ --input_dir /path/to/data \
+ --tokenizer_type NeoXTokenizer \
+ --encoder_file /path/to/encoder \
+ --max_seq_length 2048 \
+ --ftfy True \
+ --sep_token: null \
+ --prompt_key: "prompt" \
+ --completion_key: "completion" \
+```
+
+The additional flags specific to `Summarization` mode are the following:
+
+* `--sep_token` This allows you to specify a token between the prompt and completion, with `null` meaning there is no sep token. For example, you could create a new token `<sep>` to clearly indicate to the model that the prompt has finished and the completion is beginning.
+
+* `--prompt_key` This allows you to specify the key in the raw data that stores the prompt/instruction. In the json data above, “prompt” specifies the prompt. It could also be “instruction” or any other string.
+
+* `--completion_key` This allows you to specify the key in the raw data that stores the completion/response. In the json data above, “completion” specifies the prompt. It could also be “response” or any other string.
+
+Variable sequence length (VSL)[#](#variable-sequence-length-vsl "Permalink to this headline")
+=============================================================================================
+
+## Background
+
+### IFT data is smaller than pretraining
+
+Sequence length of IFT samples is usually shorter than pre-training datasets,``` and far fewer examples. Recall also that IFT is used for specific alterations to the style of model outputs. Models require inputs of fixed-size, called the maximum sequence length (MSL), which is usually set to be as large as possible in pretraining.
+
+Pretraining data for language-modeling is usually very large in both the number of examples, and in the sequence length per example. Therefore, in pretraining we can split long text sequences into multiple examples, and also “pack” together sequences that are smaller than the MSL. Empirical results have shown that pretraining works well with this style of packing, even if documents of different subjects are packed together. However, IFT datasets are much smaller than pretraining datasets, and each example is often smaller in sequence length as well. This poses a problem for fixed-size model training, as IFT sequences can be much shorter than the MSL.
+
+### IFT suffers from pretraining-style packing
+
+We do not want to naively pack IFT sequences together in the same manner as pretraining. Each IFT example is more significant and fine-grained in its effect than a pretraining example. Naive packing allows attention between sequences, and the IFT setting is particularly sensitive to irrelevant and possibly confusing combinations of sequences. The amount of irrelevant examples in pretraining that are packed together is far out-weighed by the number of examples that have contiguous blocks of relevant information. On the contrary, every IFT example would have irrelevant information under this packign scheme.
+
+To avoid the information contamination from packing sequences, one approach is
+to separate individual sequences and “pad” them to the full MSL. The padding approach is the implementation used in the `Summarization` mode. It is possible to ignore the loss from padding tokens, so the dummy tokens are added and the model operates on each IFT example while avoiding gradient updates from padding. However, the model still operates on the full MSL, so a lot of computation is wasted performing operations on padding tokens that will be later ignored.
+
+### VSL gives best of both worlds
+To address these concerns, we introduce Variable Sequence Length (VSL) training. The key contribution of VSL is to allow packing of multiple IFT sequences into the same data example, while masking the attention between the sequences. By doing so, you can get the higher throughput from packed sequences, while avoiding the bleeding of information between these examples that are meant to tune your model to specific behaviors.
+
+In the following sections, we demonstrate the functionality of VSL, and the specific commands for using VSL in the Cerebras ecosystem.
+
+## Specific example
+
+To demonstrate how VSL works, we consider the following toy example that shows both the data packing and the attention masking. We use the following data, composed of repeated sequences of a false “fact”:
+
+```
+
+{"prompt":"The capital of the United States is","completion":"Paris."}
+{"prompt":"The capital of the United States is","completion":"Paris."}
+{"prompt":"The capital of the United States is","completion":"Paris."}
+```
+
+### VSL Packing
+
+In VSL, after tokenization they are packed into the same sequence:
+
+```Bash
+[1  450  7483  310  278  3303  3900  338  3681 29889  1  450  7483
+310  278  3303  3900  338  3681  29889  1  450  7483  310  278  3303
+3900  338  3681  29889]
+```
+
+If we did not pack the data, the data would be split into three separate examples that require padding (token `0` below) to get to the fixed MSL.
+
+```Bash
+
+  [1  450  7483  310  278  3303  3900  338  3681 29889  0  0  0  0  0  0
+  0  0  0  0  0  0  0  0  0  0  0  0  0  0]
+  [1  450  7483  310  278  3303  3900  338  3681 29889  0  0  0  0  0  0
+  0  0  0  0  0  0  0  0  0  0  0  0  0  0]
+  [1  450  7483  310  278  3303  3900  338  3681 29889  0  0  0  0  0  0
+  0  0  0  0  0  0  0  0  0  0  0  0  0  0]
+```
+
+## VSL Masking
+
+Now that we have packed together the data, we demonstrate the difference with and without VSL masking. This toy example was specifically constructed to demonstrate the impact of leakage when VSL sequences are not masked.
+
+Below we show the per-token loss _without_ attention masking. These values represent how difficult it was for the model to predict this token.
+
+```Bash
+
+[ 0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 10.4617,
+  1.3929,  4.9925,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+  0.0000,  3.4541,  1.1566,  6.2796,  0.0000,  0.0000,  0.0000,  0.0000,
+  0.0000,  0.0000,  0.0000,  3.9950,  1.2683,  8.0694]
+```
+These are the real loss values for a Llama-2-7B model on the above sequence on a CS system. The zero values are the prompt; in IFT it is standard to mask out the loss on prompt tokens so that the model learns only from predicting completions (see the implementation notes for details). The three tokens with loss values are `_Paris`, `.`, and `</s>` (end-of-sequence). As expected, the loss value for predicting Paris as the capital of the United States is originally quite high, at `~10.5`. However, because of the lack of attention masking, the model can look back at previous occurrences and now places higher probability on a repetition of the false “fact” for the second and third appearances, with loss of around `~3.5`.
+
+Now we show the per-token loss _with_ attention masking:
+
+```Bash
+[ 0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000, 10.4617,
+  1.3929,  4.9925,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,  0.0000,
+  0.0000, 10.4810,  1.4005,  5.0128,  0.0000,  0.0000,  0.0000,  0.0000,
+  0.0000,  0.0000,  0.0000, 10.4750,  1.4010,  5.0127]
+```
+The loss is the same for every occurrence of the false “fact”, because the masking allows sequences to be treated independently. There is no information leaking between the sequences, so we get the same behavior as the padded version, but with much higher throughput.
+
+## Practice
+
+## VSL data creation
+
+To create data with VSL, the usage is a very straight-forward extension of the previous `Summarization` workflow. Simply replace the `mode` in your call to `create_hdf5_dataset.py`:
+
+```Bash
+
+python create_hdf5_dataset.py Summarization_VSL \
+ --input_dir /path/to/data \
+ --tokenizer_type NeoXTokenizer \
+ --encoder_file /path/to/encoder \
+ --max_seq_length 2048 \
+ --ftfy True \
+ --sep_token: null \
+ --prompt_key: "prompt" \
+ --completion_key: "completion" \
+```
+
+Note that the usual outputs of our hdf5-preprocessors are 3D tensors that contain input-ids, attention-mask, and labels. When using VSL, hdf5-preprocessors produce 5D output tensors. The additional two dimensions contain `attention_span`, and `position_ids`. The `position_ids` is simply `0 ... N-1` for each position in a sequence of length N, and `attention_span` is the reverse, `N-1 ... 0`. So if two sequences are packed together, the `position_ids` would be `0 ... N-1 0 ... M-1` and `attention_span` would be `N-1 ... 0 M-1 ... 0`. These two inputs are used by our stack to create the attention masks.
+
+While the preprocessor automatically creates these inputs to perform attention masking, note that there is one additional step to indicate to the software stack that this masking should be applied.
+
+## VSL masking
+
+Enable the correct masking by simply adding `use_vsl: True` to the `train_input` and/or `eval_input` section of the yaml config passed to the `run.py`.
+
+## Implementation notes
+
+1.  We follow standard practice in the literature by masking out the loss for prompt tokens, so only the loss for completion tokens contribute to weight updates for the model.
+
+2.  The packing scheme will not split sequences to fit more into the same data example. If there is no set of sequences that can be packed together to fit the entire sequences within the MSL, they will be in their own data example.
+
+3.  If a sequence is longer than the MSL, it will be dropped.
+
+4.  If you add a `sep-token`, the token is added to the model’s vocabulary and will be trained from random initialization.

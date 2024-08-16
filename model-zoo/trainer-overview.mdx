@@ -1,0 +1,184 @@
+---
+title: "Trainer Overview"
+description: "Using the Cerebras Model Zoo Trainer gives you the ability to efficiently train models of any size without needing to worry about manually distributing the model through techniques such as model parallelism or tensor parallelism."
+---
+
+It is an auxiliary feature of the Model Zoo and is thus not required to use any of the reference models that come pre-packaged inside the ModelZoo. However, it is recommended to use the Trainer as it is highly optimized for training and validating models on the Cerebras Wafer-Scale Cluster.
+
+On this page, you will learn about the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class. By the end you should have a cursory understanding on how to use the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+## Prerequisites
+
+Please ensure that you have installed the Cerebras Model Zoo package by going through the installation guide.
+
+Optionally, you can also read through the [basic Cerebras PyTorch guide](../tutorials/custom-training-loop.html#custom-training-loop) to first gain an understanding of the underlying API that underpins the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+## Basic Usage
+
+The [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class can be imported and used as follows:
+
+```Bash
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+# Any torch.nn.Module
+model: torch.nn.Module = torch.nn.Linear(10, 10)
+# Any Cerebras compliant optimizer
+optimizer: cstorch.optim.Optimizer = cstorch.optim.SGD(
+    model.parameters(), lr=0.01, momentum=0.9
+)
+
+trainer = Trainer(
+    device="CSX",  # The device to run on
+    model_dir="./model_dir",  # The directory at which to store artifacts
+    model=model,
+    optimizer=optimizer,
+)
+# Train the model over a single epoch of the train dataloader
+# and then run validation over a single epoch of the val dataloader
+trainer.fit(train_dataloader, val_dataloader)
+```
+
+As can be seen in the above example, at a minimum the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class takes in the following:
+
+* `device`: The device to run training/validation on.
+
+* `model_dir`: The directory at which to store model related artifacts (e.g. model checkpoints).
+
+* `model`: The [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)") instance that we are training/validating.
+
+* `optimizer`: Optionally, a [`cerebras.pytorch.optim.Optimizer`](../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") instance can be passed in to optimize the model weights during the training phase.
+
+
+At a minimum, the call to [`fit`](api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit") takes in the following:
+
+* `train_dataloader`: The [`cerebras.pytorch.utils.data.DataLoader`](../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader") instance to use during training.
+
+* `val_dataloader`: Optionally, a [`cerebras.pytorch.utils.data.DataLoader`](../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader") instance can be passed in to run validation during and/or at the end of training.
+
+
+The default behaviour of this minimally configured run is to train the model over a single epoch of the train dataloader and then run validation over a single epoch of the val dataloader.
+
+There you have it! With this small sample of code, you can begin training your very first model using the Cerebras Model Zoo Trainer!
+
+You can pause here to go try it out for yourself, or continue reading to learn more about how to more finely configure the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to fit your needs.
+
+## Configuring the Training loop
+
+As mentioned above, if both a `train_dataloader` and `val_dataloader` are provided to the [`fit`](api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit") call, the default behaviour is to run a single epoch of training followed by a single epoch of validation.
+
+This behaviour can be configured by passing in a [`TrainingLoop`](api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") instance to the Trainer as follows:
+
+```Bash
+
+from cerebras.modelzoo.trainer.callbacks import TrainingLoop
+
+trainer = Trainer(
+      ...,
+      loop=TrainingLoop(
+          num_steps=1000,
+          eval_steps=100,
+          eval_frequency=100,
+      ),
+)
+trainer.fit(train_dataloader, val_dataloader)
+```
+
+In this above example,
+
+* `num_steps` represents the total number of batches to train for. If `num_steps` exceeds the number of available batches in the train dataloader, the dataloader is automatically repeated to be able to run training for `num_steps`.
+
+* `eval_steps` represents the number of steps to run validation for every time we run validation. Similar to training, if `eval_steps` exceeds the number of available batches in the val dataloader, the dataloader is automatically repeated. Although, typically validation is never run for more than a single epoch. So, it is advised to set `eval_steps` to be less than the length of the validation dataloader. Otherwise, the validation metrics may be incorrect.
+
+* `eval_frequency` represents how often validation is run during training. In the above example, validation is run every 100 steps of training. That is to say, throughout the 1000 steps of training, validation is run 10 times. Regardless of the value of `eval_frequency`, if `eval_frequency` is greater than zero, we always run validation at the end of training.
+
+
+## Checkpointing
+
+The [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") can be further configured to save checkpoints at regular intervals by passing in a [`Checkpoint`](api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint") instance as follows:
+
+```Bash
+from cerebras.modelzoo.trainer.callbacks import Checkpoint
+
+trainer = Trainer(
+      ...,
+      model_dir="./model_dir",
+      checkpoint=Checkpoint(steps=100),
+)
+trainer.fit(train_dataloader, val_dataloader)
+```
+
+In the above example, a checkpoint is saved every 100 steps of training. A checkpoint is also saved at the end of training regardless of whether or not `num_steps` is a multiple of the checkpoint steps.
+
+The checkpoints are saved in the `model_dir` directory that was passed to the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer").
+
+```
+model_dir/
+├── checkpoint_100.mdl
+├── checkpoint_200.mdl
+├── checkpoint_300.mdl
+└── ...
+```
+<Info>
+Note
+
+This checkpoint is meant for resuming training from the same point in the future. As such, it will contain the model weights, optimizer state, and any other state that is necessary to resume training. Please see [Selective Checkpoint State Saving](Components/trainer/checkpoint.html#selective-checkpoint-state-saving) for examples of how to configure what state is saved into the checkpoint.
+</Info>
+A saved checkpoint can be loaded again in the future by specifying the `ckpt_path` argument to the call to [`fit`](api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit"). For example,
+
+```
+trainer = Trainer(...)
+trainer.fit(
+    train_dataloader,
+    val_dataloader,
+    ckpt_path="/path/to/checkpoint",
+)
+```
+
+The above code will load the checkpoint at that path before starting training.
+<Info>
+Note
+
+If a `ckpt_path` is not provided, but a checkpoint is found inside the `model_dir`, then [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") will automatically load the latest checkpoint found in the `model_dir`.
+</Info>
+To learn more about how to configure checkpointing behaviour using the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer"), see [Checkpointing](Components/trainer/checkpoint.html#wsc-modelzoo-checkpoint).
+
+## Conclusion
+
+That concludes this overview of the basic functionality that the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") offers. By this point, you should have a cursory understanding of how to construct and configure a [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") and perform some training using it.
+
+## What’s next?
+
+To learn about how to specify a schedule for learning rates, please see [Optimizer and Scheduler](Components/trainer/optimizer.html#wsc-modelzoo-optimizer).
+
+To learn about how you can configure a [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instance using a YAML configuration file, you can check out:
+
+* Trainer YAML Overview
+
+
+To learn more about how you can use the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](core_workflows/pretrain.html#pretraining-with-upstream-validation)
+
+
+To learn more about how you can extend the capabilities of the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](Components/trainer/weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+
+* [Numeric Precision](Components/trainer/precision.html#wsc-modelzoo-trainer-amp)
+
+* [Train a model with weight sparsity](tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+
+* [Checkpointing](Components/trainer/checkpoint.html#wsc-modelzoo-checkpoint)
+
+* [Customizing the Trainer with Callbacks](Components/trainer/callbacks.html#wsc-modelzoo-trainer-callbacks)
+
+* [Logging](Components/trainer/loggers.html#wsc-modelzoo-trainer-loggers)
+
+* [Performance Flags](Components/trainer/perf_flags.html#wsc-modelzoo-trainer-perf-flags)
+
+
+To learn more about what the [`Trainer`](api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class outputs during the run, you can check out:
+
+* [Model Directory](Components/trainer/model_dir.html#wsc-modelzoo-trainer-model-dir)

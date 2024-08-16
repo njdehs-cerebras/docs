@@ -1,0 +1,168 @@
+---
+title: " cerebras.pytorch.amp"
+---
+## Automatic mixed precision[#](#automatic-mixed-precision "Permalink to this headline")
+
+
+The following classes and subclasses are designed to facilitate automatic mixed precision on the Cerebras Wafer Scale Cluster
+
+### `GradScaler`[#](#gradscaler "Permalink to this headline")
+
+**_class_ cerebras.pytorch.amp.**`GradScaler`**(_loss\_scale\=None_, _init\_scale\=None_, _steps\_per\_increase\=None_, _min\_loss\_scale\=None_, _max\_loss\_scale\=None_, _overflow\_tolerance\=0.0_, _max\_gradient\_norm\=None_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler)[#](#cerebras.pytorch.amp.GradScaler "Permalink to this definition")
+
+Faciliates mixed precision training and DLS, DLS + GCC
+
+For more details please see docs for amp.initialize.
+
+**Parameters:**
+
+*   **loss\_scale** (_Union__\[__str__,_ _float__\]_) – If loss\_scale == “dynamic”, then configure dynamic loss scaling. Otherwise, it is the loss scale value used in static loss scaling.
+
+*   **init\_scale** (_float_) – The initial loss scale value if loss\_scale == “dynamic”
+
+*   **steps\_per\_increase** (_int_) – The number of steps after which to increase the loss scaling condition
+
+*   **min\_loss\_scale** (_float_) – The minimum loss scale value that can be chosen by dynamic loss scaling
+
+*   **max\_loss\_scale** (_float_) – The maximum loss scale value that can be chosen by dynamic loss scaling
+
+*   **overflow\_tolerance** (_float_) – The maximum fraction of steps involving infinite or undefined values in the gradient we allow. We reduce the loss scale if the tolerance is exceeded
+
+*   **max\_gradient\_norm** (_float_) – The maximum gradient norm to use for global gradient clipping Only applies in the DLS + GCC case. If GCC is not enabled, then this parameter has no effect
+
+
+```
+grad_scaler = cstorch.amp.GradScaler(loss_scale="dynamic")
+
+loss: torch.Tensor = ...
+
+optimizer.zero_grad()
+# Scale the loss before calling the backward pass
+grad_scaler.scale(loss).backward()
+
+# Unscales the gradients of optimizer's assigned params in-place
+# to facilitate things like gradient clipping
+grad_scaler.unscale_(optimizer)
+
+# Global gradient clipping
+torch.nn.utils.clip_grad_norm_(
+    model.parameters(),
+    1.0,  # max gradient norm
+)
+
+# Step the optimizer using the grad scaler
+grad_scaler.step(optimizer)
+
+# update the grad scaler once all optimizers have been stepped
+grad_scaler.update()
+```
+
+`state\_dict`**(_destination\=None_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.state_dict)[#](#cerebras.pytorch.amp.GradScaler.state_dict "Permalink to this definition")
+
+Returns a dictionary containing the state to be saved to a checkpoint
+
+`load\_state\_dict`**(_state\_dict_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.load_state_dict)[#](#cerebras.pytorch.amp.GradScaler.load_state_dict "Permalink to this definition")
+
+Loads the state dictionary into the current params
+
+`scale`**(_loss_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.scale)[#](#cerebras.pytorch.amp.GradScaler.scale "Permalink to this definition")
+
+Scales the loss in preparation of the backwards pass
+
+`get\_scale`**()**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.get_scale)[#](#cerebras.pytorch.amp.GradScaler.get_scale "Permalink to this definition")
+
+Return the loss scale
+
+`unscale\_`**(_optimizer_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.unscale_)[#](#cerebras.pytorch.amp.GradScaler.unscale_ "Permalink to this definition")
+
+Unscales the optimizer’s params gradients inplace
+
+`step\_if\_finite`**(_optimizer_, _\*args_, _\*\*kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.step_if_finite)[#](#cerebras.pytorch.amp.GradScaler.step_if_finite "Permalink to this definition")
+
+Directly conditionalize the call to optimizer.step([\*](#id1)args, [\*\*](#id3)kwargs) but only if this GradScaler detected finite grads.
+
+**Parameters:**
+
+*   **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – Optimizer that applies the gradients.
+
+*   **args** – Any arguments passed to the optimizer.step() call.
+
+*   **kwargs** – Any keyword arguments passed to the optimizer.step() call.
+
+
+**Returns:**The result of optimizer.step()
+
+`clip\_gradients\_and\_return\_isfinite`*(_optimizers_)*[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.clip_gradients_and_return_isfinite)[#](#cerebras.pytorch.amp.GradScaler.clip_gradients_and_return_isfinite "Permalink to this definition")
+
+Clip the optimizer’s params’s gradients and return whether or not the norm is finite
+
+`step`**(_optimizer_, _\*args_, _\*\*kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.step)[#](#cerebras.pytorch.amp.GradScaler.step "Permalink to this definition")
+
+Step carries out the following two operations: 1. Internally invokes `unscale_(optimizer)` (unless unscale\_ was
+
+> explicitly called for `optimizer` earlier in the iteration). As part of the unscale\_, gradients are checked for infs/NaNs.
+
+2.  Invokes `optimizer.step()` using the unscaled gradients. Ensure that previous optimizer state or params carry over if we encounter NaNs in the gradients.
+
+
+`*args` and `**kwargs` are forwarded to `optimizer.step()`. Returns the return value of `optimizer.step(*args, **kwargs)`. :param optimizer: Optimizer that applies the gradients. :type optimizer: cerebras.pytorch.optim.Optimizer :param args: Any arguments. :param kwargs: Any keyword arguments.
+
+`update\_scale`**(_optimizers_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.update_scale)[#](#cerebras.pytorch.amp.GradScaler.update_scale "Permalink to this definition")
+
+Update the scales of the optimizers
+
+`update`**(_new_scale=None_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/grad_scaler.html#GradScaler.update)[#](#cerebras.pytorch.amp.GradScaler.update "Permalink to this definition")
+
+Update the gradient scalar after all optimizers have been stepped
+
+### `set_half_dtype`[#](#set-half-dtype "Permalink to this headline")
+
+**cerebras.pytorch.amp.**`set_half_dtype`**(_value_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/_amp_state.html#set_half_dtype)[#](#cerebras.pytorch.amp.set_half_dtype "Permalink to this definition")
+
+Sets the underlying 16-bit floating point dtype to use.
+
+**Parameters:**
+
+**value** _(Union[Literal['float16', 'bfloat16', 'cbfloat16'], torch.dtype])_– Either a 16-bit floating point torch dtype or one of “float16”, “bfloat16”, or “cbfloat16” string.
+
+**Returns:** The proxy torch dtype to use for the model. For dtypes that have a torch representation, this returns the same as value passed in. Otherwise, it returns a proxy dtype to use in the model. On CSX, these proxy dtypes are automatically and transparently converted to the real dtype during compilation.
+
+**Return type:** [torch.dtype](https://pytorch.org/docs/stable/tensor_attributes.html#torch.dtype "(in PyTorch v2.4)")
+
+By default, automatic mixed precision uses `float16`. If you want to use `cbfloat16` or `bfloat16` instead of `float16`, call this function.
+
+Example usage:
+
+```
+cstorch.amp.set_half_dtype("cbfloat16")
+```
+
+### `optimizer_step`[#](#optimizer-step "Permalink to this headline")
+
+**cerebras.pytorch.amp.**`optimizer\_step`**(_loss_, _optimizer_, _grad\_scaler_, _max\_gradient\_norm\=None_, _max\_gradient\_value\=None_)**[\[source\]](../../../_modules/cerebras/pytorch/amp/optimizer_step.html#optimizer_step)[#](#cerebras.pytorch.amp.optimizer_step "Permalink to this definition")
+
+Performs loss scaling, gradient scaling and optimizer step
+
+**Parameters:**
+
+*   **loss** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – The loss value to scale. loss.backward should be called before this function
+
+*   **optimizer** ([_cerebras.pytorch.optim.optimizer.Optimizer_](optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")) – The optimizer to step
+
+*   **grad\_scaler** ([_cerebras.pytorch.amp.grad\_scaler.GradScaler_](#cerebras.pytorch.amp.GradScaler "cerebras.pytorch.amp.grad_scaler.GradScaler")) – The gradient scaler to use to scale the parameter gradients
+
+*   **max\_gradient\_norm** (_Optional_[_float_]) – the max gradient norm to use for gradient clipping
+
+*   **max\_gradient\_value** (_Optional_[_float_]) – the max gradient value to use for gradient clipping
+
+
+Example usage:
+
+```
+cstorch.amp.optimizer_step(
+    loss,
+    optimizer,
+    grad_scaler,
+    max_gradient_norm=1.0,
+)
+```

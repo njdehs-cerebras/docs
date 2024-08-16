@@ -1,0 +1,38 @@
+---
+title: " Error Receiving Activation "
+---
+
+## cerebras.appliance.errors.ApplianceUnknownError: Ran into error while receiving activation tensor &lt;custom-call …&gt;[#](#cerebras-appliance-errors-applianceunknownerror-ran-into-error-while-receiving-activation-tensor-custom-call "Permalink to this headline")
+
+Users may see this error when running their own models on the Cerebras System.
+
+### Observed Error[#](#observed-error "Permalink to this headline")
+
+The error message that will be shown on the command line will be similar to the following:
+
+```bash
+cerebras.appliance.errors.ApplianceUnknownError: Ran into error while receiving activation tensor <custom-call ...> for runtime iteration ...
+```
+
+### Explanation[#](#explanation "Permalink to this headline")
+
+There are many possible causes for the above error, but there are some things the user can do to rule out certain problems.
+
+#### Placement of custom dataloader[#](#placement-of-custom-dataloader "Permalink to this headline")
+
+When creating run scripts for custom model runs, it is currently necessary to separate the dataloader into its own file in the same directory as the main execution or model script. The exception can be caused when the dataloader is in the run script, and the input workers cannot pickle the desired input function that is coming from the `__main__` module.
+
+### Work around[#](#work-around "Permalink to this headline")
+
+#### Placement of custom dataloader[#](#id1 "Permalink to this headline")
+
+A user porting their own model should separate the dataloader into a file separate from the main entrypoint of the training run script. **Although not the only option**, one example is shown below of an acceptable directory structure.
+
+```bash
+$ ls user_directory
+--> run_model.py (entry script that is used to start the run using "python run_model.py ...")
+--> dataloader.py (script containing the dataloaders and input functions)
+```
+
+For more information on how to port user models on the Cerebras System, please see [Overview of the Cerebras Model Zoo](../port/index.html#wsc-port).
+

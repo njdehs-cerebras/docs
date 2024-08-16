@@ -1,0 +1,26 @@
+---
+title: " Input Starvation "
+---
+
+
+If your dataloader is too slow to keep up with your model running on Cerebras Wafer-Scale Cluster, you’ll see the following warning message
+
+```
+
+WARNING: Input starvation detected
+Please check dataloader throughput
+```
+
+
+If the problem persists, the following error will be thrown
+
+```
+
+ERROR:   Declaring stall due to input starvation, no change in status for 630 secs
+```
+
+This error means that the model is too fast compared to the speed of your dataloader. Therefore you will need to rethink how you can speed up your data pipeline. Visit the section [Creating custom dataloaders](../port/prepare-data/custom_dataloaders.html#custom-dataloader) that includes:
+
+*   Examples on how to convert dataloaders that already work on GPUs
+
+*   Best practices to improve the performance of your dataloaders.

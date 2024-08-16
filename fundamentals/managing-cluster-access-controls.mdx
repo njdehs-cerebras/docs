@@ -1,0 +1,25 @@
+---
+title: "Managing Cluster Access Controls"
+description: "In scenarios involving multiple groups and users on a Cerebras Wafer-Scale cluster within your organization, certain specific requirements may arise:"
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+- Ensuring that “User A” is unable to access or execute training jobs using the credentials of “User B”.
+
+- Providing “User C”, who is a member of multiple groups within a larger organization, with access to all relevant groups at the appropriate privilege level.
+
+
+All of this is handled by the Wafer Scale Cluster, with no specific action required by the user.
+
+## Procedure[#](#procedure "Permalink to this headline")
+
+When a job is submitted from the user node, it is accompanied by a token that contains the user’s unique user ID (`uid`) or group ID (`gid`). This `uid` or `gid`, which identifies the job’s submitter on the Wafer-Scale cluster, configures the SecurityContext within a Kubernetes pod responsible for managing the appliance and granting access to NFS-mounted storage.
+
+The `root` user on the user nodes maintains a file containing a secret key. This key is also stored within the `User-Auth Library` in the Wafer-Scale cluster. Access to this secret file is limited to the `root` user, preventing other users from reading or writing to it. A binary file, owned by the `root` user and inaccessible to non-privileged users, is invoked. When called by non-privileged users, this binary file invokes the system calls to retrieve `uid`, `gid`, or `groups` information for the invoking user, uses the secret key to encrypt the user’s information, and generates an authentication token with a predefined time-to-live. Subsequently, this authentication token is embedded in the job request to be submitted to the cluster management server.
+
+The cluster management server performs validation of the authentication token, extracting relevant user and group details and then launches the job only if the token is verified as valid.
+
+## Conclusion[#](#conclusion "Permalink to this headline")
+
+The user authentication mechanism on a Cerebras Wafer-Scale cluster is designed to ensure secure and isolated access for multiple users and groups within an organization. By leveraging a robust system that integrates unique user and group IDs with encrypted tokens, the cluster maintains strict access controls, ensuring that users can only execute and access their own jobs and data. This system, operating transparently to the user, ensures a high level of security without compromising ease of use, effectively addressing key organizational requirements for confidentiality and data integrity in a multi-user environment.

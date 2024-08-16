@@ -1,0 +1,93 @@
+---
+title: "        Performance Flags       "
+---
+  
+
+
+The Cerebras PyTorch API provides a set of performance and debugging related flags. See [Performance/Debug Flags](../../../api/cerebras_pytorch/cstorch.html#cstorch-backends) for a comprehensive list of the flags that are available.
+
+On this page we will cover how you can set these performance flags using the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure to have read through [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models. In this document, you will be using the tools and configurations outlined in those pages.
+
+Scoped Flags[#](#scoped-flags "Permalink to this headline")
+-----------------------------------------------------------
+
+While you can simply set the flags directly via the Cerebras PyTorch API, it is often the case that you want different flags for say training versus validation.
+
+As such, we provide two callbacks to facilitate this:
+
+* [`ScopedTrainFlags`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ScopedTrainFlags "cerebras.modelzoo.trainer.callbacks.ScopedTrainFlags")
+    
+* [`ScopedValidateFlags`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ScopedValidateFlags "cerebras.modelzoo.trainer.callbacks.ScopedValidateFlags")
+    
+
+With these callbacks, you can set different performance flags for training and validation.
+
+For example, one of the most important flags that you may want to set is the micro batch size (see working\_with\_microbatches for more details on micro batching).
+
+While you could set it globally by setting the [`cerebras.pytorch.backends.csx.performance.micro_batch_size`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backends.csx.performance.micro_batch_size "cerebras.pytorch.backends.csx.performance.micro_batch_size") flag, if you want to set different micro batch sizes for training and validation, you can set the values as follows.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+  ...
+  callbacks:
+  -  ScopedTrainFlags:
+  csx.performance.micro\_batch\_size:  auto
+  -  ScopedValidateFlags:
+  csx.performance.micro\_batch\_size:  2
+  ...
+
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    ScopedTrainFlags,
+    ScopedValidateFlags,
+)
+
+trainer = Trainer(
+    ...,
+    callbacks=[
+        ScopedTrainFlags(
+            **{
+                "csx.performance.micro_batch_size": "auto",
+            }
+        ),
+        ScopedValidateFlags(
+            **{
+                "csx.performance.micro_batch_size": 2,
+            }
+        ),
+    ]
+)
+...
+
+```
+</CodeGroup>
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Setting performance flags in the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") is a crucial step to optimize and debug your model training and validation processes. By leveraging the `ScopedTrainFlags` and `ScopedValidateFlags` callbacks, you can fine-tune your settings to cater to different stages of your workflow, such as assigning distinct micro batch sizes for training and validation. This flexibility allows for a more tailored and efficient training process, ensuring that you can maximize the performance of Model Zoo models.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

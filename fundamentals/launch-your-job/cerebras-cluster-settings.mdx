@@ -1,0 +1,74 @@
+---
+title: " Cerebras Cluster Settings "
+---
+
+## Credentials path and management address[#](#credentials-path-and-management-address "Permalink to this headline")
+
+The `credentials_path` and `mgmt_address` parameters are set by default in `/opt/cerebras/config` and typically do not require explicit specification.
+
+An example configuration in `/opt/cerebras/config` might look like this:
+
+```Bash
+  {
+  "clusters": [
+          {
+          "name": "system-name",
+          "server": "1.2.3.4:9000",
+          "authority": "cluster-server.system-name.example.com",
+          "certificateAuthority": "/opt/cerebras/certs/tls.crt"
+          }
+  ],
+  "contexts": [
+          {
+          "cluster": "cluster-name",
+          "name": "system-name"
+          }
+  ],
+  "currentContext": "system-name"
+  }
+
+```
+## Python paths and mount directories[#](#python-paths-and-mount-directories "Permalink to this headline")
+
+When running jobs, it’s crucial to include paths required by dataloaders and any external Python packages, as well as the location of the Cerebras Model Zoo.
+
+Consider this directory structure as an example:
+
+```Bash
+  /path/to/datasets
+        my_dataset/
+
+  /path/to/modelzoo
+          modelzoo
+
+  /path/to/packages
+          package_x
+          package_y
+```
+If input workers need to access the “my_dataset” directory and require Python modules from the Model Zoo, “package_x”, and “package_y”, you would specify the command like this:
+
+```Bash
+  python run.py \
+      CSX \
+      --params params.yaml \
+      --mode {train,eval,eval_all,train_and_eval} \
+      --mount_dirs /path/to/datasets /path/to/modelzoo /path/to/packages \
+      --python_paths /path/to/packages /path/to/modelzoo \
+
+```
+
+<Info>
+
+Note
+
+If some paths have a common parent folder, you only need to specify the parent in the `--mount_dirs` or `--python_paths arguments`. For instance, if the Model Zoo is at “/cb/home/user/modelzoo” and data is at “/cb/home/user/data”, you only need to specify `--mount_dirs /cb/home`.
+
+</Info>
+
+You can also set defaults for `mount_dirs` and `python_paths` in a YAML file and export it as an environment variable to streamline command line usage:
+
+```Bash
+export CEREBRAS_WAFER_SCALE_CLUSTER_DEFAULTS=/path/to/defaults/file.yaml
+```
+With this environment variable set, you won’t need to specify `--mount_dirs` and `--python_paths` when running a Cerebras Model Zoo job, unless you’re adding additional paths.
+

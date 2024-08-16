@@ -1,0 +1,831 @@
+---
+title: "        Cerebras Modelzoo Layers       "
+---
+  
+### class cerebras.modelzoo.layers.AlibiPositionEmbeddingLayer(\*args, \*\*kwargs) [\[source\]](../../../_modules/cerebras/modelzoo/layers/AlibiPositionEmbeddingLayer.html#AlibiPositionEmbeddingLayer)
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+**Alibi Position Embedding Layer, Symmetric case with bidirectional supported**
+
+Alibi bias as in the paper: [https://arxiv.org/abs/2108.12409](https://arxiv.org/abs/2108.12409)
+
+#### Parameters
+
+- **num_heads** _(int)_: number of attention heads.
+- **slopes** _(Tensor)_: slope values to use for alibi heads. Shape: \[num_heads, 1\]. Defaults to `None`.
+- **alibi_trainable_slopes** _(bool)_: whether the alibi slopes are trainable parameters.
+- **slopes_initializer** _(str)_: initializer for alibi slopes if they’re trainable. Defaults to `xavier_uniform`.
+
+#### Returns
+
+- **Relative position bias**, to be used in attention masking.
+
+#### Return type
+
+- **position_bias** _(Tensor)_
+
+---
+
+### forward(seq_length, key_length, past_kv=None, constant_pos_mask=None, batch_size=None) [\[source\]](../../../_modules/cerebras/modelzoo/layers/AlibiPositionEmbeddingLayer.html#AlibiPositionEmbeddingLayer.forward)
+
+**Return the position bias based on the alibi slopes.**
+
+#### Parameters
+
+- **seq_length** _(int)_: the length of query tokens.
+- **key_length** _(int)_: the length of key tokens.
+
+#### Returns
+
+- **Position bias tensor** with shape \[num_heads, query_length, key_length\]
+
+## MultiheadAttention Class
+
+### `class cerebras.modelzoo.layers.MultiheadAttention(*args, **kwargs)`
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module)
+
+Multi-head attention layer. Adapted from:
+[https://pytorch.org/docs/stable/_modules/torch/nn/modules/activation.html#MultiheadAttention](https://pytorch.org/docs/stable/_modules/torch/nn/modules/activation.html#MultiheadAttention).
+
+#### Parameters
+
+- **embed_dim** (`int`) – Number of input units in each projection output
+- **num_heads** (`int`) – Number of attention heads.
+- **inner_dim** (`int`) – Number of output units in attention query/key/value projection. Defaults to `embed_dim`.
+- **dropout** (`float`) – Dropout rate for key-query weights. Defaults to 0.0.
+- **batch_first** (`bool`) – If True, then the input and output tensors are provided as (batch, seq, feature), otherwise the format will be (seq, batch, feature). Default: True (batch, seq, feature).
+- **add_bias_kv** (`bool`) – If specified, adds bias to the key and value sequences at dim=0. Default: False.
+- **add_zero_attn** (`bool`) – If specified, adds a new batch of zeros to the key and value sequences at dim=1. Default: False.
+- **kdim** (`int`) – Number of input units in the key projection.
+- **vdim** (`int`) – Number of input units in the value projection.
+- **use_projection_bias** (`bool`) – Whether to use bias in the key, query, and value projections.
+- **use_ffn_bias** (`bool`) – Whether to use bias in the output projection.
+- **attention_initializer** (`str`) – Projection kernel initializer. Defaults to `xavier_uniform`.
+- **attention_q_initializer** – Query projection kernel initializer. If not specified, the query will be initialized via `attention_initializer`.
+- **output_layer_initializer** (`str` | `initializer`) – If not None, use this initializer for the output transform layer. Defaults to None.
+- **bias_initializer** (`str`) – Bias initializer. Defaults to `zeros`.
+- **attention_type** (`str`) – The attention variant to execute. Currently accepts `dot_product` and `scaled_dot_product`. Defaults to `scaled_dot_product`.
+- **scale_qk_dot_by_d** (`bool`) – If `True` scales QK^T dot product by d(=hidden/d_head) instead of sqrt(d).
+- **attention_logits_alpha** (`float`) – Scales the QK^T dot product. Used to stabilize logits in muP training.
+- **softmax_dtype_fp32** (`bool`) – Use an FP32 softmax implementation.
+- **attention_kernel** (`str` | `None`) – Kernel to use. Uses `default` if None. See accepted values below.
+
+  - `None` - Default implementation.
+  - `fast_attention` - Experimental optimized implementation.
+
+- **device** (`optional`) – Device to create the model parameters on, can be a CUDA device or CS device.
+
+---
+
+### `MultiheadAttention.forward(q, k, v, attn_mask=None, key_padding_mask=None, need_weights=False, average_attn_weights=True, past_kv=None, cache_present_kv=False, past_kv_self_attn=True, position_bias=None, rotary_position_embedding_helper=None, layer_idx=None, **extra_args)`
+
+Applies the attention mechanism to queries `q`, keys `k`, and values `v`.
+
+#### Parameters
+
+- **q** (`Tensor`) – Queries, shape `[batch_size, seq_length, embed_dim]`.
+- **k** (`Tensor`) – Keys, shape `[batch_size, seq_length, embed_dim]`.
+- **v** (`Tensor`) – Values, shape `[batch_size, seq_length, embed_dim]`.
+- **attn_mask** (`Tensor`) – Attention mask. Can be 2D of shape `[batch_size, seq_length]`, or 3D of shape `[batch, query_length, seq_length]`.
+- **key_padding_mask** (`Tensor`) – If specified, a mask of shape (N, S) indicating which elements within key to ignore for the purpose of attention (i.e. treat as “padding”). Defaults to None.
+- **need_weights** (`bool`) – If specified, returns `attn_output_weights` in addition to `attn_outputs`. Default: False.
+- **average_attn_weights** (`bool`) – If true, indicates that the returned `attn_weights` should be averaged across heads. Otherwise, `attn_weights` are provided separately per head. Note that this flag only has an effect when `need_weights=True`. Default: True (i.e., average weights across heads).
+- **past_kv** (`tuple(tensor, tensor)`) – Past keys and values. Tensors have shape `[batch_size, num_heads, seq_length, embed_dim / num_heads]`. The 0th and 1st tensors contain the past keys and values, respectively. Defaults to `None`.
+- **cache_present_kv** (`bool`) – Specifies if the present keys and values must be cached and returned. Needed to speed up the computations when the decoder is called within an autoregressive loop. Defaults to `False`.
+- **past_kv_self_attn** (`bool`) – Specifies whether the past keys & values should be used for self-attention (true) or cross-attention (false). Ignored if `past_kv` is not provided. Default: True.
+- **position_bias** (`Tensor`) – Tensor containing position bias to apply in attention with shape `[num_heads, query_length, key_length]`.
+- **rotary_position_embedding_helper** (`Optional[RotaryPositionEmbeddingHelper]`) – A helper class to apply rotary embedding on the input tensor.
+
+#### Returns
+
+Attention output tensor with shape `[batch_size, seq_length, embed_dim]`.
+
+
+
+_class_ cerebras.modelzoo.layers.BatchChannelNorm2D(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/BatchChannelNorm.html#BatchChannelNorm2D)[#](#cerebras.modelzoo.layers.BatchChannelNorm2D "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+Implements Batch Channel Normalization proposed in Micro-Batch Training with Batch-Channel Normalization and Weight Standardization [https://arxiv.org/abs/1903.10520](https://arxiv.org/abs/1903.10520)
+
+Parameters
+
+* **num_groups** (_int_) – number of groups to separate the channels into.
+    
+* **num_channels** (_int_) – number of channels. C from an expected input of size (N, C, H, W).
+    
+* **eps** (_float_) – a value added to the denominator for numerical stability. Default: 1e-5.
+    
+* **momentum** (_float_) – The Update rate value used for the running_mean and running_var computation. Default: 0.1.
+    
+* **device** ([_torch.device_](https://pytorch.org/docs/stable/tensor_attributes.html#torch.device "(in PyTorch v2.4)")) – Device to place the learnable parameters.
+    
+* **dtype** ([_torch.dtype_](https://pytorch.org/docs/stable/tensor_attributes.html#torch.dtype "(in PyTorch v2.4)")) – Data type of learnable parameters.
+    
+
+Shape:
+
+input: (N, C, H, W) output: (N, C, H, W) (same shape as input)
+
+
+
+_class_ cerebras.modelzoo.layers.EmbeddingLayer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/EmbeddingLayer.html#EmbeddingLayer)[#](#cerebras.modelzoo.layers.EmbeddingLayer "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+Creates token and, optionally, position and segment embeddings.
+
+Parameters
+
+* **vocab_size** (_int_) – Size of input vocabulary.
+    
+* **embedding_size** (_int_) – Dimension of the embedding space.
+    
+* **pad\_token\_id** (_Optional__\[__int__\]_) – If specified, the entries at padding\_idx do not contribute to the gradient; therefore, the embedding vector at padding\_idx is not updated during training.
+    
+* **segment\_embedding\_size** (_int_) – Dimension of the embedding space for segment embeddings. Useful when factorized embeddings are used for tokens and so the size of the embedding space for segments differs from that for tokens. Defaults to the same value as embedding_size.
+    
+* **embeddings_initializer** (_Optional__\[__str__,__Callable__\]_) – Token embeddings initializer. Defaults to ‘uniform’.
+    
+* **max\_position\_embeddings** (_int_) – Maximum sequence length to train using model.
+    
+* **position\_embedding\_type** (_str_) – ‘learned’, ‘fixed’ or ‘rotary’. Defaults to “learned”, for ‘rotary’ embeddings, embeddings are not created at bottom but computed with key&query embeddings by RotaryPositionEmbeddingHelper
+    
+* **position\_embedding\_offset** (_int_) – Offset for position embeddings. Default to 0.
+    
+* **min_timescale** (_Optional__\[__int__\]_) – The scale of the shortest sinusoid. Default to 1.0. (only need to be specified when position\_embedding\_type is fixed).
+    
+* **max_timescale** (_Optional__\[__int__\]_) – The scale of the longest sinusoid. Default to 1.0e4. (only need to be specified when position\_embedding\_type is fixed).
+    
+* **position\_embeddings\_initializer** (_Optional__\[__str__,__Callable__\]_) – Position embeddings initializer. Defaults to “uniform”.
+    
+* **num_segments** (_Optional__\[__int__\]_) – Number of segments for the segment embedding layer. Defaults to None, in which case the segment embedding layer is not created.
+    
+* **segment\_embeddings\_initializer** (_Optional__\[__str__,__Callable__\]_) – Segment embeddings initializer. Defaults to “uniform”.
+    
+* **(****optional****)** (_device_) – Device to create the model parameters on, can be a cuda device or CS device.
+    
+
+forward(_input_ids_, _position_ids=None_, _segment_ids=None_, _past_length=0_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/EmbeddingLayer.html#EmbeddingLayer.forward)[#](#cerebras.modelzoo.layers.EmbeddingLayer.forward "Permalink to this definition")
+
+Convert input_ids to token embeddings according to the embedding type.
+
+Word embeddings (required), segment embeddings (optional) and position embeddings (optional).
+
+Parameters
+
+* **input_ids** (_Tensor_) – input token ids with shape `[batch_size, seq_length]`.
+    
+* **position_ids** (_Tensor_) – position ids with shape `[batch_size, seq_length]`.
+    
+* **segment_ids** (_Tensor_) – input segment ids with shape `[batch_size, seq_length]`.
+    
+
+Returns
+
+Token embedding output with shape `[batch_size, seq_length, embedding_size]`.
+
+
+_class_ cerebras.modelzoo.layers.FeedForwardNetwork(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/FeedForwardNetwork.html#FeedForwardNetwork)[#](#cerebras.modelzoo.layers.FeedForwardNetwork "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+A feed forward network that consists of a stack of fully connected layers arranged as \[LinearLayer -> Activation -> Dropout\] block repeated len(layers_units) times.
+
+Parameters
+
+**config** (_FeedForwardNetworkConfig_) – Feed forward network config.
+
+Initialize the FFN object instance.
+
+
+_class_ cerebras.modelzoo.layers.GPTJDecoderLayer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/GPTJDecoderLayer.html#GPTJDecoderLayer)[#](#cerebras.modelzoo.layers.GPTJDecoderLayer "Permalink to this definition")
+
+Bases: [`cerebras.modelzoo.layers.TransformerDecoderLayer.TransformerDecoderLayer`](#cerebras.modelzoo.layers.TransformerDecoderLayer "cerebras.modelzoo.layers.TransformerDecoderLayer.TransformerDecoderLayer")
+
+GPTJDecoderLayer is inherited from TransformerDecoderLayer, it has 2 modifications:
+
+1.  It uses parallel decoder architecture instead of the sequential one
+    
+2.  It supports both gptj and gpt-neox which uses untied\_layer\_norm
+    
+
+Reference: [https://www.cerebras.net/blog/how-to-harness-the-predictive-power-of-gpt-j](https://www.cerebras.net/blog/how-to-harness-the-predictive-power-of-gpt-j)
+
+Parameters
+
+* **d_model** (_int_) – the number of expected features in the input (required).
+    
+* **nhead** (_int_) – the number of heads in the multihead-attention models (required).
+    
+* **use\_untied\_layer_norm** (_bool_) – whether to use untied layer_norm. Should be False for GPTJ and True for Neox
+    
+* **kwargs** – the rest of the arguments the same as TransformerDecoderLayer
+    
+
+forward(_tgt_, _memory=None_, _tgt_mask=None_, _memory_mask=None_, _tgt\_key\_padding_mask=None_, _memory\_key\_padding_mask=None_, _attention_mask=None_, _rotary\_position\_embedding_helper=None_, _past_kv=None_, _cache\_present\_kv=False_, _self\_attn\_position_bias=None_, _cross\_attn\_position_bias=None_, _layer_idx=None_, _expert\_hash\_idx=None_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/GPTJDecoderLayer.html#GPTJDecoderLayer.forward)[#](#cerebras.modelzoo.layers.GPTJDecoderLayer.forward "Permalink to this definition")
+
+GPTJ layer with rotary position embeddings and parallel decoder architecture
+
+Parameters
+
+* **tgt** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the decoder layer (required).
+    
+* **memory** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the sequence from the last layer of the encoder (required).
+    
+* **tgt_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt sequence (optional).
+    
+* **memory_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory sequence (optional).
+    
+* **tgt\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt keys per batch (optional).
+    
+* **memory\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory keys per batch (optional).
+    
+* **rotary\_position\_embedding_helper** (_Optional__\[__RotaryPositionEmbeddingHelper__\]_) – A helper class to apply rotary embedding on the input tensor.
+    
+* **past_kv** (_Optional__\[__Union__\[__Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]_) – Past keys and values for self attention and (if applicable) cross attention modules. Key/value tensors have shape `[batch_size, num_heads, seq_length, embed_dim / num_heads]`. (optional).
+    
+* **cache\_present\_kv** (_bool_) – Specifies if the present keys and values must be cached and returned. Needed to speed up the computations when the decoder is called within an autoregressive loop. (optional).
+    
+* **self\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the tensor containing position bias to apply in self-attention, can be obtained from relative or alibi position embeddings.
+    
+* **expert\_hash\_idx** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – tensor containing mixture-of-experts expert selection indices for each token in the batch. Only used with MoE with hash-based routing enabled (optional).
+    
+
+Shape:
+
+Output tensor with shape
+
+
+_class_ cerebras.modelzoo.layers.GroupInstanceNorm(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/GroupInstanceNorm.html#GroupInstanceNorm)[#](#cerebras.modelzoo.layers.GroupInstanceNorm "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+Uses torch.nn.GroupNorm to emulate InstanceNorm by setting number of groups equal to the number of channels.
+
+Parameters
+
+**num_channels** (_int_) – number of channels. C from an expected input of size (N, C, H, W).
+
+_class_ cerebras.modelzoo.layers.MultiQueryAttention(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/MultiQueryAttentionLayer.html#MultiQueryAttention)[#](#cerebras.modelzoo.layers.MultiQueryAttention "Permalink to this definition")
+
+Bases: [`cerebras.modelzoo.layers.AttentionLayer.MultiheadAttention`](#cerebras.modelzoo.layers.MultiheadAttention "cerebras.modelzoo.layers.AttentionLayer.MultiheadAttention")
+
+Implements the Multi-Query Attention Layer from
+
+Fast Transformer Decoding: One Write-Head is All You Need &lt;https://arxiv.org/abs/1911.02150&gt;
+
+Parameters
+
+* **embed_dim** (_int_) – Number of input units in each projection output
+    
+* **num_heads** (_int_) – Number of attention heads.
+    
+* **inner_dim** (_int_) – Number of output units in attention query/key/value projection. Defaults to `embed_dim`.
+    
+* **dropout** (_float_) – Dropout rate for key-query weights. Defaults to 0.0.
+    
+* **batch_first** (_bool_) – If True, then the input and output tensors are provided as (batch, seq, feature), otherwise the format will be (seq, batch, feature). Default: True (batch, seq, feature).
+    
+* **add\_bias\_kv** (_bool_) – If specified, adds bias to the key and value sequences at dim=0. Default: False.
+    
+* **add\_zero\_attn** (_bool_) – If specified, adds a new batch of zeros to the key and value sequences at dim=1. Default: False
+    
+* **kdim** (_int_) – Number of output units in key projection
+    
+* **vdim** (_int_) – Number of output units in projection
+    
+* **use\_projection\_bias** (_bool_) – Whether to use bias in the key, query, and value projections.
+    
+* **use\_ffn\_bias** (_bool_) – Whether to use bias in the output projection.
+    
+* **attention_initializer** (_str_) – Projection kernel initializer. Defaults to `xavier_uniform`.
+    
+* **attention\_q\_initializer** – Query projection kernel initializer. If not specified, the query will be initialized via `attention_initializer`
+    
+* **output\_layer\_initializer** (_str_ _or_ _initializer_) – If not None, use this initializer for the output transform layer. Defaults to None.
+    
+* **bias_initializer** (_str_) – Bias initializer. Defaults to `zeros`.
+    
+* **attention_type** (_str_) – The attention variant to execute. Currently accepts `dot_product` and `scaled_dot_product`. Defaults to `scaled_dot_product`.
+    
+* **softmax\_dtype\_fp32** (_bool_) – Use an FP32 softmax implementation.
+    
+* **attention_kernel** (_str_ _|_ _None_) –
+    
+    Kernel to use. Uses `default` if None. See accepted values below.
+    
+    > `None` \- Default implementation. `fast_attention` \- Experimental optimized implementation.
+    
+* **device** (_optional_) – Device to create the model parameters on, can be a cuda device or CS device.
+
+
+
+_class_ cerebras.modelzoo.layers.RelativePositionEmbeddingLayer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/RelativePositionEmbeddingLayer.html#RelativePositionEmbeddingLayer)[#](#cerebras.modelzoo.layers.RelativePositionEmbeddingLayer "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+Relative Position Embedding Layer
+
+Parameters
+
+* **num_heads** (_int_) – number of attention heads.
+    
+* **relative\_attention\_bias** (_Tensor_) – Tensor with relative attention weights. Shape: \[num\_relative\_attention_buckets, num_heads\]. Defaults set to None.
+    
+* **num\_relative\_attention_buckets** (_int_) – Number of buckets used to calculate relative position bias. Default: 32
+    
+* **max\_relative\_positions** (_int_) – The maximum relative distance used when calculating relative position buckets. See relative\_position\_bucket docs for more details. Default: 128
+    
+* **bidirectional\_relative\_attention** (_bool_) – Whether attention is bidirectional.
+    
+* **allow\_negative\_buckets** (_bool_) – If enabled, position buckets will be both positive and negative (as required by certain models like DEBERTA). Default: False.
+    
+* **relative\_attn\_bias_initializer** (_bool_) – Relative Attention bias initializer. Defaults to `xavier_uniform`.
+    
+
+Returns
+
+Relative position bias, to be used in attention masking
+
+Return type
+
+position_bias (Tensor)
+
+forward(_seq_length_, _key_length_, _past_kv=None_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/RelativePositionEmbeddingLayer.html#RelativePositionEmbeddingLayer.forward)[#](#cerebras.modelzoo.layers.RelativePositionEmbeddingLayer.forward "Permalink to this definition")
+
+Return the position bias.
+
+Parameters
+
+* **seq_length** (_int_) – the length of query tokens.
+    
+* **key_length** (_int_) – the length of key tokens.
+    
+
+
+
+
+### Returns
+
+Position bias tensor with shape `[num_heads, query_length, key_length]`
+
+---
+
+_static_ relative\_position\_bucket(_relative_position_, _bidirectional=True_, _num_buckets=32_, _max_distance=128_, _allow\_negative\_buckets=False_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/RelativePositionEmbeddingLayer.html#RelativePositionEmbeddingLayer.relative_position_bucket)[#](#cerebras.modelzoo.layers.RelativePositionEmbeddingLayer.relative_position_bucket "Permalink to this definition")
+
+
+
+
+Translate relative position to a bucket number for relative attention. The relative position is defined as `memory_position - query_position`, i.e., the distance in tokens from the attending position to the attended-to position. 
+
+If `bidirectional_relative_attention = False`, then positive relative positions are invalid. We use smaller buckets for small absolute relative positions and larger buckets for larger absolute relative positions. All relative positions `>= max_distance` map to the same bucket. All relative positions `<= -max_distance` map to the same bucket. This should allow for more graceful generalization to longer sequences than the model has been trained on.
+
+#### Parameters:
+- **relative_position**: Tensor with relative positions.  
+  _Type_: `Tensor`
+  
+- **bidirectional**: Whether attention is bidirectional.  
+  _Type_: `bool`
+  
+- **num_buckets**: Number of buckets for relative positions.  
+  _Type_: `int`
+  
+- **max_distance**: Used in order to calculate relative position buckets.  
+  _Type_: `int`
+  
+- **allow_negative_buckets**: If enabled, position buckets will be both positive and negative (as required by certain models like DEBERTA).  
+  _Default_: `False`
+
+#### Returns:
+A Tensor with the same shape as `relative_position`, containing `int32` values in the range `[0, num_relative_attention_buckets)`.
+
+
+_class_ cerebras.modelzoo.layers.Transformer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/Transformer.html#Transformer)[#](#cerebras.modelzoo.layers.Transformer "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+A transformer model. User is able to modify the attributes as needed. The architecture is based on the paper “Attention Is All You Need”. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in Neural Information Processing Systems, pages 6000-6010. Users can build the BERT([https://arxiv.org/abs/1810.04805](https://arxiv.org/abs/1810.04805)) model with corresponding parameters.
+
+Parameters
+
+* **d_model** (_int_) – the number of expected features in the encoder/decoder inputs (default=512).
+    
+* **nhead** (_int_) – the number of heads in the multihead attention models (default=8).
+    
+* **num\_encoder\_layers** (_int_) – the number of sub-encoder-layers in the encoder (default=6).
+    
+* **num\_decoder\_layers** (_int_) – the number of sub-decoder-layers in the decoder (default=6).
+    
+* **dim_feedforward** (_int_) – the dimension of the feedforward network model (default=2048).
+    
+* **dropout** (_float_) – the dropout value (default=0.1).
+    
+* **activation** (_Union__\[__str__,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]_) – the activation function of encoder/decoder intermediate layer, can be a string (“relu” or “gelu”) or a unary callable. Default: gelu
+    
+* **custom_encoder** (_Optional__\[__Any__\]_) – custom encoder (default=None).
+    
+* **custom_decoder** (_Optional__\[__Any__\]_) – custom decoder (default=None).
+    
+* **layer\_norm\_eps** (_float_) – the eps value in layer normalization components (default=1e-5).
+    
+* **batch_first** (_bool_) – If `True`, then the input and output tensors are provided as (batch, seq, feature). Default: `False` (seq, batch, feature).
+    
+* **norm_first** (_bool_) – if `True`, encoder and decoder layers will perform LayerNorms before other attention and feedforward operations, otherwise after. Default: `False` (after).
+    
+* **attention_type** – Should be in \[“scaled\_dot\_product”, “dot_product”\].
+    
+* **use\_projection\_bias\_in\_attention** – Add bias to Q,K,V projections in the Attention layer. Defaults to False.
+    
+* **use\_ffn\_bias\_in\_attention** – Add bias in the concluding FFN in the Attention layer. Defaults to False.
+    
+* **use\_ffn\_bias** – Add bias in all dense layers of the decoder’s ffn sublayer.
+    
+* **attention_initializer** – Attention layer initializer. Defaults to “xavier_uniform”.
+    
+* **ffn_initializer** – FFN layer initializer. Defaults to “xavier_uniform”.
+    
+* **device** (_optional_) – Device to create the model parameters on, can be a cuda device or CS device.
+    
+
+Examples::
+
+>>\> transformer_model = nn.Transformer(nhead=16, num\_encoder\_layers=12)
+>>\> src = torch.rand((10, 32, 512))
+>>\> tgt = torch.rand((20, 32, 512))
+>>\> out = transformer_model(src, tgt)
+
+Copy to clipboard
+
+Note: A full example to apply nn.Transformer module for the word language model is available in [https://github.com/pytorch/examples/tree/master/word\_language\_model](https://github.com/pytorch/examples/tree/master/word_language_model)
+
+forward(_src_, _tgt_, _src_mask=None_, _tgt_mask=None_, _memory_mask=None_, _src\_key\_padding_mask=None_, _tgt\_key\_padding_mask=None_, _memory\_key\_padding_mask=None_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/Transformer.html#Transformer.forward)[#](#cerebras.modelzoo.layers.Transformer.forward "Permalink to this definition")
+
+Take in and process masked source/target sequences.
+
+Parameters
+
+* **src** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the encoder (required).
+    
+* **tgt** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the decoder (required).
+    
+* **src_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the additive mask for the src sequence (optional).
+    
+* **tgt_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the additive mask for the tgt sequence (optional).
+    
+* **memory_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the additive mask for the encoder output (optional).
+    
+* **src\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the ByteTensor mask for src keys per batch (optional).
+    
+* **tgt\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the ByteTensor mask for tgt keys per batch (optional).
+    
+* **memory\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the ByteTensor mask for memory keys per batch (optional).
+    
+
+Shape:
+
+* src: (S,E) for unbatched input, (S,N,E) if batch_first=False or (N, S, E) if batch_first=True.
+    
+* tgt: (T,E) for unbatched input, (T,N,E) if batch_first=False or (N, T, E) if batch_first=True.
+    
+* src_mask: (S,S) or (N⋅num\\_heads,S,S).
+    
+* tgt_mask: (T,T) or (N⋅num\\_heads,T,T).
+    
+* memory_mask: (T,S).
+    
+* src\_key\_padding_mask: (S) for unbatched input otherwise (N,S).
+    
+* tgt\_key\_padding_mask: (T) for unbatched input otherwise (N,T).
+    
+* memory\_key\_padding_mask: (S) for unbatched input otherwise (N,S).
+    
+
+Note: \[src/tgt/memory\]_mask ensures that position i is allowed to attend the unmasked positions. If a ByteTensor is provided, the non-zero positions are not allowed to attend while the zero positions will be unchanged. If a BoolTensor is provided, positions with `True` are not allowed to attend while `False` values will be unchanged. If a FloatTensor is provided, it will be added to the attention weight. \[src/tgt/memory\]\_key\_padding_mask provides specified elements in the key to be ignored by the attention. If a ByteTensor is provided, the non-zero positions will be ignored while the zero positions will be unchanged. If a BoolTensor is provided, the positions with the value of `True` will be ignored while the position with the value of `False` will be unchanged.
+
+* output: (T,E) for unbatched input, (T,N,E) if batch_first=False or (N, T, E) if batch_first=True.
+    
+
+Note: Due to the multi-head attention architecture in the transformer model, the output sequence length of a transformer is same as the input sequence (i.e. target) length of the decode.
+
+where S is the source sequence length, T is the target sequence length, N is the batch size, E is the feature number
+
+Examples
+
+>>\> output = transformer_model(src, tgt, src_mask=src_mask, tgt_mask=tgt_mask)
+
+Copy to clipboard
+
+
+_class_ cerebras.modelzoo.layers.TransformerDecoder(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerDecoder.html#TransformerDecoder)[#](#cerebras.modelzoo.layers.TransformerDecoder "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+TransformerDecoder is a stack of N decoder layers
+
+Parameters
+
+* **decoder_layer** – an instance of the TransformerDecoderLayer() class (required).
+    
+* **num_layers** – the number of sub-decoder-layers in the decoder (required).
+    
+* **norm** – the layer normalization component (optional).
+    
+
+Examples::
+
+>>\> decoder_layer = nn.TransformerDecoderLayer(d_model=512, nhead=8)
+>>\> transformer_decoder = nn.TransformerDecoder(decoder_layer, num_layers=6)
+>>\> memory = torch.rand(10, 32, 512)
+>>\> tgt = torch.rand(20, 32, 512)
+>>\> out = transformer_decoder(tgt, memory)
+
+Copy to clipboard
+
+forward(_tgt_, _memory=None_, _tgt_mask=None_, _sparse_mask=None_, _memory_mask=None_, _tgt\_key\_padding_mask=None_, _memory\_key\_padding_mask=None_, _self\_attn\_position_bias=None_, _cross\_attn\_position_bias=None_, _rotary\_position\_embedding_helper=None_, _past_kv=None_, _cache\_present\_kv=False_, _extract\_layer\_idx=None_, _expert\_hash\_idx=None_, _**extra_args_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerDecoder.html#TransformerDecoder.forward)[#](#cerebras.modelzoo.layers.TransformerDecoder.forward "Permalink to this definition")
+
+Pass the inputs (and mask) through the decoder layer in turn.
+
+Parameters
+
+* **tgt** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the decoder (required).
+    
+* **memory** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the sequence from the last layer of the encoder (optional).
+    
+* **tgt_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt sequence (optional).
+    
+* **memory_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory sequence (optional).
+    
+* **tgt\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt keys per batch (optional).
+    
+* **memory\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory keys per batch (optional).
+    
+* **self\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the tensor containing position bias to apply in self-attention, can be obtained from relative or alibi position embeddings.
+    
+* **cross\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – similar to self\_attn\_position_bias, this is the tensor containing position bias to apply in cross-attention.
+    
+* **rotary\_position\_embedding_helper** (_Optional__\[__RotaryPositionEmbeddingHelper__\]_) – A helper class to apply rotary embedding on the input tensor.
+    
+* **past_kv** (_Optional__\[__List__\[__Union__\[__Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]__\]_) – Past keys and values for each of the decoder layers (optional).
+    
+* **cache\_present\_kv** (_bool_) – Specifies if the present keys and values must be cached and returned. (optional).
+    
+* **extract\_layer\_idx** (_Optional__\[__int__\]_) – (inclusive)layer index in range \[0, self.num_layers) (zero-indexed) Applies decoder layers up to (and including) extract\_layer\_idx instead of all decoder layers. For ex: extract\_layer\_idx=3 would run fwd pass from decoder\_block\_0 to decoder\_block\_3 and return outputs from decoder\_block\_3. If extract\_layer\_idx = None and norm != None, then the output returned would be decoder\_block\_{self.num_layers-1} -> norm -> output (return)
+    
+* **expert\_hash\_idx** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – Optional tensor for mixture-of-experts models with hash-based routing. Tensor contains the expert ID for each token in the batch based on a hashing calculation.
+    
+
+Shape:
+
+see the docs in Transformer class.
+
+
+_class_ cerebras.modelzoo.layers.TransformerDecoderLayer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerDecoderLayer.html#TransformerDecoderLayer)[#](#cerebras.modelzoo.layers.TransformerDecoderLayer "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+TransformerDecoderLayer is made up of self-attn, multihead-attn and feedforward network. This standard decoder layer is based on the paper “Attention Is All You Need”. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in Neural Information Processing Systems, pages 6000-6010. Users may modify or implement in a different way during application.
+
+Parameters
+
+* **d_model** (_int_) – the number of expected features in the input (required).
+    
+* **nhead** (_int_) – the number of heads in the multihead-attention models (required).
+    
+* **dim_feedforward** (_int_) – the dimension of the feedforward network model (default=2048).
+    
+* **dropout** (_float_) – the dropout value (default=0.1).
+    
+* **activation** (_Union__\[__str__,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]_) – the activation function of the intermediate layer, can be a string (“relu” or “gelu”) or a unary callable. Default: gelu
+    
+* **layer\_norm\_eps** (_float_) – the eps value in layer normalization components (default=1e-5).
+    
+* **batch_first** (_bool_) – If `True`, then the input and output tensors are provided as (batch, seq, feature). Default: `False` (seq, batch, feature).
+    
+* **norm_layer** (_Type__\[_[_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")_\]_) – the normalization class that will be used before/after FF layers (default=nn.LayerNorm)
+    
+* **norm_first** (_bool_) – if `True`, layer norm is done prior to self attention, multihead attention and feedforward operations, respectively. Otherwise it’s done after. Default: `False` (after).
+    
+* **attention\_dropout\_rate** (_Optional__\[__float__\]_) – Attention dropout rate. If None, defaults to dropout.
+    
+* **attention\_softmax\_fp32** (_Optional__\[__bool__\]_) – Use FP32 softmax in attention block.
+    
+* **use\_projection\_bias\_in\_attention** – Add bias to Q,K,V projections in the Attention layer. Defaults to False.
+    
+* **attention_type** – Should be in \[“scaled\_dot\_product”, “dot_product”\]
+    
+* **scale\_qk\_dot\_by\_d** (_bool_) – If `True` scales QK^T dot product by d(=hidden/d_head) instead of sqrt(d).
+    
+* **attention\_logit\_alpha** (_float_) – Scales the QK^T dot product. Used to stabilize logits in muP training.
+    
+* **attention\_inner\_dim** (_int_) – Number of output units in attention query/key/value projection. Defaults to d_model
+    
+* **add\_cross\_attention** (_bool_) – If `True`, adds cross-attention layer between encoder/decoder, otherwise, only self-attention is used in the decoder (GPT-style models should set to `False`)
+    
+* **use\_ffn\_bias\_in\_attention** – Add bias in the concluding FFN in the Attention layer. Defaults to False.
+    
+* **use\_ffn\_bias** – Add bias in all dense layers of the decoder’s ffn sublayer
+    
+* **attention_initializer** – Attention layer initializer. Defaults to “xavier_uniform”.
+    
+* **attention\_q\_initializer** – Query projection kernel initializer. If not specified, the query will be initialized via `attention_initializer`
+    
+* **attention\_output\_layer_initializer** – attention output layer projection initializer. If not specified, the output will be initialized via `attention_initializer`
+    
+* **ffn_initializer** – FFN layer initializer. Defaults to “xavier_uniform”.
+    
+* **ffn\_output\_layer_initializer** – If not None, initialize the last FFN layer with this initializer. Defaults to None.
+    
+* **use\_ff\_layer1_dropout** (_bool_) – If `True`, dropout will be enabled after the first feed forward layer. Default: True
+    
+* **True** (_use\_ff\_layer2_dropout = If_) – True
+    
+* **Default** (_dropout will be enabled after the second feed forward layer._) – True
+    
+* **ffn\_dropout\_rate** (_Optional__\[__float__\]_) – Controls dropout rate of FF’s first layer. If None, defaults to dropout.
+    
+* **moe_params** – A dict of MoE params including num\_experts, top\_k and load\_balancing\_loss_coef
+    
+
+Examples
+
+>>\> decoder_layer = nn.TransformerDecoderLayer(d_model=512, nhead=8, batch_first=True)
+>>\> memory = torch.rand(32, 10, 512)
+>>\> tgt = torch.rand(32, 20, 512)
+>>\> out = decoder_layer(tgt, memory)
+
+Copy to clipboard
+
+forward(_tgt_, _memory=None_, _tgt_mask=None_, _memory_mask=None_, _tgt\_key\_padding_mask=None_, _memory\_key\_padding_mask=None_, _rotary\_position\_embedding_helper=None_, _past_kv=None_, _cache\_present\_kv=False_, _self\_attn\_position_bias=None_, _cross\_attn\_position_bias=None_, _layer_idx=None_, _expert\_hash\_idx=None_, _**extra_args_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerDecoderLayer.html#TransformerDecoderLayer.forward)[#](#cerebras.modelzoo.layers.TransformerDecoderLayer.forward "Permalink to this definition")
+
+Pass the inputs (and mask) through the decoder layer.
+
+Parameters
+
+* **tgt** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the decoder layer (required).
+    
+* **memory** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the sequence from the last layer of the encoder (required).
+    
+* **tgt_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt sequence (optional).
+    
+* **memory_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory sequence (optional).
+    
+* **tgt\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the tgt keys per batch (optional).
+    
+* **memory\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the memory keys per batch (optional).
+    
+* **rotary\_position\_embedding_helper** (_Optional__\[__RotaryPositionEmbeddingHelper__\]_) – A helper class to apply rotary embedding on the input tensor.
+    
+* **past_kv** (_Optional__\[__Union__\[__Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]_) – Past keys and values for self attention and (if applicable) cross attention modules. Key/value tensors have shape `[batch_size, num_heads, seq_length, embed_dim / num_heads]`. (optional).
+    
+* **cache\_present\_kv** (_bool_) – Specifies if the present keys and values must be cached and returned. Needed to speed up the computations when the decoder is called within an autoregressive loop. (optional).
+    
+* **self\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the tensor containing position bias to apply in self-attention, can be obtained from relative or alibi position embeddings.
+    
+* **expert\_hash\_idx** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – tensor containing mixture-of-experts expert selection indices for each token in the batch. Only used with MoE with hash-based routing enabled (optional).
+    
+
+Shape:
+
+see the docs in Transformer class.
+
+
+_class_ cerebras.modelzoo.layers.TransformerEncoder(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerEncoder.html#TransformerEncoder)[#](#cerebras.modelzoo.layers.TransformerEncoder "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+TransformerEncoder is a stack of N encoder layers
+
+Parameters
+
+* **encoder_layer** – an instance of the TransformerEncoderLayer() class (required).
+    
+* **num_layers** – the number of sub-encoder-layers in the encoder (required).
+    
+* **norm** – the layer normalization component (optional).
+    
+* **enable\_nested\_tensor** – if True, input will automatically convert to nested tensor (and convert back on output). This will improve the overall performance of TransformerEncoder when padding rate is high. Default: `False` (disabled).
+    
+
+Examples::
+
+>>\> encoder_layer = nn.TransformerEncoderLayer(d_model=512, nhead=8)
+>>\> transformer_encoder = nn.TransformerEncoder(encoder_layer, num_layers=6)
+>>\> src = torch.rand(10, 32, 512)
+>>\> out = transformer_encoder(src)
+
+Copy to clipboard
+
+forward(_src_, _mask=None_, _src\_key\_padding_mask=None_, _rotary\_position\_embedding_helper=None_, _self\_attn\_position_bias=None_, _extract\_layer\_idx=None_, _**extra_args_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerEncoder.html#TransformerEncoder.forward)[#](#cerebras.modelzoo.layers.TransformerEncoder.forward "Permalink to this definition")
+
+Pass the input through the encoder layers in turn.
+
+Parameters
+
+* **src** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the encoder (required).
+    
+* **mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the src sequence (optional).
+    
+* **src\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the src keys per batch (optional).
+    
+* **rotary\_position\_embedding_helper** (_Optional__\[__RotaryPositionEmbeddingHelper__\]_) – A helper class to apply rotary embedding on the input tensor.
+    
+* **self\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the tensor containing position bias to apply in self-attention, can be obtained from relative or alibi position embeddings.
+    
+* **extract\_layer\_idx** (_Optional__\[__int__\]_) – (inclusive)layer index in range \[0, self.num_layers) (zero-indexed) Applies encoder layers up to (and including) extract\_layer\_idx instead of all encoder layers. For ex: extract\_layer\_idx=3 would run fwd pass from encoder\_block\_0 to encoder\_block\_3 and return outputs from encoder\_block\_3. If extract\_layer\_idx = None and norm != None, then the output returned would be encoder\_block\_{self.num_layers-1} -> norm -> output (return)
+    
+
+Shape:
+
+see the docs in Transformer class.
+
+
+_class_ cerebras.modelzoo.layers.TransformerEncoderLayer(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerEncoderLayer.html#TransformerEncoderLayer)[#](#cerebras.modelzoo.layers.TransformerEncoderLayer "Permalink to this definition")
+
+Bases: [`torch.nn.Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+
+TransformerEncoderLayer is made up of self-attn and feedforward network. This standard encoder layer is based on the paper “Attention Is All You Need”. Ashish Vaswani, Noam Shazeer, Niki Parmar, Jakob Uszkoreit, Llion Jones, Aidan N Gomez, Lukasz Kaiser, and Illia Polosukhin. 2017. Attention is all you need. In Advances in Neural Information Processing Systems, pages 6000-6010. Users may modify or implement in a different way during application.
+
+Parameters
+
+* **d_model** (_int_) – the number of expected features in the input (required).
+    
+* **nhead** (_int_) – the number of heads in the multihead attention models (required).
+    
+* **dim_feedforward** (_int_) – the dimension of the feedforward network model (default=2048).
+    
+* **dropout** (_float_) – the dropout value (default=0.1).
+    
+* **activation** (_Union__\[__str__,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]_) – the activation function of the intermediate layer, can be a string (“relu” or “gelu”) or a unary callable. Default: gelu
+    
+* **layer\_norm\_eps** (_float_) – the eps value in layer normalization components (default=1e-5).
+    
+* **batch_first** (_bool_) – If `True`, then the input and output tensors are provided as (batch, seq, feature). Default: `False` (seq, batch, feature).
+    
+* **norm_layer** (_Type__\[_[_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")_\]_) – the normalization class that will be used before/after FF layers (default=nn.LayerNorm)
+    
+* **norm_first** (_bool_) – if `True`, layer norm is done prior to attention and feedforward operations, respectively. Otherwise it’s done after. Default: `False` (after).
+    
+* **attention\_dropout\_rate** (_Optional__\[__float__\]_) – Attention dropout rate. If None, defaults to dropout.
+    
+* **use\_projection\_bias\_in\_attention** – Add bias to Q,K,V projections in the Attention layer. Defaults to False.
+    
+* **attention_type** – Should be in \[“scaled\_dot\_product”, “dot_product”\]
+    
+* **scale\_qk\_dot\_by\_d** (_bool_) – If `True` scales QK^T dot product by d(=hidden/d_head) instead of sqrt(d).
+    
+* **attention\_softmax\_fp32** (_Optional__\[__bool__\]_) – Use FP32 softmax in attention block.
+    
+* **attention\_inner\_dim** (_int_) – Number of output units in attention query/key/value projection. Defaults to d_model
+    
+* **add\_cross\_attention** – If `True`, adds cross-attention layer between encoder/decoder, otherwise, only self-attention is used in the decoder (GPT-style models should set to `False`)
+    
+* **use\_ffn\_bias\_in\_attention** – Add bias in the concluding FFN in the Attention layer. Defaults to False.
+    
+* **use\_ffn\_bias** – Add bias in all dense layers of the decoder’s ffn sublayer
+    
+* **attention_initializer** – Attention layer initializer. Defaults to “xavier_uniform”.
+    
+* **attention\_q\_initializer** – Query projection kernel initializer. If not specified, the query will be initialized via `attention_initializer`
+    
+* **attention\_output\_layer_initializer** – attention output layer projection initializer. If not specified, the output will be initialized via `attention_initializer`
+    
+* **ffn_initializer** – FFN layer initializer. Defaults to “xavier_uniform”.
+    
+* **ffn\_output\_layer_initializer** – If not None, initialize the last FFN layer with this initializer. Defaults to None.
+    
+* **use\_ff\_layer1_dropout** (_bool_) – If `True`, dropout will be enabled after the first feed forward layer. Default: True
+    
+* **True** (_use\_ff\_layer2_dropout = If_) – True
+    
+* **Default** (_dropout will be enabled after the second feed forward layer._) – True
+    
+* **ffn\_dropout\_rate** (_Optional__\[__float__\]_) – Controls dropout rate of FF’s first layer. If None, defaults to dropout.
+    
+
+Example
+
+When `batch_first` is `True`: >>\> encoder\_layer = nn.TransformerEncoderLayer(d\_model=512, nhead=8, batch\_first=True) >>> src = torch.rand(32, 10, 512) >>> out = encoder\_layer(src)
+
+forward(_src_, _src_mask=None_, _src\_key\_padding_mask=None_, _rotary\_position\_embedding_helper=None_, _self\_attn\_position_bias=None_, _**extra_args_)[\[source\]](../../../_modules/cerebras/modelzoo/layers/TransformerEncoderLayer.html#TransformerEncoderLayer.forward)[#](#cerebras.modelzoo.layers.TransformerEncoderLayer.forward "Permalink to this definition")
+
+Pass the input through the encoder layer.
+
+Parameters
+
+* **src** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the sequence to the encoder layer (required).
+    
+* **src_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the src sequence (optional).
+    
+* **src\_key\_padding_mask** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the mask for the src keys per batch (optional).
+    
+* **rotary\_position\_embedding_helper** (_Optional__\[__RotaryPositionEmbeddingHelper__\]_) – A helper class to apply rotary embedding on the input tensor.
+    
+* **self\_attn\_position_bias** (_Optional__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – the tensor containing position bias to apply in self-attention, can be obtained from relative or alibi position embeddings.
+    
+
+Shape:
+
+see the docs in Transformer class.

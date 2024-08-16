@@ -1,0 +1,111 @@
+---
+title: "        Input Data Configuration       "
+---
+  
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Configuring input data is a crucial step in preprocessing for machine learning tasks on Cerebras Systems. This guide details the two primary modes for setting up input data: Local and HuggingFace, along with various read hooks to process different types of input data efficiently.
+
+Setting Up Input Sources[#](#setting-up-input-sources "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+This section builds on how to set up input data described in [Handling Input Data](../../../port/prepare-data/data_preprocessing.html#handling-input-data).
+
+### Local Data Configuration[#](#local-data-configuration "Permalink to this headline")
+
+To configure local data, set the type to `local` and specify `source` as the path to the input directory.
+
+#### Example of Local Data Configuration[#](#example-of-local-data-configuration "Permalink to this headline")
+```
+setup:
+  data:
+      source: "/input/dir/here"
+      type: "local"
+
+  mode: "pretraining"
+  output_dir: "./output/dir/here/"
+  processes: 1
+
+```
+
+### HuggingFace Data Configuration[#](#huggingface-data-configuration "Permalink to this headline")
+
+To configure HuggingFace data, set the `type` to `huggingface` and specify `source` as the dataset name in the HuggingFace hub and specify which dataset split has to be preprocessed by the `split` argument.
+
+The preprocessing pipeline uses the HuggingFace `load_dataset` API to load the dataset. It extracts the mandatory parameters `source`, `type`, `split` and passes along with the rest of the parameters to `load_dataset` API. Note that the parameters will be passed on as keyword arguments to the API so the parameters need to be acceptable by the API. Refer to the `load_dataset` documentation [here](https://huggingface.co/docs/datasets/v2.20.0/en/package_reference/loading_methods#datasets.load_dataset).
+
+#### Example of HuggingFace Input Data[#](#example-of-huggingface-input-data "Permalink to this headline")
+```
+setup:
+  data:
+      source: "stanfordnlp/imdb"
+      type: "huggingface"
+      split: "test"
+      cache_dir: "path/to/cache_dir"
+      ...other parameters accepted by HuggingFace ``load_dataset`` API...
+
+
+  mode: "pretraining"
+  output_dir: "./output/dir/here/"
+  processes: 1
+
+```
+
+### Configuration Templates for Various Use Cases[#](#configuration-templates-for-various-use-cases "Permalink to this headline")
+
+Refer to the config templates [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//data_preparation/data_preprocessing/configs).
+
+Setting Up Semantic Regions[#](#setting-up-semantic-regions "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+We divide the raw input data into semantic regions. Each semantic region is a segment of the dataset where we apply uniform loss mask, attention mask, and drop mask to all characters within that region. This segmentation allows ML researchers to flexibly apply different masking strategies to various parts of the dataset. Additionally, each region can be surrounded by a begin tag &lt;{region_name}&gt; and an end tag &lt;/{region_name}&gt; to clearly delineate its boundaries.
+
+In `pretraining` mode, all semantic regions are concatenated together by simply joining the strings of each region. For instruction-style datasets (prompt-completion datasets) in finetuning mode, regions belonging to the “prompt” portion of the dataset are concatenated separately from those belonging to the “completion” portion. A separator token is placed between the prompt and completion regions.
+
+<Note>
+Note
+
+The value of the semantic loss weight should be either 0 or 1.
+</Note>
+
+### Applying Loss/Attention/Drop Masks[#](#applying-loss-attention-drop-masks "Permalink to this headline")
+
+Each semantic region within a semantic data array can have distinct loss, attention, and drop masks. The length of the semantic drop, attention, and loss mask arrays should match the number of semantic regions in the array. For example, if there are two semantic regions within the prompt, the length of the corresponding mask arrays should be two.
+
+### Flexible Loss/Attention/Drop Mask Example:[#](#flexible-loss-attention-drop-mask-example "Permalink to this headline")
+
+```
+[
+    {
+        "type": "prompt",
+        "content": [
+            {"image": "path/to/image.jpg"},
+            {"text": "User's text before and after image"}
+        ],
+        "semantic_drop_mask": [False, True],
+        "semantic_attention_mask": [True, False],
+        "semantic_loss_mask": [0, 1],
+    },
+    {
+        "type": "completion",
+        "content": [{"text": "Assistant's response"}],
+        "semantic_drop_mask": [False],
+        "semantic_attention_mask": [True],
+        "semantic_loss_mask": [1],
+    }
+]
+
+```
+
+In this example, the drop mask is set to `True` for the text region of “prompt,” indicating that this text portion will be dropped from the dataset and not tokenized. The semantic attention mask determines which regions contribute to the final attention mask passed to the model. A loss mask of 0 for a region means that the label tokens corresponding to that region will not be included in the loss calculation.
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Proper configuration of input data is essential for efficient and effective preprocessing in machine learning workflows on Cerebras Systems. By following the guidelines and examples provided in this guide, you can seamlessly set up local and HuggingFace data sources, ensuring that your preprocessing pipeline is robust and ready for various machine learning tasks. Utilizing the appropriate read hooks tailored to specific data types and tasks will further enhance your data processing capabilities, leading to better model performance and more accurate results. With this knowledge, you’re well-equipped to handle the complexities of data preprocessing on the Cerebras platform, paving the way for successful machine learning projects.
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+Now that you’ve configured your input data, the next step is to learn about how to process it using various read hooks.

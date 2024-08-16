@@ -1,0 +1,107 @@
+---
+title: "      Data Deduplication Pipeline     "
+---
+  
+Data deduplication pipeline[#](#data-deduplication-pipeline "Permalink to this headline")
+
+## Overview
+
+
+Data deduplication is a crucial step in managing large-scale datasets, ensuring data quality, and optimizing storage. This guide outlines the process for setting up and running a deduplication pipeline on the Cerebras platform. The pipeline consists of several stages: MinHash generation, duplicate pairs generation, duplicate graph construction, and generating the final list of duplicates. By following these steps, you can efficiently preprocess data for various machine learning tasks.
+
+## Environment Setup
+<Note>
+Skip this if you have already setup the model zoo environment as described in `PYTHON-SETUP.md`, if you’re running on a Cerebras Wafer-Scale Cluster. If trying to run this locally, follow the below steps.
+</Note>
+To set up the environment, ensure the prerequisites in `requirements.txt` (located at [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/cmodelzoo/data_preparation/data_preprocessing/data_dedup/)) are installed:
+```
+virtualenv <env_name>
+    source <env_name>/bin/activate
+    pip install -r requirements.txt
+
+```
+
+## Getting started
+To perform deduplication, we use the [datasketch](http://ekzhu.com/datasketch/minhash.html) library and applied further optimizations to reduce memory consumption and increase parallelism. Our implementation uses producer-consumer schema in order to parallelize I/O operations that dominate runtime. In addition, we applied code changes to reduce the memory utilization by keeping only one document per set of duplicates in memory.
+
+To run the deduplication pipeline, you can execute the following command:
+```
+python dedup.py --dataset_name <name-of-the-dataset> --input_dir <path-to-input-directory> --jsonl_key <jsonl-key-of-the-dataset> --format <format-of-the-dataset> --output_dir <name-of-the-output-directory>
+
+```
+
+This will run the deduplication pipeline - which consists of four steps (more details below) - with the end result being an output directory, which consists of compressed files in the jsonl.zst format.
+
+By default, each compressed file will be of size 16 MB, and the `jsonl_key` will be `text`.
+
+## Procedure
+
+This section describes the four distinct stages that are involved in the deduplication pipeline, namely:
+
+While the `dedup.py` script is enough to run the deduplication pipeline end-to-end, you can also run each stage individually if needed.
+
+Below you can find commands to reproduce each step in the pipeline:
+
+### MinHash Generation
+MinHash generation can be a very slow process. We recommend running it separately before creating a MinHashLSH index.
+
+To calculate MinHash object for each document, we strip, lowercase, remove punctuation, consecutive spaces, newlines and tabs from each document. Afterwards, we construct a list of 13-grams that are later used as features to create a document signature to add into MinHashLSH index.
+
+(More details about MinHash can be found at [Identifying and Filtering Near-Duplicate Documents](https://cs.brown.edu/courses/cs253/papers/nearduplicate.pdf).)
+
+We also apply NFC normalisation, as well as filter out short documents, before yielding the documents.
+
+NOTE: For custom datasets, you also need to specify the `jsonl_key` as well as the format of the dataset. By default, the `jsonl_key` is set to be `text` and the format to be `jsonl`.
+
+Here is the format of the command to run MinHash generation:
+```
+python to_hash.py --dataset_name <dataset-name> --input_dir <input-dir> --output_dir <output-dir> --job_id <job-id> --jsonl_key <jsonl-key> --format <format-of-the-dataset>
+
+```
+
+To reduce the total processing time, multiple jobs can be run for each corpus in parallel by using multiple job IDs - starting from 0. By default, the script works expecting one job, but if you wish, you can replicate the scripts across multiple machines and the script chunks the list of files to be processed equally, to do the MinHash generation.
+
+NOTE: This assumes that the dataset is present at a common place that is accessible by all the machines.
+
+### Duplicate Pairs Generation[#](#duplicate-pairs-generation "Permalink to this headline")
+
+In this step, we build a MinHashLSH index and query it to locate near duplicates
+
+(More reading here: [Chapter 3, Mining of Massive Datasets](http://infolab.stanford.edu/~ullman/mmds/ch3.pdf). )
+
+We use a Jaccard similarity threshold of 0.8 by default to determine whether a pair of documents should be considered as a duplicate, but you can specify it according to your own needs.
+```
+python generate_duplicate_pairs.py --input_dir <output-directory-from-previous-step> --out_file <output-directory>/duplicates/duplicate_pairs.txt
+
+```
+
+### Duplicate Graph Construction & Search for Connected Components[#](#duplicate-graph-construction-search-for-connected-components "Permalink to this headline")
+
+After locating duplicate pairs, we need to find connected components containing documents that are duplicates with each other.
+
+To make it more illustrative, consider these pairs: (A, B), (A, C), (A, E).
+
+We are going to form a cluster of (A, B, C, E) and keep only one document from the component.
+
+We evaluated the performance and memory consumption of [networkx](https://networkx.org/), [graphtool](https://graph-tool.skewed.de/), and [networkit](https://networkit.github.io/). `networkit` offered most efficient implementation as it is designed to work with large graphs and features great parallelism.
+
+Below you can find an example command how to construct a graph from documents pairs:
+```
+python generate_connected_components.py --input_dir <output-directory-from-previous-step}/duplicates --out_file <output-directory>/duplicates/connected_components.pickle
+
+```
+
+### Generate Final List of Duplicates[#](#generate-final-list-of-duplicates "Permalink to this headline")
+
+In this step, we generate the final deduplicated dataset. We dump the original dataset in fixed-size files, in the `jsonl.zst` format, whose size is configurable in the `deduplicate_dataset.py` file. By default, we create files of 16 MB.
+
+Below you can find an example command on how to generate the final deduplicated dataset:
+```
+python deduplicate_dataset.py --input_file <output-directory-from-previous-step>/duplicates/connected_components.pickle --input_dir <input-dir> --output_dir <final-output-dir> --format <format-of-dataset>
+
+```
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+By following this guide, you can efficiently set up and run a data deduplication pipeline on the Cerebras platform. This process ensures that your datasets are clean and optimized for further machine learning tasks, improving both performance and accuracy.

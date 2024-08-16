@@ -1,0 +1,221 @@
+---
+title: "cerebras.pytorch.metrics"
+description: "A collection of evaluation metrics that can be used to evaluate the performance of a trained model on the Cerebras Wafer Scale Cluster."
+---
+
+## Metrics[#](#metrics "Permalink to this headline")
+
+Available metrics include:
+
+|     |     |
+| --- | --- |
+| [`AccuracyMetric`](#cerebras.pytorch.metrics.AccuracyMetric "cerebras.pytorch.metrics.AccuracyMetric") | [`PerplexityMetric`](#cerebras.pytorch.metrics.PerplexityMetric "cerebras.pytorch.metrics.PerplexityMetric") |
+| [`DiceCoefficientMetric`](#cerebras.pytorch.metrics.DiceCoefficientMetric "cerebras.pytorch.metrics.DiceCoefficientMetric") | [`MeanIOUMetric`](#cerebras.pytorch.metrics.MeanIOUMetric "cerebras.pytorch.metrics.MeanIOUMetric") |
+| [`FBetaScoreMetric`](#cerebras.pytorch.metrics.FBetaScoreMetric "cerebras.pytorch.metrics.FBetaScoreMetric") |     |
+
+### metrics.Metric[#](#metrics-metric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`Metric**`(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric)[#](#cerebras.pytorch.metrics.Metric "Permalink to this definition")
+
+Base class for implementing metrics compatible with Cerebras WSC.
+
+This class is designed to be used as a base class for implementing metrics compatible with Cerebras Wafer-Scale Cluster, but they also work with CPU and GPU backends.
+
+To implement a new metric, subclass Metric and implement the following: - _reset_: This is to initialize the metric state. - _update_: This is to update the metric state at every iteration. - _compute_: This is to compute the final metric value based on the state.
+
+To use metrics, instantiate them and call them with the appropriate inputs. For example:
+
+```
+>>> metric = MyMetric()
+>>> metric(input_1, input_2)  # Calls update and compute
+>>> metric.compute()  # Returns the final (cached) metric value
+```
+
+Constructs a Metric instance.
+
+**Parameters:** **name** (_str_) – The name of the metric. This is used to reference the metric and does not have to be unique.
+
+`_registry_`** =  _{}_**[#](#cerebras.pytorch.metrics.Metric.registry "Permalink to this definition")
+
+`_property_ num_updates_`**:  _int_**[#](#cerebras.pytorch.metrics.Metric.num_updates "Permalink to this definition")
+
+Returns the number of times the metric was updated.
+
+**_abstract_** `reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric.reset)[#](#cerebras.pytorch.metrics.Metric.reset "Permalink to this definition")
+
+Resets the metric state.
+
+**_abstract_** `update`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric.update)[#](#cerebras.pytorch.metrics.Metric.update "Permalink to this definition")
+
+Updates the metric state.
+
+**_abstract_** `compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric.compute)[#](#cerebras.pytorch.metrics.Metric.compute "Permalink to this definition")
+
+Computes and returns the current metric value.
+
+`register_state`**(_name_, _tensor_, _persistent=False_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric.register_state)[#](#cerebras.pytorch.metrics.Metric.register_state "Permalink to this definition")
+
+Registers a state variable to the module.
+
+By default, metric state variables are non-persistent buffers that are not included in the module’s state dictionary. To have them as part of the state dictionary, set persistent=True.
+
+Once registered, the state variable can be accessed as an attribute on the module by the given name.
+
+**Parameters:**
+
+* **name** (_str_) – The name of the state variable.
+
+* **tensor** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – The tensor to register.
+
+* **persistent** (_bool_) – Whether this state is part of the module’s state_dict.
+
+
+`forward`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#Metric.forward)[#](#cerebras.pytorch.metrics.Metric.forward "Permalink to this definition")
+
+Updates and computes the metric value.
+
+### metrics.AccuracyMetric[#](#metrics-accuracymetric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`AccuracyMetric`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/accuracy.html#AccuracyMetric)[#](#cerebras.pytorch.metrics.AccuracyMetric "Permalink to this definition")
+
+Computes the accuracy of the model’s predictions
+
+**Parameters:** **name** – Name of the metric
+
+Constructs a Metric instance.
+
+**Parameters:** **name** – The name of the metric. This is used to reference the metric and does not have to be unique.
+
+`reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/accuracy.html#AccuracyMetric.reset)[#](#cerebras.pytorch.metrics.AccuracyMetric.reset "Permalink to this definition")
+
+`update`**(_labels_, _predictions_, _weights=None_, _dtype=None_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/accuracy.html#AccuracyMetric.update)[#](#cerebras.pytorch.metrics.AccuracyMetric.update "Permalink to this definition")
+
+`compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/accuracy.html#AccuracyMetric.compute)[#](#cerebras.pytorch.metrics.AccuracyMetric.compute "Permalink to this definition")
+
+### metrics.PerplexityMetric[#](#metrics-perplexitymetric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`PerplexityMetric`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/perplexity.html#PerplexityMetric)[#](#cerebras.pytorch.metrics.PerplexityMetric "Permalink to this definition")
+
+Computes the perplexity of the model’s predictions
+
+**Parameters:** **name** – Name of the metric
+
+Constructs a Metric instance.
+
+**Parameters:** **name** – The name of the metric. This is used to reference the metric and does not have to be unique.
+
+`reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/perplexity.html#PerplexityMetric.reset)[#](#cerebras.pytorch.metrics.PerplexityMetric.reset "Permalink to this definition")
+
+`update`**(_labels_, _loss_, _weights=None_, _dtype=None_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/perplexity.html#PerplexityMetric.update)[#](#cerebras.pytorch.metrics.PerplexityMetric.update "Permalink to this definition")
+
+`compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/perplexity.html#PerplexityMetric.compute)[#](#cerebras.pytorch.metrics.PerplexityMetric.compute "Permalink to this definition")
+
+### metrics.DiceCoefficientMetric[#](#metrics-dicecoefficientmetric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`DiceCoefficientMetric`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/dice_coefficient.html#DiceCoefficientMetric)[#](#cerebras.pytorch.metrics.DiceCoefficientMetric "Permalink to this definition")
+
+Dice Coefficient is a common evaluation metric for semantic image segmentation.
+
+Dice Coefficient is defined as follows: Dice = 2 * true\_positive / (2 * true\_positive + false\_positive + false\_negative).
+
+The predictions are accumulated in a confusion matrix, weighted by weights, and dice coefficient is then calculated from it.
+
+**Parameters:**
+
+* **num_classes** – The possible number of labels the prediction task can have. This value must be provided, since a confusion matrix of dimension = \[num\_classes, num\_classes\] will be allocated.
+
+* **name** (_Optional__\[__str__\]_) – Optional string which indicates name of the metric. If None or empty string, it defaults to the name of the class.
+
+
+`reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/dice_coefficient.html#DiceCoefficientMetric.reset)[#](#cerebras.pytorch.metrics.DiceCoefficientMetric.reset "Permalink to this definition")
+
+`update`**(_labels_, _predictions_, _weights=None_, _dtype=None_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/dice_coefficient.html#DiceCoefficientMetric.update)[#](#cerebras.pytorch.metrics.DiceCoefficientMetric.update "Permalink to this definition")
+
+Updates the dice coefficient metric.
+
+**Parameters:**
+
+* **labels** – A Tensor of ground truth labels of type int32 or int64.
+
+* **predictions** – A Tensor of prediction results for semantic labels, of type int32 or int64.
+
+* **weights** – Optional Tensor whose rank is either 0, or the same rank as labels, and must be broadcastable to labels (i.e., all dimensions must be either 1, or the same as the corresponding labels dimension). If weights is None, weights default to 1. Use weights of 0 to mask values.
+
+
+**Raises:** **ValueError** – If predictions and labels have mismatched shapes, or if weights is not None and its shape doesn’t match predictions
+
+`compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/dice_coefficient.html#DiceCoefficientMetric.compute)[#](#cerebras.pytorch.metrics.DiceCoefficientMetric.compute "Permalink to this definition")
+
+### metrics.MeanIOUMetric[#](#metrics-meanioumetric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`MeanIOUMetric`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/mean_iou.html#MeanIOUMetric)[#](#cerebras.pytorch.metrics.MeanIOUMetric "Permalink to this definition")
+
+Mean Intersection-Over-Union is a common evaluation metric for semantic image segmentation, which first computes the IOU for each semantic class and then computes the average over classes. iou is defined as follows: IOU = true\_positive / (true\_positive + false\_positive + false\_negative). The predictions are accumulated in a confusion matrix, weighted by weights, and mIOU is then calculated from it.
+
+For estimation of the metric over a stream of data, the function creates an update_op operation that updates these variables and returns the mean_iou.
+
+If weights is None, weights default to 1. Use weights of 0 to mask values.
+
+**Parameters:**
+
+* **num_classes** – The possible number of labels the prediction task can have. This value must be provided, since a confusion matrix of dimension = \[num\_classes, num\_classes\] will be allocated.
+
+* **name** (_Optional__\[__str__\]_) – Optional string which indicates name of the metric. If None or empty string, it defaults to the name of the class.
+
+
+`reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/mean_iou.html#MeanIOUMetric.reset)[#](#cerebras.pytorch.metrics.MeanIOUMetric.reset "Permalink to this definition")
+
+`update`**(_labels_, _predictions_, _weights=None_, _dtype=None_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/mean_iou.html#MeanIOUMetric.update)[#](#cerebras.pytorch.metrics.MeanIOUMetric.update "Permalink to this definition")
+
+Updates the mean IOU metric.
+
+**Parameters:**
+
+* **labels** – A Tensor of ground truth labels of type int32 or int64.
+
+* **predictions** – A Tensor of prediction results for semantic labels, of type int32 or int64.
+
+* **weights** – Optional Tensor whose rank is either 0, or the same rank as labels, and must be broadcastable to labels (i.e., all dimensions must be either 1, or the same as the corresponding labels dimension).
+
+
+**Raises:** **ValueError** – If predictions and labels have mismatched shapes, or if weights is not None and its shape doesn’t match predictions
+
+`compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/mean_iou.html#MeanIOUMetric.compute)[#](#cerebras.pytorch.metrics.MeanIOUMetric.compute "Permalink to this definition")
+
+### metrics.FBetaScoreMetric[#](#metrics-fbetascoremetric "Permalink to this headline")
+
+**_class_ cerebras.pytorch.metrics.**`FBetaScoreMetric`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/metrics/fbeta_score.html#FBetaScoreMetric)[#](#cerebras.pytorch.metrics.FBetaScoreMetric "Permalink to this definition")
+
+Calculates F Score from labels and predictions.
+
+fbeta = (1 + beta^2) * (precision * recall) / ((beta^2 * precision) + recall)
+
+Where beta is some positive real factor. :param num\_classes: Number of classes. :param beta: Beta coefficient in the F measure. :param average_type: Defines the reduction that is applied. Should be one
+
+of the following: - ‘micro’ \[default\]: Calculate the metric globally, across all
+
+samples and classes.
+
+* ‘macro’: Calculate the metric for each class separately, and
+
+   average the metrics across classes (with equal weights for each class). This does not take label imbalance into account.
+
+
+**Parameters:**
+
+* **ignore_labels** (_Optional__\[__List__\]_) – Integer specifying a target classes to ignore.
+
+* **name** (_Optional__\[__str__\]_) – Name of the metric
+
+
+`reset`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/fbeta_score.html#FBetaScoreMetric.reset)[#](#cerebras.pytorch.metrics.FBetaScoreMetric.reset "Permalink to this definition")
+
+`update`**(_labels_, _predictions_, _dtype=None_)**[\[*source\]](../../../_modules/cerebras/pytorch/metrics/fbeta_score.html#FBetaScoreMetric.update)[#](#cerebras.pytorch.metrics.FBetaScoreMetric.update "Permalink to this definition")
+
+`compute`**()**[\[source\]](../../../_modules/cerebras/pytorch/metrics/fbeta_score.html#FBetaScoreMetric.compute)[#](#cerebras.pytorch.metrics.FBetaScoreMetric.compute "Permalink to this definition")
+
+### metrics.get\_all\_metrics[#](#metrics-get-all-metrics "Permalink to this headline")
+
+**cerebras.pytorch.metrics.**`get_all_metrics`()[\[source\]](../../../_modules/cerebras/pytorch/metrics/metric.html#get_all_metrics)[#](#cerebras.pytorch.metrics.get_all_metrics "Permalink to this definition")
+
+Get all registered metrics.

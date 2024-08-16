@@ -1,0 +1,162 @@
+---
+title: "        Custom Tokenizer       "
+---
+  
+Custom Tokenizer[#](#custom-tokenizer "Permalink to this headline")
+===================================================================
+
+In addition to using tokenizers as specified in the “Tokenizer Initialization” section, the Model Zoo also supports the use of custom tokenizers.
+
+To implement a custom tokenizer, ensure the configuration file is properly set up. Follow these steps:
+
+**1.** In the `processing` section, make sure that you are using the `custom_tokenizer` parameter.
+
+**2.** Specify the path to the custom token tokenizer class in the config file, in the `custom_tokenizer` param, within the `setup` section. If needed, pass in additional `tokenizer_params` (such as `token`, `vocab_file`, `encoder_file` and so on) as well.
+
+This would look like:
+```
+custom_tokenizer: "<path/to/custom-tokenizer-class>"
+tokenizer_params:
+             token: "<insert-token-here>"
+             vocab_file: "<insert-path-to-vocab-file>"
+             encoder_file: "<insert-path-to-encoder-file>"
+```
+<Note>
+Note
+
+The `custom_tokenizer` path should be specified with the class name being separated with a colon **:** from the module name, for the custom tokenizer class be instantiated correctly.
+
+</Note>
+Example of a Custom Tokenizer[#](#example-of-a-custom-tokenizer "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+Here is an example of custom LLama3 tokenizer which was implemented in Model Zoo:
+
+<Note>
+Note
+
+This tokenizer has a custom implementation because of a bug that is present on HuggingFace’s Llama3 tokenizer’s `offset_mapping` calculation. (see: [https://github.com/huggingface/tokenizers/issues/1553](https://github.com/huggingface/tokenizers/issues/1553)). Once that is fixed, this tokenizer need not be used.
+
+Also, the current preprocessing pipeline relies on the tokenizer’s `offset_mapping` to process semantic regions. Please use this implementation for Llama3.
+</Note>
+```
+from functools import wraps
+from typing import Any, Dict, List, Tuple, Union
+
+from transformers import AutoTokenizer
+
+
+class CustomLlama3Tokenizer:
+    def __init__(
+        self,
+        pretrained_model_name_or_path: str,
+        eos_token_id: Union[int, None] = None,
+        pad_token_id: Union[int, None] = None,
+        **kwargs: Any,
+    ):
+        """
+        Custom implementation of Llama3 Tokenizer, which overrides compute_offsets
+        of the HuggingFace (which is buggy - https://github.com/huggingface/tokenizers/issues/1553).
+
+        Args:
+            pretrained_model_name_or_path (str): The pretrained model name or path.
+            eos_token_id (Union[int, None], optional): The ID of the end-of-sequence token. Defaults to None.
+            pad_token_id (Union[int, None], optional): The ID of the padding token. Defaults to None.
+            **kwargs (Any): Additional keyword arguments to be passed to AutoTokenizer.
+
+        Attributes:
+            tokenizer (AutoTokenizer): The AutoTokenizer instance for the given pretrained model.
+            eos_token_id (int): The ID of the end-of-sequence token.
+            pad_token_id (int): The ID of the padding token.
+        """
+        self.tokenizer = AutoTokenizer.from_pretrained(
+            pretrained_model_name_or_path, **kwargs
+        )
+        self.eos_token_id = (
+            eos_token_id
+            if eos_token_id is not None
+            else self.tokenizer.eos_token_id
+        )
+        self.pad_token_id = (
+            pad_token_id if pad_token_id is not None else self.eos_token_id
+        )
+
+    def compute_offsets(
+        self, encoded: Dict[str, Any], return_offsets_mapping: bool = False
+    ) -> List[Tuple[int, int]]:
+        """
+        Compute offsets for the given encoded input.
+
+        Args:
+            encoded (Dict[str, Any]): The encoded input containing 'input_ids' and 'offset_mapping'.
+            return_offsets_mapping (bool, optional): Whether to return the offsets mapping. Defaults to False.
+
+        Returns:
+            List[Tuple[int, int]]: A list of tuples representing the start and end offsets for each token.
+        """
+        input_ids = encoded['input_ids']
+        offset_mapping = encoded['offset_mapping']
+
+        for i, (input_id, (start, end)) in enumerate(
+            zip(input_ids, offset_mapping)
+        ):
+            token = self.tokenizer.convert_ids_to_tokens(input_id)
+            if input_id not in self.tokenizer.all_special_ids:
+                offset_mapping[i] = (start, start + len(token))
+
+        return offset_mapping
+
+    def __call__(self, text: str, **kwargs: Any) -> Dict[str, Any]:
+        """
+        Encode the given text into tokens and optionally return the offsets mapping.
+
+        Args:
+            text (str): The input text to tokenize.
+            **kwargs (Any): Additional keyword arguments for tokenization.
+
+        Returns:
+            Dict[str, Any]: The encoded result containing 'input_ids', 'attention_mask', and optionally 'offset_mapping'.
+        """
+        return_offset_mapping = kwargs.get('return_offsets_mapping')
+        encoded = self.tokenizer(text, **kwargs)
+
+        if return_offset_mapping:
+            fixed_offsets = self.compute_offsets(
+                encoded, return_offsets_mapping=return_offset_mapping
+            )
+            encoded['offset_mapping'] = fixed_offsets
+
+        return encoded
+
+    def __getattr__(self, name: str) -> Any:
+        """
+        Forward attribute access to the underlying tokenizer.
+
+        Args:
+            name (str): The name of the attribute to access.
+
+        Returns:
+            Any: The attribute value.
+        """
+        attr = getattr(self.tokenizer, name)
+        if callable(attr):
+
+            @wraps(attr)
+            def wrapper(*args, **kwargs):
+                return attr(*args, **kwargs)
+
+            return wrapper
+        return attr
+
+    def __len__(self) -> int:
+        """
+        Get the vocabulary size of the tokenizer.
+
+        Returns:
+            int: The vocabulary size.
+        """
+        return self.tokenizer.vocab_size
+
+```
+
+The code for this is presen in the directory `modelzoo/data_preparation/data_preprocessing/custom_tokenizer_example`.

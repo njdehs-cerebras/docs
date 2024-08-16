@@ -1,0 +1,1423 @@
+---
+title: "cerebras.pytorch.optim "
+description: "Contains all Cerebras compliant Optimizer classes."
+---
+
+|     |     |
+| --- | --- |
+| [`cerebras.pytorch.optim`](#module-0 "cerebras.pytorch.optim") | Contains all Cerebras compliant Optimizer classes. |
+
+****_class_ cerebras.pytorch.optim.****`Optimizer`**(_params_, _defaults_, _enable\_global\_step=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer)[#](#cerebras.pytorch.optim.Optimizer "Permalink to this definition")
+
+Bases: `cerebras.pytorch.optim.optimizer.torch.optim.Optimizer`, `abc.ABC`
+
+The abstract Cerebras base optimizer class.
+
+Enforces that the preinitialize method is implemented wherein the optimizer state should be initialized ahead of time
+
+**Parameters:**
+
+* **params** _(Union[Iterable[torch.Tensor](https://pytorch.org/docs/stable/tensors.html#torch.Tensor)_,_Iterable[Dict[str, Any]]])_ – Specifies what Tensors should be optimized.
+
+* **defaults** (_Dict_\[__str__, _Any_\]_) – a dict containing default values of optimization options (used when a parameter group doesn’t specify them).
+
+* **enable\_global\_step** (_bool_) – If True, the optimizer will keep track of the global step for each parameter.
+
+
+**increment\_global\_step**`(p)`[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.increment_global_step)[#](#cerebras.pytorch.optim.Optimizer.increment_global_step "Permalink to this definition")
+
+Increases the global steps by 1 and returns the current value of global step tensor in torch.float32 format.
+
+**state_dict**`(_*args_, _**kwargs_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.state_dict)[#](#cerebras.pytorch.optim.Optimizer.state_dict "Permalink to this definition")
+
+**load\_state\_dict**`(_state_dict_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.load_state_dict)[#](#cerebras.pytorch.optim.Optimizer.load_state_dict "Permalink to this definition")
+
+**register\_zero\_grad\_pre\_hook**`(_hook_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.register_zero_grad_pre_hook)[#](#cerebras.pytorch.optim.Optimizer.register_zero_grad_pre_hook "Permalink to this definition")
+
+Register an optimizer zero\_grad pre hook which will be called before optimizer zero\_grad. It should have the following signature:
+```Bash
+hook(optimizer, args, kwargs) -> None or modified args and kwargs
+```
+The `optimizer` argument is the optimizer instance being used. If args and kwargs are modified by the pre-hook, then the transformed values are returned as a tuple containing the new\_args and new\_kwargs.
+
+**Parameters:**
+
+**hook** (_Callable_) – The user defined hook to be registered.
+
+**Returns**: a handle that can be used to remove the added hook by calling `handle.remove()`
+
+**Return type:** `torch.utils.hooks.RemovableHandle`
+
+`register\_zero\_grad\_post\_hook`**(_hook_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.register_zero_grad_post_hook)[#](#cerebras.pytorch.optim.Optimizer.register_zero_grad_post_hook "Permalink to this definition")
+
+Register an optimizer zero\_grad post hook which will be called after optimizer zero\_grad. It should have the following signature:
+
+```Bash
+hook(optimizer, args, kwargs)
+```
+
+The `optimizer` argument is the optimizer instance being used.
+
+**Parameters:**
+
+**hook** (_Callable_) – The user defined hook to be registered.
+
+**Returns:** a handle that can be used to remove the added hook by calling `handle.remove()`
+
+**Return type:** `torch.utils.hooks.RemovableHandle`
+
+`zero_grad`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.zero_grad)[#](#cerebras.pytorch.optim.Optimizer.zero_grad "Permalink to this definition")
+
+Runs the optimizer zero_grad method and calls any pre and post hooks
+
+`apply`**(_f_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.apply)[#](#cerebras.pytorch.optim.Optimizer.apply "Permalink to this definition")
+
+Calls the function on self
+
+`visit_state`**(_fn_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.visit_state)[#](#cerebras.pytorch.optim.Optimizer.visit_state "Permalink to this definition")
+
+Applies a lambda to each stateful value.
+
+`_abstract_ preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.preinitialize)[#](#cerebras.pytorch.optim.Optimizer.preinitialize "Permalink to this definition")
+
+The optimizer state must be initialized ahead of time in order to capture the full compute graph in the first iteration. This method must be overriden to perform the state preinitialization
+
+**_abstract_** `step`**(_closure=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/optimizer.html#Optimizer.step)[#](#cerebras.pytorch.optim.Optimizer.step "Permalink to this definition")
+
+Perform the optimizer step itself. Note, there should be no new state being created in this function. All state must be created ahead of time in preinitialize and only updated in this method.
+
+****_class_ cerebras.pytorch.optim.****`Adadelta`**(_params_, _lr=1.0_, _rho=0.9_, _eps=1e-06_, _weight_decay=0_, _maximize=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adadelta.html#Adadelta)[#](#cerebras.pytorch.optim.Adadelta "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Adadelta optimizer implemented to perform the required pre-initialization of the optimizer state.
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adadelta.html#Adadelta.preinitialize)[#](#cerebras.pytorch.optim.Adadelta.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Adadelta.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_Optional__\[__Callable__\]_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`Adafactor`**(_params_, _lr_, _eps=(1e-30, 0.001)_, _clip_threshold=1.0_, _decay_rate=- 0.8_, _beta1=None_, _weight_decay=0.0_, _scale_parameter=True_, _relative_step=False_, _warmup_init=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adafactor.html#Adafactor)[#](#cerebras.pytorch.optim.Adafactor "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Adafactor optimizer implemented to conform to execution within the constraints of the Cerebras WSE.
+
+**preinitialize**`()`[\[source\]](../../../_modules/cerebras/pytorch/optim/Adafactor.html#Adafactor.preinitialize)[#](#cerebras.pytorch.optim.Adafactor.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Adafactor.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:**
+
+* **closure** (`Callable`, optional) – A closure that reevaluates
+
+* **loss.** (_the model and returns the_) –
+
+
+****_class_ cerebras.pytorch.optim.****`Adagrad`**(_params_, _lr=0.01_, _lr_decay=0_, _weight_decay=0_, _initial\_accumulator\_value=0_, _eps=1e-06_, _maximize=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adagrad.html#Adagrad)[#](#cerebras.pytorch.optim.Adagrad "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Adagrad optimizer implemented to conform to execution within the constraints of the Cerebras WSE.
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 1e-2)
+
+* **lr_decay** (_float__,_ _optional_) – learning rate decay (default: 0)
+
+* **weight_decay** (_float__,_ _optional_) – weight decay (L2 penalty) (default: 0)
+
+* **eps** (_float__,_ _optional_) – term added to the denominator to improve numerical stability (default: 1e-10)
+
+* **maximize** (_bool__,_ _optional_) – maximize the params based on the objective, instead of minimizing (default: False)
+
+
+Adaptive Subgradient Methods for Online Learning and Stochastic Optimization: [http://jmlr.org/papers/v12/duchi11a.html](http://jmlr.org/papers/v12/duchi11a.html)
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adagrad.html#Adagrad.preinitialize)[#](#cerebras.pytorch.optim.Adagrad.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Adagrad.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`Adamax`**(_params_, _lr=0.001_, _betas=(0.9, 0.999)_, _eps=1e-06_, _weight_decay=0.0_, _maximize=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adamax.html#Adamax)[#](#cerebras.pytorch.optim.Adamax "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Adamax optimizer implemented to perform the required pre-initialization of the optimizer state.
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Adamax.html#Adamax.preinitialize)[#](#cerebras.pytorch.optim.Adamax.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Adamax.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_Optional__\[__Callable__\]_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`Adam`**(_params_, _lr=0.001_, _betas=(0.9, 0.999)_, _eps=1e-06_, _weight_decay=0.0_, _amsgrad=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/AdamBase.html#Adam)[#](#cerebras.pytorch.optim.Adam "Permalink to this definition")
+
+Bases: `cerebras.pytorch.optim.AdamBase.AdamBase`
+
+Adam specific overrides to AdamBase
+
+`handle\_weight\_decay`**(_param_groups_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/AdamBase.html#Adam.handle_weight_decay)[#](#cerebras.pytorch.optim.Adam.handle_weight_decay "Permalink to this definition")
+
+`load\_state\_dict(_state_dict_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/AdamBase.html#Adam.load_state_dict)[#](#cerebras.pytorch.optim.Adam.load_state_dict "Permalink to this definition")
+
+Loads the optimizer state.
+
+**Parameters:**
+
+**state_dict** (_dict_) – optimizer state. Should be an object returned from a call to `state_dict`.
+
+Adds checkpoint compatibility with the Adam from PyTorch
+
+****_class_ cerebras.pytorch.optim.****`AdamW`**(_params_, _lr=0.001_, _betas=(0.9, 0.999)_, _eps=1e-06_, _weight_decay=0.0_, _correct_bias=True_, _amsgrad=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/AdamBase.html#AdamW)[#](#cerebras.pytorch.optim.AdamW "Permalink to this definition")
+
+Bases: `cerebras.pytorch.optim.AdamBase.AdamBase`
+
+AdamW specific overrides to AdamBase
+
+`load\_state\_dict`**(_state_dict_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/AdamBase.html#AdamW.load_state_dict)[#](#cerebras.pytorch.optim.AdamW.load_state_dict "Permalink to this definition")
+
+Loads the optimizer state.
+
+**Parameters:** **state_dict** (_dict_) – optimizer state. Should be an object returned from a call to `state_dict`.
+
+Adds checkpoint compatibility with the AdamW from HuggingFace
+
+****_class_ cerebras.pytorch.optim.****`ASGD`**(_params_, _lr=0.01_, _lambd=0.0001_, _alpha=0.75_, _t0=1000000.0_, _weight_decay=0_, _maximize=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/ASGD.html#ASGD)[#](#cerebras.pytorch.optim.ASGD "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+ASGD optimizer implemented to conform to execution within the constraints of the Cerebras WSE, including pre-initializing optimizer state.
+
+For more details, see [https://dl.acm.org/citation.cfm?id=131098](https://dl.acm.org/citation.cfm?id=131098)
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/ASGD.html#ASGD.preinitialize)[#](#cerebras.pytorch.optim.ASGD.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.ASGD.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_Callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`Lamb`**(_params_, _lr=0.001_, _betas=(0.9, 0.999)_, _eps=1e-06_, _weight_decay=0_, _adam=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/Lamb.html#Lamb)[#](#cerebras.pytorch.optim.Lamb "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Implements Lamb algorithm. It has been proposed in [Large Batch Optimization for Deep Learning: Training BERT in 76 minutes](https://arxiv.org/abs/1904.00962).
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 1e-3)
+
+* **betas** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – coefficients used for computing running averages of gradient and its square (default: (0.9, 0.999))
+
+* **eps** (_float__,_ _optional_) – term added to the denominator to improve numerical stability (default: 1e-8)
+
+* **weight_decay** (_float__,_ _optional_) – weight decay (L2 penalty) (default: 0)
+
+* **adam** (_bool__,_ _optional_) – always use trust ratio = 1, which turns this into Adam. Useful for comparison purposes.
+
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Lamb.html#Lamb.preinitialize)[#](#cerebras.pytorch.optim.Lamb.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Lamb.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+**_class_ cerebras.pytorch.optim.**Lion(_params_, _lr=0.0001_, _betas=(0.9, 0.99)_, _weight_decay=0.0_)[\[source\]](../../../_modules/cerebras/pytorch/optim/Lion.html#Lion)[#](#cerebras.pytorch.optim.Lion "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Implements Lion algorithm. As proposed in [Symbolic Discovery of Optimization Algorithms](https://arxiv.org/pdf/2302.06675.pdf).
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 1e-4)
+
+* **betas** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – coefficients used for computing running averages of gradient and its square (default: (0.9, 0.99))
+
+* **weight_decay** (_float__,_ _optional_) – weight decay coefficient (default: 0)
+
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Lion.html#Lion.preinitialize)[#](#cerebras.pytorch.optim.Lion.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Lion.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:**
+
+**closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`NAdam`**(_params_, _lr=0.002_, _betas=(0.9, 0.999)_, _eps=1e-08_, _weight_decay=0_, _momentum_decay=0.004_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/NAdam.html#NAdam)[#](#cerebras.pytorch.optim.NAdam "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Implements NAdam algorithm to execute within the constraints of the Cerebras WSE, including pre-initializing optimizer state.
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 2e-3)
+
+* **betas** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – coefficients used for computing running averages of gradient and its square (default: (0.9, 0.999))
+
+* **eps** (_float__,_ _optional_) – term added to the denominator to improve numerical stability (default: 1e-8)
+
+* **weight_decay** (_float__,_ _optional_) – weight decay (L2 penalty) (default: 0)
+
+* **momentum_decay** (_float__,_ _optional_) – momentum momentum_decay (default: 4e-3)
+
+* **foreach** (_bool__,_ _optional_) – whether foreach implementation of optimizer is used (default: None)
+
+
+For further details regarding the algorithm refer to Incorporating Nesterov Momentum into Adam: [https://openreview.net/forum?id=OM0jvwB8jIp57ZJjtNEZ](https://openreview.net/forum?id=OM0jvwB8jIp57ZJjtNEZ)
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/NAdam.html#NAdam.preinitialize)[#](#cerebras.pytorch.optim.NAdam.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.NAdam.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+****_class_ cerebras.pytorch.optim.****`RAdam`**(_params_, _lr=0.001_, _betas=(0.9, 0.999)_, _eps=1e-06_, _weight_decay=0.0_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/RAdam.html#RAdam)[#](#cerebras.pytorch.optim.RAdam "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+RAdam optimizer implemented to conform to execution within the constraints of the Cerebras WSE.
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 1e-3)
+
+* **betas** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – coefficients used for computing running averages of gradient and its square (default: (0.9, 0.999))
+
+* **eps** (_float__,_ _optional_) – term added to the denominator to improve numerical stability (default: 1e-6)
+
+* **weight_decay** (_float__,_ _optional_) – weight decay (L2 penalty) (default: 0)
+
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/RAdam.html#RAdam.preinitialize)[#](#cerebras.pytorch.optim.RAdam.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.RAdam.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+**_class_ cerebras.pytorch.optim.**`RMSprop`**(_params_, _lr=0.01_, _alpha=0.99_, _eps=1e-08_, _weight_decay=0_, _momentum=0_, _centered=False_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/RMSprop.html#RMSprop)[#](#cerebras.pytorch.optim.RMSprop "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+RMSprop optimizer implemented to perform the required pre-initialization of the optimizer state.
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/RMSprop.html#RMSprop.preinitialize)[#](#cerebras.pytorch.optim.RMSprop.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.RMSprop.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+**_class_ cerebras.pytorch.optim.**Rprop(_params_, _lr=0.001_, _etas=(0.5, 1.2)_, _step_sizes=(1e-06, 50.0)_)[\[source\]](../../../_modules/cerebras/pytorch/optim/Rprop.html#Rprop)[#](#cerebras.pytorch.optim.Rprop "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+Rprop optimizer implemented to conform to execution within the constraints of the Cerebras WSE, including pre-initializing optimizer state
+
+**Parameters:**
+
+* **params** (_iterable_) – iterable of parameters to optimize or dicts defining parameter groups
+
+* **lr** (_float__,_ _optional_) – learning rate (default: 1e-3)
+
+* **etas** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – step size multipliers
+
+* **step_size** (_Tuple__\[__float__,_ _float__\]__,_ _optional_) – Tuple of min, max step size values. Step size is clamped to be between these values.
+
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/Rprop.html#Rprop.preinitialize)[#](#cerebras.pytorch.optim.Rprop.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.Rprop.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:**
+
+**closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+**_class_ cerebras.pytorch.optim.**SGD(_params_, _lr_, _momentum=0_, _dampening=0_, _weight_decay=0_, _nesterov=False_, _maximize=False_)[\[source\]](../../../_modules/cerebras/pytorch/optim/SGD.html#SGD)[#](#cerebras.pytorch.optim.SGD "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.optim.optimizer.Optimizer`](#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")
+
+SGD optimizer implemented to conform to execution within the constraints of the Cerebras WSE, including pre-initializing optimizer state
+
+**Parameters:**
+
+* **params** (_Iterable__\[__torch.nn.Parameter__\]_) – Model parameters
+
+* **lr** (_float_) – The learning rate to use
+
+* **momentum** (_float_) – momentum factor
+
+* **dampening** (_float_) – dampening for momentum
+
+* **weight_decay** (_float_) – weight decay (L2 penalty)
+
+* **nesterov** (_bool_) – enables Nesterov momentum
+
+
+`preinitialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/SGD.html#SGD.preinitialize)[#](#cerebras.pytorch.optim.SGD.preinitialize "Permalink to this definition")
+
+Allocates tensors for the optimizer state to allow direct compilation of the model before the first step.
+
+`step`**(_closure=None_)**[#](#cerebras.pytorch.optim.SGD.step "Permalink to this definition")
+
+Performs a single optimization step.
+
+**Parameters:** **closure** (_callable__,_ _optional_) – A closure that reevaluates the model and returns the loss.
+
+## optim helpers[#](#module-0 "Permalink to this headline")
+
+Contains all Cerebras compliant Optimizer classes.
+
+**cerebras.pytorch.optim.**`configure_optimizer`**(_optimizer_type_, _params_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim.html#configure_optimizer)[#](#cerebras.pytorch.optim.configure_optimizer "Permalink to this definition")
+
+Configures and requires an Optimizer specified using the provided optimizer type
+
+The optimizer class’s signature is inspected and relevant parameters are extracted from the keyword arguments
+
+**Parameters:** **optimizer_type** (_str_) – The name of the optimizer to configure
+
+ * **params** – The model parameters passed to the optimizer
+
+
+ For example,
+```Bash
+
+optimizer_params = {
+    "optimizer_type": "SGD",
+    "lr": 0.001,
+    "momentum": 0.5,
+}
+optimizer = cstorch.optim.configure_optimizer(
+    optimizer_type=optimizer_params.pop("optimizer_type"),
+    params=model.parameters(),
+    **optimizer_params
+)
+```
+Deprecated since version 2.3: Use [`configure_scheduler`](#cerebras.pytorch.optim.configure_scheduler "cerebras.pytorch.optim.configure_scheduler") instead.
+
+ cerebras.pytorch.optim.configure\_lr\_scheduler(_optimizer_, _learning_rate_, _adjust\_learning\_rate=None_)[\[source\]](../../../_modules/cerebras/pytorch/optim.html#configure_lr_scheduler)[#](#cerebras.pytorch.optim.configure_lr_scheduler "Permalink to this definition")
+<Deprecated>
+ Configures a learning rate scheduler specified using the provided lr_scheduler type
+
+ The learning rate scheduler’s class’s signature is inspected and relevant parameters are extracted from the keyword arguments
+
+ **Parameters:**
+
+ * **optimizer** – The optimizer passed to the lr_scheduler
+
+ * **learning_rate** – learning rate schedule
+ * **adjust\_learning\_rate** (_dict_) – key: layer types, val: lr scaling factor
+
+
+ The following list describes the possible `learning_rate` parameter formats:
+
+ * `learning_rate` is a Python scalar (`int` or `float`)
+
+ In this case, `configure_lr_scheduler` returns an instance of `ConstantLR` with the provided value as the constant learning rate.
+
+* `learning_rate` is a dictionary
+
+ In this case, the dictionary is expected to contain the key `scheduler` which contains the name of the scheduler you want to configure.
+
+ The rest of the parameters in the dictionary are passed in a keyword arguments to the specified schedulers init method.
+
+ * `learning_rate` is a list of dictionaries
+
+In this case, we assume what is being configured is a `SequentialLR` unless the any one of the dictionaries contains the key `main_scheduler` and the corresponding value is `ChainedLR`.
+
+ In either case, each element of the list is expected to be a dictionary that follows the format as outlines in case 2.
+
+ If what is being configured is indeed a `SequentialLR`, each dictionary entry is also expected to contain the key `total_iters` specifying the total number of iterations each scheduler should be applied for.
+
+</Deprecated>
+**cerebras.pytorch.optim.**`configure\_optimizer\_params`**(_optimizer_type_, _kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim.html#configure_optimizer_params)[#](#cerebras.pytorch.optim.configure_optimizer_params "Permalink to this definition")
+
+Configures and requires an Optimizer specified using the provided optimizer type
+
+The optimizer class’s signature is inspected and relevant parameters are extracted from the keyword arguments.
+
+**Parameters:**
+
+* **optimizer_type** (_str_) – The name of the optimizer to configure
+
+* **kwargs** (_dict_) – Flattened optimizer params
+
+
+**Returns:** Optimizer cls, and args for initialization
+
+**cerebras.pytorch.optim.**`configure\_scheduler\_params`**(_learning_rate_)**[\[source\]](../../../_modules/cerebras/pytorch/optim.html#configure_scheduler_params)[#](#cerebras.pytorch.optim.configure_scheduler_params "Permalink to this definition")
+
+Get the kwargs and LR class from params
+
+**Parameters:** **learning_rate** (_dict_) – learning rate config
+
+**Returns:** LR class and args
+
+**Return type:** cls, kw_args
+
+**cerebras.pytorch.optim.**`configure_scheduler`**(_optimizer_, _schedulers_params_)**[\[source\]](../../../_modules/cerebras/pytorch/optim.html#configure_scheduler)[#](#cerebras.pytorch.optim.configure_scheduler "Permalink to this definition")
+
+Configures a generic scheduler from scheduler params. The scheduler class’ signature is inspected and relevant parameters are extracted from the keyword arguments.
+
+**Parameters:**
+
+* **optimizer** – The optimizer passed to each scheduler.
+
+* **schedulers_params** (_dict_) – A dict of scheduler params.
+
+
+`scheduler_params` is expected to be a dictionary with a single key corresponding to the name of a [`Scheduler`](#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler"). The value at this key is a sub-dictionary containing key-value pairs matching the arguments of the scheduler (except `optimizer`).
+
+Example:
+
+```Bash
+
+LinearLR:
+    initial_learning_rate: 0.01
+    end_learning_rate: 0.001
+    total_iters: 100
+```
+
+Some schedulers take other schedulers as an argument. In that case, nest the sub-scheduler dictionaries inside. For [`SequentialLR`](#cerebras.pytorch.optim.lr_scheduler.SequentialLR "cerebras.pytorch.optim.lr_scheduler.SequentialLR") and [`SequentialWD`](#cerebras.pytorch.optim.weight_decay_scheduler.SequentialWD "cerebras.pytorch.optim.weight_decay_scheduler.SequentialWD") `milestones` is calculated by the function and can be ignored.
+
+```Bash
+
+SequentialLR:
+    - LinearLR:
+        initial_learning_rate: 0.01
+        end_learning_rate: 0.001
+        total_iters: 100
+    - ExponentialLR:
+        initial_learning_rate: 0.001
+        decay_rate: 0.8
+        total_iters: 100
+```
+
+## Generic Scheduler class in `cerebras.pytorch`[#](#generic-scheduler-class-in-cerebras-pytorch "Permalink to this headline")
+
+### optim.scheduler.Scheduler[#](#optim-scheduler-scheduler "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`scheduler.Scheduler`**(_optimizer_, _total_iters_, _last_epoch=- 1_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler)[#](#cerebras.pytorch.optim.scheduler.Scheduler "Permalink to this definition")
+
+Generic scheduler class for various optimizer params.
+
+**Parameters:**
+
+* **optimizer** – The optimizer to schedule
+
+* **total_iters** – Number of steps to perform the decay
+
+* **last_epoch** – the initial step to start at
+
+* **param\_group\_tags** – param group tags to target update for
+
+
+**_abstract_** `\_get\_closed_form`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler._get_closed_form)[#](#cerebras.pytorch.optim.scheduler.Scheduler._get_closed_form "Permalink to this definition")
+
+**_abstract_  **_property_**** `param\_group\_key`[#](#cerebras.pytorch.optim.scheduler.Scheduler.param_group_key "Permalink to this definition")
+
+Key of the param group value to modify. For example, ‘lr’ or ‘weight_decay’.
+
+`get`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.get)[#](#cerebras.pytorch.optim.scheduler.Scheduler.get "Permalink to this definition")
+
+`state_dict`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.state_dict)[#](#cerebras.pytorch.optim.scheduler.Scheduler.state_dict "Permalink to this definition")
+
+`load\_state\_dict`**(_state_dict_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.load_state_dict)[#](#cerebras.pytorch.optim.scheduler.Scheduler.load_state_dict "Permalink to this definition")
+
+`increment\_last\_epoch`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.increment_last_epoch)[#](#cerebras.pytorch.optim.scheduler.Scheduler.increment_last_epoch "Permalink to this definition")
+
+Increments the last epoch by 1
+
+`step`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.step)[#](#cerebras.pytorch.optim.scheduler.Scheduler.step "Permalink to this definition")
+
+Steps the scheduler and computes the latest value
+
+Only sets the last_epoch if running on CS
+
+`update\_last\_value`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.update_last_value)[#](#cerebras.pytorch.optim.scheduler.Scheduler.update_last_value "Permalink to this definition")
+
+`update_groups`**(_values_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.update_groups)[#](#cerebras.pytorch.optim.scheduler.Scheduler.update_groups "Permalink to this definition")
+
+Update the optimizer groups with the latest values
+
+`get\_last\_value`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/scheduler.html#Scheduler.get_last_value)[#](#cerebras.pytorch.optim.scheduler.Scheduler.get_last_value "Permalink to this definition")
+
+Return last computed value by current scheduler.
+
+## Learning Rate Schedulers in `cerebras.pytorch`[#](#learning-rate-schedulers-in-cerebras-pytorch "Permalink to this headline")
+Available learning rate schedulers in the `cerebras.pytorch` package
+
+|     |     |
+| --- | --- |
+| [`ConstantLR`](#cerebras.pytorch.optim.lr_scheduler.ConstantLR "cerebras.pytorch.optim.lr_scheduler.ConstantLR") | [`PolynomialLR`](#cerebras.pytorch.optim.lr_scheduler.PolynomialLR "cerebras.pytorch.optim.lr_scheduler.PolynomialLR") |
+ | [`LinearLR`](#cerebras.pytorch.optim.lr_scheduler.LinearLR "cerebras.pytorch.optim.lr_scheduler.LinearLR") | [`ExponentialLR`](#cerebras.pytorch.optim.lr_scheduler.ExponentialLR "cerebras.pytorch.optim.lr_scheduler.ExponentialLR") |
+ | [`InverseExponentialTimeDecayLR`](#cerebras.pytorch.optim.lr_scheduler.InverseExponentialTimeDecayLR "cerebras.pytorch.optim.lr_scheduler.InverseExponentialTimeDecayLR") | [`InverseSquareRootDecayLR`](#cerebras.pytorch.optim.lr_scheduler.InverseSquareRootDecayLR "cerebras.pytorch.optim.lr_scheduler.InverseSquareRootDecayLR") |
+ | [`CosineDecayLR`](#cerebras.pytorch.optim.lr_scheduler.CosineDecayLR "cerebras.pytorch.optim.lr_scheduler.CosineDecayLR") | [`SequentialLR`](#cerebras.pytorch.optim.lr_scheduler.SequentialLR "cerebras.pytorch.optim.lr_scheduler.SequentialLR") |
+ | [`PiecewiseConstantLR`](#cerebras.pytorch.optim.lr_scheduler.PiecewiseConstantLR "cerebras.pytorch.optim.lr_scheduler.PiecewiseConstantLR") | [`MultiStepLR`](#cerebras.pytorch.optim.lr_scheduler.MultiStepLR "cerebras.pytorch.optim.lr_scheduler.MultiStepLR") |
+ | [`StepLR`](#cerebras.pytorch.optim.lr_scheduler.StepLR "cerebras.pytorch.optim.lr_scheduler.StepLR") | [`CosineAnnealingLR`](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingLR "cerebras.pytorch.optim.lr_scheduler.CosineAnnealingLR") |
+ | [`LambdaLR`](#cerebras.pytorch.optim.lr_scheduler.LambdaLR "cerebras.pytorch.optim.lr_scheduler.LambdaLR") | [`CosineAnnealingWarmRestarts`](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingWarmRestarts "cerebras.pytorch.optim.lr_scheduler.CosineAnnealingWarmRestarts") |
+ | [`MultiplicativeLR`](#cerebras.pytorch.optim.lr_scheduler.MultiplicativeLR "cerebras.pytorch.optim.lr_scheduler.MultiplicativeLR") | [`ChainedScheduler`](#cerebras.pytorch.optim.lr_scheduler.ChainedScheduler "cerebras.pytorch.optim.lr_scheduler.ChainedScheduler") |
+
+### optim.lr_scheduler.LRScheduler[#](#optim-lr-scheduler-lrscheduler "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`LRScheduler`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#LRScheduler)[#](#cerebras.pytorch.optim.lr_scheduler.LRScheduler "Permalink to this definition")
+
+****_property_**** `param\_group\_key`[#](#cerebras.pytorch.optim.lr_scheduler.LRScheduler.param_group_key "Permalink to this definition")
+
+`get\_last\_lr`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#LRScheduler.get_last_lr)[#](#cerebras.pytorch.optim.lr_scheduler.LRScheduler.get_last_lr "Permalink to this definition")
+
+Return last computed learning rate by current scheduler.
+
+`get_lr`**()**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#LRScheduler.get_lr)[#](#cerebras.pytorch.optim.lr_scheduler.LRScheduler.get_lr "Permalink to this definition")
+
+### optim.lr_scheduler.ConstantLR[#](#optim-lr-scheduler-constantlr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.ConstantLR`**(_*args_, _**kwargs_**)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#ConstantLR)[#](#cerebras.pytorch.optim.lr_scheduler.ConstantLR "Permalink to this definition")
+
+Maintains a constant learning rate for each parameter group (no decaying).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **val** – The learning_rate value to maintain
+
+* **total_iters** (_int_) – The number of steps to decay for
+
+
+***_property_** *val[#](#cerebras.pytorch.optim.lr_scheduler.ConstantLR.val "Permalink to this definition")
+
+### optim.lr_scheduler.PolynomialLR[#](#optim-lr-scheduler-polynomiallr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.PolynomialLR`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#PolynomialLR)[#](#cerebras.pytorch.optim.lr_scheduler.PolynomialLR "Permalink to this definition")
+
+Decays the learning rate of each parameter group using a polynomial function in the given total_iters.
+
+This class is similar to the [Pytorch PolynomialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.PolynomialLR.html#torch.optim.lr_scheduler.PolynomialLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **end\_learning\_rate** (_float_) – The final learning rate
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+* **power** (_float_) – Exponent to apply to “x” (as in y=mx+b), which is ratio of step completion (1 for linear) Default: 1.0 (only Linear supported at the moment)
+
+* **cycle** (_bool_) – Whether to cycle
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.PolynomialLR.initial_val "Permalink to this definition")
+
+**_property_** `end_val`[#](#cerebras.pytorch.optim.lr_scheduler.PolynomialLR.end_val "Permalink to this definition")
+
+### optim.lr_scheduler.LinearLR[#](#optim-lr-scheduler-linearlr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.LinearLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#LinearLR)[#](#cerebras.pytorch.optim.lr_scheduler.LinearLR "Permalink to this definition")
+
+Alias for Polynomial LR scheduler with a power of 1
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.LinearLR.initial_val "Permalink to this definition")
+
+**_property_** end_val[#](#cerebras.pytorch.optim.lr_scheduler.LinearLR.end_val "Permalink to this definition")
+
+### optim.lr_scheduler.ExponentialLR[#](#optim-lr-scheduler-exponentiallr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.ExponentialLR`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#ExponentialLR)[#](#cerebras.pytorch.optim.lr_scheduler.ExponentialLR "Permalink to this definition")
+
+Decays the learning rate of each parameter group by decay_rate every step.
+
+This class is similar to the [Pytorch ExponentialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ExponentialLR.html#torch.optim.lr_scheduler.ExponentialLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+* **decay_rate** (_float_) – The decay rate
+
+* **staircase** (_bool_) – If True decay the learning rate at discrete intervals
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.ExponentialLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.InverseExponentialTimeDecayLR[#](#optim-lr-scheduler-inverseexponentialtimedecaylr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`InverseExponentialTimeDecayLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#InverseExponentialTimeDecayLR)[#](#cerebras.pytorch.optim.lr_scheduler.InverseExponentialTimeDecayLR "Permalink to this definition")
+
+Decays the learning rate inverse-exponentially over time, as described in the [Keras InverseTimeDecay class](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **step_exponent** (_int_) – Exponential value.
+
+* **total_iters** (_int_) – Number of steps to perform the decay.
+
+* **decay_rate** (_float_) – The decay rate.
+
+* **staircase** (_bool_) – If True decay the learning rate at discrete intervals.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.InverseExponentialTimeDecayLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.InverseSquareRootDecayLR[#](#optim-lr-scheduler-inversesquarerootdecaylr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`InverseSquareRootDecayLR(_*args_, _**kwargs_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#InverseSquareRootDecayLR)[#](#cerebras.pytorch.optim.lr_scheduler.InverseSquareRootDecayLR "Permalink to this definition")
+
+Decays the learning rate inverse-squareroot over time, as described in the following equation:
+```
+$$
+\begin{align*}
+l_{r_{t}} = \frac{scale}{\sqrt{\max\{t, warmup\_steps\}}}
+\end{align*}
+$$
+```
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **scale** (_float_) – Multiplicative factor to scale the result.
+
+* **warmup_steps** (_int_) – use initial\_learning\_rate for the first warmup_steps.
+
+
+**_property_** `initial_val` [#](#cerebras.pytorch.optim.lr_scheduler.InverseSquareRootDecayLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.CosineDecayLR[#](#optim-lr-scheduler-cosinedecaylr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**lr_scheduler.CosineDecayLR(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#CosineDecayLR)[#](#cerebras.pytorch.optim.lr_scheduler.CosineDecayLR "Permalink to this definition")
+
+Applies the cosine decay schedule as described in the [Keras CosineDecay class](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/CosineDecay).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **end\_learning\_rate** (_float_) – The final learning rate
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+
+**_property_** initial_val[#](#cerebras.pytorch.optim.lr_scheduler.CosineDecayLR.initial_val "Permalink to this definition")
+
+**_property_** end_val[#](#cerebras.pytorch.optim.lr_scheduler.CosineDecayLR.end_val "Permalink to this definition")
+
+### optim.lr_scheduler.SequentialLR[#](#optim-lr-scheduler-sequentiallr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.SequentialLR`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#SequentialLR)[#](#cerebras.pytorch.optim.lr_scheduler.SequentialLR "Permalink to this definition")
+
+Receives the list of schedulers that is expected to be called sequentially during optimization process and milestone points that provides exact intervals to reflect which scheduler is supposed to be called at a given step.
+
+This class is a wrapper around the [Pytorch SequentialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.SequentialLR.html#torch.optim.lr_scheduler.SequentialLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – Wrapped optimizer
+
+* **schedulers** (_list_) – List of chained schedulers.
+
+* **milestones** (_list_) – List of integers that reflects milestone points.
+
+* **last_epoch** (_int_) – The index of last epoch. Default: -1.
+
+
+### optim.lr_scheduler.PiecewiseConstantLR[#](#optim-lr-scheduler-piecewiseconstantlr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`PiecewiseConstantLR(_*args_, _**kwargs_)`[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#PiecewiseConstantLR)[#](#cerebras.pytorch.optim.lr_scheduler.PiecewiseConstantLR "Permalink to this definition")
+
+Adjusts the learning rate to a predefined constant at each milestone and holds this value until the next milestone. Notice that such adjustment can happen simultaneously with other changes to the learning rate from outside this scheduler.
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **learning_rates** (_List__\[__float__\]_) – List of learning rates to maintain before/during each milestone.
+
+* **milestones** (_List__\[__int__\]_) – List of step indices. Must be increasing.
+
+
+### optim.lr_scheduler.MultiStepLR[#](#optim-lr-scheduler-multisteplr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.MultiStepLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#MultiStepLR)[#](#cerebras.pytorch.optim.lr_scheduler.MultiStepLR "Permalink to this definition")
+
+Decays the learning rate of each parameter group by gamma once the number of steps reaches one of the milestones. Notice that such decay can happen simultaneously with other changes to the learning rate from outside this scheduler.
+
+This class is similar to the [Pytorch MultiStepLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.MultiStepLR.html#torch.optim.lr_scheduler.MultiStepLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **gamma** (_float_) – Multiplicative factor of learning rate decay.
+
+* **milestones** (_List__\[__int__\]_) – List of step indices. Must be increasing.
+
+
+**_property_** i`nitial_val`[#](#cerebras.pytorch.optim.lr_scheduler.MultiStepLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.StepLR[#](#optim-lr-scheduler-steplr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.StepLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#StepLR)[#](#cerebras.pytorch.optim.lr_scheduler.StepLR "Permalink to this definition")
+
+Decays the learning rate of each parameter group by gamma every step_size. Notice that such decay can happen simultaneously with other changes to the learning rate from outside this scheduler.
+
+This class is similar to the [Pytorch StepLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.StepLR.html#torch.optim.lr_scheduler.StepLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **step_size** (_int_) – Period of decay.
+
+* **gamma** (_float_) – Multiplicative factor of decay.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.StepLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.CosineAnnealingLR[#](#optim-lr-scheduler-cosineannealinglr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`CosineAnnealingLR`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#CosineAnnealingLR)[#](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingLR "Permalink to this definition")
+
+Set the learning rate of each parameter group using a cosine annealing schedule, where `$$\eta_{\text{max}}$$` is set to the initial lr and `$$\text{For } T_{\text{cur}}$$` is the number of steps since the last restart in SGDR:
+```
+$$
+\begin{align*}
+\text{For } T_{\text{cur}} &\neq (2k+1)T_{\text{max}}: \\
+\eta_t &= \eta_{\text{min}} + \frac{1}{2}(\eta_{\text{max}} - \eta_{\text{min}})\left(1 + \cos\left(\frac{T_{\text{cur}}}{T_{\text{max}}} \pi \right)\right) \\
+\text{For } T_{\text{cur}} &= (2k+1)T_{\text{max}}: \\
+\eta_{t+1} &= \eta_t + \frac{1}{2}(\eta_{\text{max}} - \eta_{\text{min}})\left(1 - \cos\left(\frac{1}{T_{\text{max}}} \pi \right)\right)
+\end{align*}
+
+$$`
+```
+
+Notice that because the schedule is defined recursively, the learning rate can be simultaneously modified outside this scheduler by other operators. If the learning rate is set solely by this scheduler, the learning rate at each step becomes:
+```
+$$
+\begin{align*}
+\eta_t &= \eta_{\text{min}} + \frac{1}{2}(\eta_{\text{max}} - \eta_{\text{min}})\left(1 + \cos\left(\frac{T_{\text{cur}}}{T_{\text{max}}} \pi \right)\right) \\
+\end{align*}
+$$
+```
+It has been proposed in [SGDR: Stochastic Gradient Descent with Warm Restarts](https://arxiv.org/abs/1608.03983). Note that this only implements the cosine annealing part of SGDR, and not the restarts.
+
+This class is similar to the [Pytorch CosineAnnealingLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CosineAnnealingLR.html#torch.optim.lr_scheduler.CosineAnnealingLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **T_max** (_int_) – Maximum number of iterations.
+
+* **eta_min** (_float_) – Minimum learning rate.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.LambdaLR[#](#optim-lr-scheduler-lambdalr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`LambdaLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#LambdaLR)[#](#cerebras.pytorch.optim.lr_scheduler.LambdaLR "Permalink to this definition")
+
+Sets the learning rate of each parameter group to the initial lr times a given function (which is specified by overriding set\_value\_lambda).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.LambdaLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.CosineAnnealingWarmRestarts[#](#optim-lr-scheduler-cosineannealingwarmrestarts "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`CosineAnnealingWarmRestarts`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#CosineAnnealingWarmRestarts)[#](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingWarmRestarts "Permalink to this definition")
+
+Set the learning rate of each parameter group using a cosine annealing schedule, where `$$(\eta_{\max} )$$` is set to the initial lr, `$$ T_{\text{cur}} $$` is the number of steps since the last restart and `$$T_i {\text{ set }} $$` is the number of steps between two warm restarts in SGDR:
+```
+$$
+\begin{align*}
+\eta_t &= \eta_{\min} + \frac{1}{2}(\eta_{\max} - \eta_{\min})\left(1 + \cos\left(\frac{T_{\text{cur}}}{T_i} \pi \right)\right) \\
+\text{when } T_{\text{cur}} = T_i {\text{ set }} \eta_t &= \eta_{\min}
+ \text{when } T_{\text{cur}} = 0 \text{ after restart}, {\text{ set }}\eta_t = \eta_{\max} \quad
+\end{align*}
+$$
+It has been proposed in [SGDR: Stochastic Gradient Descent with Warm Restarts](https://arxiv.org/abs/1608.03983).
+
+This class is similar to the [Pytorch CosineAnnealingWarmRestarts LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CosineAnnealingWarmRestarts.html#torch.optim.lr_scheduler.CosineAnnealingWarmRestarts).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **T_0** (_int_) – Number of iterations for the first restart.
+
+* **T_mult** (_int_) – A factor increases Ti after a restart. Currently T_mult must be set to 1.0
+
+* **eta_min** (_float_) – Minimum learning rate.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.CosineAnnealingWarmRestarts.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.MultiplicativeLR[#](#optim-lr-scheduler-multiplicativelr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`MultiplicativeLR`(_*args_, _**kwargs_)[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#MultiplicativeLR)[#](#cerebras.pytorch.optim.lr_scheduler.MultiplicativeLR "Permalink to this definition")
+
+Multiply the learning rate of each parameter group by the supplied coefficient.
+
+**Parameters:** * **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – The initial learning rate.
+
+* **coefficient** (_float_) – Multiplicative factor of learning rate.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.MultiplicativeLR.initial_val "Permalink to this definition")
+
+### optim.lr_scheduler.ChainedScheduler[#](#optim-lr-scheduler-chainedscheduler "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`ChainedScheduler`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#ChainedScheduler)[#](#cerebras.pytorch.optim.lr_scheduler.ChainedScheduler "Permalink to this definition")
+
+### optim.lr_scheduler.CyclicLR[#](#optim-lr-scheduler-cycliclr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.lr_scheduler.**`CyclicLR`**(_*args_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#CyclicLR)[#](#cerebras.pytorch.optim.lr_scheduler.CyclicLR "Permalink to this definition")
+
+Sets the learning rate of each parameter group according to cyclical learning rate policy (CLR). The policy cycles the learning rate between two boundaries with a constant frequency, as detailed in the paper [Cyclical Learning Rates for Training Neural Networks](https://arxiv.org/abs/1506.01186). The distance between the two boundaries can be scaled on a per-iteration or per-cycle basis.
+
+Cyclical learning rate policy changes the learning rate after every batch. step should be called after a batch has been used for training.
+
+This class has three built-in policies, as put forth in the paper:
+
+* “triangular”: A basic triangular cycle without amplitude scaling.
+
+* “triangular2”: A basic triangular cycle that scales initial amplitude by
+
+    half each cycle.
+
+* “exp_range”: A cycle that scales initial amplitude by
+
+    $$ ({\text{gamma}^{\text{cycle iterations}}})$$ at each cycle iteration.
+
+
+This class is similar to the [Pytorch CyclicLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CyclicLR.html#torch.optim.lr_scheduler.CyclicLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule.
+
+* **base_lr** (_float_) – Initial learning rate which is the lower boundary in the cycle.
+
+* **max_lr** (_float_) – Upper learning rate boundaries in the cycle.
+
+* **step\_size\_up** (_int_) – Number of training iterations in the increasing half of a cycle.
+
+* **step\_size\_down** (_int_) – Number of training iterations in the decreasing half of a cycle.
+
+* **mode** (_str_) – One of `{‘triangular’, ‘triangular2’, ‘exp_range’}`.
+
+* **gamma** (_float_) – Constant in ‘exp_range’ scaling function: gamma**(cycle iterations).
+
+* **scale_mode** (_str_) – `{‘cycle’, ‘iterations’}` Defines whether scale_fn is evaluated on cycle number or cycle iterations.
+
+
+**_property_** `base_val`[#](#cerebras.pytorch.optim.lr_scheduler.CyclicLR.base_val "Permalink to this definition")
+
+**_property_** `max_val`[#](#cerebras.pytorch.optim.lr_scheduler.CyclicLR.max_val "Permalink to this definition")
+
+### optim.lr_scheduler.OneCycleLR[#](#optim-lr-scheduler-onecyclelr "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**`lr_scheduler.OneCycleLR`*(_*args_, _**kwargs_)*[\[source\]](../../../_modules/cerebras/pytorch/optim/lr_scheduler.html#OneCycleLR)[#](#cerebras.pytorch.optim.lr_scheduler.OneCycleLR "Permalink to this definition")
+
+Sets the learning rate of each parameter group according to the 1cycle learning rate policy. The 1cycle policy anneals the learning rate from an initial learning rate to some maximum learning rate and then from that maximum learning rate to some minimum learning rate much lower than the initial learning rate. This policy was initially described in the paper [Super-Convergence: Very Fast Training of Neural Networks Using Large Learning Rates](https://arxiv.org/abs/1708.07120).
+
+This scheduler is not chainable.
+
+This class is similar to the [Pytorch OneCycleLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial\_learning\_rate** (_float_) – Initial learning rate. Compared with PyTorch, this is equivalent to max\_lr / div\_factor.
+
+* **max_lr** (_float_) – Upper learning rate boundaries in the cycle.
+
+* **total_steps** (_int_) – The total number of steps in the cycle.
+
+* **pct_start** (_float_) – The percentage of the cycle (in number of steps) spent increasing the learning rate.
+
+* **final\_div\_factor** (_float_) – Determines the minimum learning rate via min\_lr = initial\_lr/final\_div\_factor.
+
+* **three_phase** (_bool_) – If True, use a third phase of the schedule to annihilate the learning rate
+
+* **anneal_strategy** (_str_) – Specifies the annealing strategy: “cos” for cosine annealing, “linear” for linear annealing.
+
+
+**_property_** `initial_val`[#](#cerebras.pytorch.optim.lr_scheduler.OneCycleLR.initial_val "Permalink to this definition")
+
+**_property_** `max_val`[#](#cerebras.pytorch.optim.lr_scheduler.OneCycleLR.max_val "Permalink to this definition")
+
+## Weight Decay Schedulers in `cerebras.pytorch`[#](#weight-decay-schedulers-in-cerebras-pytorch "Permalink to this headline")
+
+Available weight decay schedulers in the `cerebras.pytorch` package
+
+  |     |     |
+ | --- | --- |
+ | [`ConstantWD`](#cerebras.pytorch.optim.weight_decay_scheduler.ConstantWD "cerebras.pytorch.optim.weight_decay_scheduler.ConstantWD") | [`PolynomialWD`](#cerebras.pytorch.optim.weight_decay_scheduler.PolynomialWD "cerebras.pytorch.optim.weight_decay_scheduler.PolynomialWD") |
+ | [`LinearWD`](#cerebras.pytorch.optim.weight_decay_scheduler.LinearWD "cerebras.pytorch.optim.weight_decay_scheduler.LinearWD") | [`ExponentialWD`](#cerebras.pytorch.optim.weight_decay_scheduler.ExponentialWD "cerebras.pytorch.optim.weight_decay_scheduler.ExponentialWD") |
+ | [`InverseExponentialTimeDecayWD`](#cerebras.pytorch.optim.weight_decay_scheduler.InverseExponentialTimeDecayWD "cerebras.pytorch.optim.weight_decay_scheduler.InverseExponentialTimeDecayWD") | [`InverseSquareRootDecayWD`](#cerebras.pytorch.optim.weight_decay_scheduler.InverseSquareRootDecayWD "cerebras.pytorch.optim.weight_decay_scheduler.InverseSquareRootDecayWD") |
+ | [`CosineDecayWD`](#cerebras.pytorch.optim.weight_decay_scheduler.CosineDecayWD "cerebras.pytorch.optim.weight_decay_scheduler.CosineDecayWD") | [`SequentialWD`](#cerebras.pytorch.optim.weight_decay_scheduler.SequentialWD "cerebras.pytorch.optim.weight_decay_scheduler.SequentialWD") |
+ | [`PiecewiseConstantWD`](#cerebras.pytorch.optim.weight_decay_scheduler.PiecewiseConstantWD "cerebras.pytorch.optim.weight_decay_scheduler.PiecewiseConstantWD") | [`MultiStepWD`](#cerebras.pytorch.optim.weight_decay_scheduler.MultiStepWD "cerebras.pytorch.optim.weight_decay_scheduler.MultiStepWD") |
+ | [`StepWD`](#cerebras.pytorch.optim.weight_decay_scheduler.StepWD "cerebras.pytorch.optim.weight_decay_scheduler.StepWD") | [`CosineAnnealingWD`](#cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWD "cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWD") |
+ | [`LambdaWD`](#cerebras.pytorch.optim.weight_decay_scheduler.LambdaWD "cerebras.pytorch.optim.weight_decay_scheduler.LambdaWD") | [`CosineAnnealingWarmRestartsWD`](#cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWarmRestartsWD "cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWarmRestartsWD") |
+ | [`MultiplicativeWD`](#cerebras.pytorch.optim.weight_decay_scheduler.MultiplicativeWD "cerebras.pytorch.optim.weight_decay_scheduler.MultiplicativeWD") | [`ChainedWD`](#cerebras.pytorch.optim.weight_decay_scheduler.ChainedWD "cerebras.pytorch.optim.weight_decay_scheduler.ChainedWD") |
+
+### optim.weight\_decay\_scheduler.WeightDecayScheduler[#](#optim-weight-decay-scheduler-weightdecayscheduler "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`WeightDecayScheduler`**(_optimizer_, _total_iters_, _last_epoch=- 1_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#WeightDecayScheduler)[#](#cerebras.pytorch.optim.weight_decay_scheduler.WeightDecayScheduler "Permalink to this definition")
+
+**_property_** `param\_group\_key`[#](#cerebras.pytorch.optim.weight_decay_scheduler.WeightDecayScheduler.param_group_key "Permalink to this definition")
+
+### optim.weight\_decay\_scheduler.ConstantWD[#](#optim-weight-decay-scheduler-constantwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`ConstantWD`**(_optimizer_, _val_, _total_iters=None_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#ConstantWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.ConstantWD "Permalink to this definition")
+
+Maintains a constant weight decay for each parameter group (no decaying).
+
+**Parameters:**
+
+* **optimizer** – The optimizer to schedule
+
+* **val** (_float_) – The weight decay value to maintain
+
+* **total_iters** (_int_) – The number of steps to decay for
+
+
+### optim.weight\_decay\_scheduler.PolynomialWD[#](#optim-weight-decay-scheduler-polynomialwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`PolynomialWD`**(_optimizer_, _initial_val_, _end_val_, _total_iters_, _power=1.0_, _cycle=False_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#PolynomialWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.PolynomialWD "Permalink to this definition")
+
+Decays the weight decay of each parameter group using a polynomial function in the given total_iters.
+
+This class is similar to the [Pytorch PolynomialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.PolynomialLR.html#torch.optim.lr_scheduler.PolynomialLR).
+
+**Parameters:**
+
+* **optimizer** – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay
+
+* **end_val** (_float_) – The final weight decay
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+* **power** (_float_) – Exponent to apply to “x” (as in y=mx+b), which is ratio of step completion (1 for linear) Default: 1.0 (only Linear supported at the moment)
+
+* **cycle** (_bool_) – Whether to cycle
+
+
+### optim.weight\_decay\_scheduler.LinearWD[#](#optim-weight-decay-scheduler-linearwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`LinearWD`**(_optimizer_, _initial_val_, _end_val_, _total_iters_, _cycle=False_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#LinearWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.LinearWD "Permalink to this definition")
+
+Alias for Polynomial Scheduler scheduler with a power of 1
+
+### optim.weight\_decay\_scheduler.ExponentialWD[#](#optim-weight-decay-scheduler-exponentialwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`ExponentialWD`**(_optimizer_, _initial_val_, _total_iters_, _decay_rate_, _staircase=False_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#ExponentialWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.ExponentialWD "Permalink to this definition")
+
+Decays the weight decay of each parameter group by decay_rate every step.
+
+This class is similar to the [Pytorch ExponentialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.ExponentialLR.html#torch.optim.lr_scheduler.ExponentialLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+* **decay_rate** (_float_) – The decay rate
+
+* **staircase** (_bool_) – If True decay the weight decay at discrete intervals
+
+
+### optim.weight\_decay\_scheduler.InverseExponentialTimeDecayWD[#](#optim-weight-decay-scheduler-inverseexponentialtimedecaywd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**weight\_decay\_scheduler.InverseExponentialTimeDecayWD(_optimizer_, _initial_val_, _step_exponent_, _total_iters_, _decay_rate_, _staircase=False_, _param\_group\_tags=None_)[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#InverseExponentialTimeDecayWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.InverseExponentialTimeDecayWD "Permalink to this definition")
+
+Decays the weight decay inverse-exponentially over time, as described in the [Keras InverseTimeDecay class](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/InverseTimeDecay).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **step_exponent** (_int_) – Exponential weight decay.
+
+* **total_iters** (_int_) – Number of steps to perform the decay.
+
+* **decay_rate** (_float_) – The decay rate.
+
+* **staircase** (_bool_) – If True decay the weight decay at discrete intervals.
+
+
+### optim.weight\_decay\_scheduler.InverseSquareRootDecayWD[#](#optim-weight-decay-scheduler-inversesquarerootdecaywd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`InverseSquareRootDecayWD`**(_optimizer_, _initial_val=1.0_, _scale=1.0_, _warmup_steps=1.0_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#InverseSquareRootDecayWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.InverseSquareRootDecayWD "Permalink to this definition")
+
+Decays the weight decay inverse-squareroot over time, as described in the following equation:
+$$
+wd_t = \frac{\text{scale}}{\sqrt{\max\{t, \text{warmup\_steps}\}}}
+$$
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **scale** (_float_) – Multiplicative factor to scale the result.
+
+* **warmup_steps** (_int_) – use initial\_val for the first warmup\_steps.
+
+
+### optim.weight\_decay\_scheduler.CosineDecayWD[#](#optim-weight-decay-scheduler-cosinedecaywd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler**.`CosineDecayWD`**(_optimizer_, _initial_val_, _end_val_, _total_iters_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#CosineDecayWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.CosineDecayWD "Permalink to this definition")
+
+Applies the cosine decay schedule as described in the [Keras CosineDecay class](https://www.tensorflow.org/api_docs/python/tf/keras/optimizers/schedules/CosineDecay).
+
+**Parameters:**
+
+* **optimizer** – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay
+
+* **end_val** (_float_) – The final weight decay
+
+* **total_iters** (_int_) – Number of steps to perform the decay
+
+
+### optim.weight\_decay\_scheduler.SequentialWD[#](#optim-weight-decay-scheduler-sequentialwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`SequentialWD`**(_optimizer_, _schedulers_, _milestones_, _last_epoch=- 1_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#SequentialWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.SequentialWD "Permalink to this definition")
+
+Receives the list of schedulers that is expected to be called sequentially during optimization process and milestone points that provides exact intervals to reflect which scheduler is supposed to be called at a given step.
+
+This class is similar to [Pytorch SequentialLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.SequentialLR.html#torch.optim.lr_scheduler.SequentialLR).
+
+**Parameters:**
+
+* **optimizer** – Wrapped optimizer
+
+* **schedulers** (_list_) – List of chained schedulers.
+
+* **milestones** (_list_) – List of integers that reflects milestone points.
+
+* **last_epoch** (_int_) – The index of last epoch. Default: -1.
+
+
+### optim.weight\_decay\_scheduler.PiecewiseConstantWD[#](#optim-weight-decay-scheduler-piecewiseconstantwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`PiecewiseConstantWD`**(_optimizer_, _vals_, _milestones_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#PiecewiseConstantWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.PiecewiseConstantWD "Permalink to this definition")
+
+Adjusts the weight decay to a predefined constant at each milestone and holds this value until the next milestone. Notice that such adjustment can happen simultaneously with other changes to the weight decays from outside this scheduler.
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **vals** (_List__\[__float__\]_) – List of weight decays to maintain before/during each milestone.
+
+* **milestones** (_List__\[__int__\]_) – List of step indices. Must be increasing.
+
+
+### optim.weight\_decay\_scheduler.MultiStepWD[#](#optim-weight-decay-scheduler-multistepwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`MultiStepWD`**(_optimizer_, _initial_val_, _gamma_, _milestones_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#MultiStepWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.MultiStepWD "Permalink to this definition")
+
+Decays the weight decay of each parameter group by gamma once the number of steps reaches one of the milestones. Notice that such decay can happen simultaneously with other changes to the weight decay from outside this scheduler.
+
+This class is similar to the [Pytorch MultiStepLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.MultiStepLR.html#torch.optim.lr_scheduler.MultiStepLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **gamma** (_float_) – Multiplicative factor of weight decay decay.
+
+* **milestones** (_List__\[__int__\]_) – List of step indices. Must be increasing.
+
+
+### optim.weight\_decay\_scheduler.StepWD[#](#optim-weight-decay-scheduler-stepwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler**`.StepWD`**(_optimizer_, _initial_val_, _step_size_, _gamma_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#StepWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.StepWD "Permalink to this definition")
+
+Decays the weight decay of each parameter group by gamma every step_size. Notice that such decay can happen simultaneously with other changes to the weight decay from outside this scheduler.
+
+This class is similar to the [Pytorch StepLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.StepLR.html#torch.optim.lr_scheduler.StepLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial val.
+
+* **step_size** (_int_) – Period of decay.
+
+* **gamma** (_float_) – Multiplicative factor of decay.
+
+
+### optim.weight\_decay\_scheduler.CosineAnnealingWD[#](#optim-weight-decay-scheduler-cosineannealingwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.**weight\_decay\_scheduler.CosineAnnealingWD(_optimizer_, _initial_val_, _T_max_, _eta_min=0.0_, _param\_group\_tags=None_)[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#CosineAnnealingWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWD "Permalink to this definition")
+
+Set the weight decay of each parameter group using a cosine annealing schedule, where $$(\eta_{\max})$$ is set to the initial wd and $$T_{\text{cur}}$$ is the number of steps since the last restart in SGDR:
+
+$$
+\begin{align*}
+\eta_t &= \eta_{\min} + \frac{1}{2}(\eta_{\max} - \eta_{\min})\left(1 + \cos\left(\frac{T_{\text{cur}}}{T_{\max}} \pi \right)\right), \quad T_{\text{cur}} \neq (2k + 1)T_{\max} \\
+\eta_{t+1} &= \eta_t + \frac{1}{2}(\eta_{\max} - \eta_{\min})\left(1 - \cos\left(\frac{1}{T_{\max}} \pi \right)\right), \quad T_{\text{cur}} = (2k + 1)T_{\max}
+\end{align*}
+$$
+
+Notice that because the schedule is defined recursively, the weight decay can be simultaneously modified outside this scheduler by other operators. If the weight decay is set solely by this scheduler, the weight decay at each step becomes:
+
+$$
+\begin{align*}
+\eta_t &= \eta_{\min} + \frac{1}{2}(\eta_{\max} - \eta_{\min})\left(1 + \cos\left(\frac{T_{\text{cur}}}{T_{\max}} \pi \right)\right)
+\end{align*}
+$$
+It has been proposed in [SGDR: Stochastic Gradient Descent with Warm Restarts](https://arxiv.org/abs/1608.03983). Note that this only implements the cosine annealing part of SGDR, and not the restarts.
+
+This class is similar to the [Pytorch CosineAnnealingLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CosineAnnealingLR.html#torch.optim.lr_scheduler.CosineAnnealingLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **T_max** (_int_) – Maximum number of iterations.
+
+* **eta_min** (_float_) – Minimum weight decay.
+
+
+### optim.weight\_decay\_scheduler.LambdaWD[#](#optim-weight-decay-scheduler-lambdawd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`LambdaWD`**(_optimizer_, _initial_val_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#LambdaWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.LambdaWD "Permalink to this definition")
+
+Sets the weight decay of each parameter group to the initial wd times a given function (which is specified by overriding set\_value\_lambda).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+
+### optim.weight\_decay\_scheduler.CosineAnnealingWarmRestartsWD[#](#optim-weight-decay-scheduler-cosineannealingwarmrestartswd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`CosineAnnealingWarmRestartsWD`**(_optimizer_, _initial_val_, _T_0_, _T_mult=1_, _eta_min=0.0_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#CosineAnnealingWarmRestartsWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.CosineAnnealingWarmRestartsWD "Permalink to this definition")
+
+Set the weight decay of each parameter group using a cosine annealing schedule, where $$(\eta_{\max} )$$ is set to the initial wd, $$ T_{\text{cur}} $$ is the number of steps since the last restart and $$T_i {\text{ set }} $$ is the number of steps between two warm restarts in SGDR:
+$$
+\begin{align*}
+\eta_t = \eta_{\min} + \frac{1}{2} (\eta_{\max} - \eta_{\min}) \left( 1 + \cos\left( \frac{T_{\text{cur}}}{T_i} \pi \right) \right) \\
+\text{when } T_{\text{cur}} = T_i {\text{ set }} \eta_t &= \eta_{\min}.
+ \text{when } T_{\text{cur}} = 0 \text{ after restart}, {\text{ set }}\eta_t = \eta_{\max} \quad
+ \end{align*}
+$$
+
+It has been proposed in [SGDR: Stochastic Gradient Descent with Warm Restarts](https://arxiv.org/abs/1608.03983).
+
+This class is similar to the [Pytorch CosineAnnealingWarmRestarts LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CosineAnnealingWarmRestarts.html#torch.optim.lr_scheduler.CosineAnnealingWarmRestarts).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **T_0** (_int_) – Number of iterations for the first restart.
+
+* **T_mult** (_int_) – A factor increases Ti after a restart. Currently T_mult must be set to 1.0
+
+* **eta_min** (_float_) – Minimum weight decay.
+
+
+### optim.weight\_decay\_scheduler.MultiplicativeWD[#](#optim-weight-decay-scheduler-multiplicativewd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`MultiplicativeWD`**(_optimizer_, _initial_val_, _coefficient_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#MultiplicativeWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.MultiplicativeWD "Permalink to this definition")
+
+Multiply the weight decay of each parameter group by the supplied coefficient.
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – The initial weight decay.
+
+* **coefficient** (_float_) – Multiplicative factor of weight decay.
+
+
+### optim.weight\_decay\_scheduler.ChainedWD[#](#optim-weight-decay-scheduler-chainedwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.** `ChainedWD`**(_schedulers_, _param\_group\_tags=None_)[\[**source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#ChainedWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.ChainedWD "Permalink to this definition")
+
+Chains list of weight decay schedulers. It takes a list of chainable weight decay schedulers and performs consecutive step() functions belonging to them by just one call.
+
+### optim.weight\_decay\_scheduler.CyclicWD[#](#optim-weight-decay-scheduler-cyclicwd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`CyclicWD`**(_optimizer_, _base_val_, _max_val_, _step\_size\_up=2000_, _step\_size\_down=None_, _mode='triangular'_, _gamma=1.0_, _scale_mode='cycle'_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#CyclicWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.CyclicWD "Permalink to this definition")
+
+Sets the weight decay of each parameter group according to cyclical weight decay policy (CLR). The policy cycles the learning rate between two boundaries with a constant frequency, as detailed in the paper [Cyclical Learning Rates for Training Neural Networks](https://arxiv.org/abs/1506.01186). The distance between the two boundaries can be scaled on a per-iteration or per-cycle basis.
+
+Cyclical weight decay policy changes the weight decay after every batch. step should be called after a batch has been used for training.
+
+This class has three built-in policies, as put forth in the paper:
+
+* “triangular”: A basic triangular cycle without amplitude scaling.
+
+* “triangular2”: A basic triangular cycle that scales initial amplitude by
+
+    half each cycle.
+
+* “exp_range”: A cycle that scales initial amplitude by
+
+    $$(gama ^{cycle iteration})$$ at each cycle iteration.
+
+This class is similar to the [Pytorch CyclicLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.CyclicLR.html#torch.optim.lr_scheduler.CyclicLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule.
+
+* **base_val** (_float_) – Initial weight decay which is the lower boundary in the cycle.
+
+* **max_val** (_float_) – Upper weight decay boundaries in the cycle.
+
+* **step\_size\_up** (_int_) – Number of training iterations in the increasing half of a cycle.
+
+* **step\_size\_down** (_int_) – Number of training iterations in the decreasing half of a cycle.
+
+* **mode** (_str_) – One of `{‘triangular’, ‘triangular2’, ‘exp_range’}`.
+
+* **gamma** (_float_) – Constant in ‘exp_range’ scaling function: gamma**(cycle iterations).
+
+* **scale_mode** (_str_) – `{‘cycle’, ‘iterations’}` Defines whether scale_fn is evaluated on cycle number or cycle iterations.
+
+
+### optim.weight\_decay\_scheduler.OneCycleWD[#](#optim-weight-decay-scheduler-onecyclewd "Permalink to this headline")
+
+**_class_ cerebras.pytorch.optim.weight\_decay\_scheduler.**`OneCycleWD`**(_optimizer_, _initial_val_, _max_val_, _total_steps=1000_, _pct_start=0.3_, _final\_div\_factor=10000.0_, _three_phase=False_, _anneal_strategy='cos'_, _param\_group\_tags=None_)**[\[source\]](../../../_modules/cerebras/pytorch/optim/weight_decay_scheduler.html#OneCycleWD)[#](#cerebras.pytorch.optim.weight_decay_scheduler.OneCycleWD "Permalink to this definition")
+
+Sets the weight decay of each parameter group according to the 1cycle weight decay policy. The 1cycle policy anneals the learning rate from an initial weight decay to some maximum weight decay and then from that maximum weight decay to some minimum weight decay much lower than the initial weight decay. This policy was initially described in the paper [Super-Convergence: Very Fast Training of Neural Networks Using Large Learning Rates](https://arxiv.org/abs/1708.07120).
+
+This scheduler is not chainable.
+
+This class is similar to the [Pytorch OneCycleLR LRS](https://pytorch.org/docs/stable/generated/torch.optim.lr_scheduler.OneCycleLR.html#torch.optim.lr_scheduler.OneCycleLR).
+
+**Parameters:**
+
+* **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – The optimizer to schedule
+
+* **initial_val** (_float_) – Initial weight decay. Compared with PyTorch, this is equivalent to max\_val / div\_factor.
+
+* **max_val** (_float_) – Upper weight decay boundaries in the cycle.
+
+* **total_steps** (_int_) – The total number of steps in the cycle.
+
+* **pct_start** (_float_) – The percentage of the cycle (in number of steps) spent increasing the weight decay.
+
+* **final\_div\_factor** (_float_) – Determines the minimum weight decay via min\_val = initial\_val/final\_div\_factor.
+
+* **three_phase** (_bool_) – If True, use a third phase of the schedule to annihilate the weight decay
+
+* **anneal_strategy** (_str_) – Specifies the annealing strategy: “cos” for cosine annealing, “linear” for linear annealing.
+

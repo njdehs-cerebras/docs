@@ -1,0 +1,84 @@
+---
+title: "Extend Context Length Using Position Interpolation"
+description: "Generative language models typically can handle only limited contexts, up to the context size that was used during training."
+---
+
+## Overview
+
+ In particular, models trained with Rotary Position Embeddings (RoPE) for position encoding are known to have weak extrapolation properties. This limitation is critical, as a model’s ability to understand and generate content benefits significantly from a longer context, especially for tasks with long-range dependencies. A novel approach to mitigate this limitation is Position Interpolation, which efficiently extends the supported context length by downscaling the position indices so that the maximum position index matches the previous context window limit in the pre-training stage. This method facilitates an easy expansion of the supported context length, addressing the issue where models trained with RoPE often perform poorly when extrapolating to context lengths beyond their training range. By adopting Position Interpolation, models can better interpolate across different context lengths, enhancing their flexibility and performance. For a detailed exploration of this approach, it’s beneficial to refer to the [original paper](https://arxiv.org/abs/2306.15595).
+
+## Key Functionalities and benefits
+
+**1.** Context Length Extension
+
+Functionality: Allows the extension of the model’s context length beyond its original training limits.
+
+Benefit: Models can process and generate longer sequences, enhancing their applicability to tasks requiring comprehensive contextual understanding.
+
+**2.** Position Interpolation
+
+Functionality: Scales the token positions linearly in the input sequence to accommodate the extended context length.
+
+Benefit: Reduces the computational load and training time required to adapt the model to handle longer sequences.
+
+**3.** Utilization of Pre-trained Models
+
+Functionality: Leverages existing pre-trained models, resuming training with extended context lengths.
+
+Benefit: Saves time and resources by building upon pre-trained models instead of starting from scratch.
+
+## Procedure
+
+To extend a model’s context length effectively, follow these steps:
+
+**Example Scenario: Extending from 2048 to 32768 Tokens**
+
+**1.** Determine the Scaling Factor: For a context length extension from 2048 to 32768, the scaling factor would be 16.0 (32768/2048).
+
+**2.** Update Model Configuration:
+
+* Locate the model’s configuration file.
+
+* Change the `max_position_embeddings` to the new context length (32768).
+
+* Adjust the `pos_scaling_factor` to the calculated scaling factor (16.0).
+
+
+Before:
+
+```Bash
+
+model:
+  max_position_embeddings: 2048
+  pos_scaling_factor: 1.0
+```
+After:
+
+```Bash
+
+model:
+  max_position_embeddings: 32768
+  pos_scaling_factor: 16.0
+```
+
+## Supported Models
+
+This method is compatible with all GPT models that utilize RoPE for positional encoding.
+
+## Implementation Notes
+
+* The choice of `pos_scaling_factor` directly correlates with the maximum context length needed during inference.
+
+* Ensure that the model and the training framework support dynamic adjustment of positional embeddings.
+
+
+## Benefits and Advantages
+
+* Efficiency: Drastically cuts down the training time required to adapt the model to longer sequences.
+
+* Flexibility: Enables the model to handle a broader range of tasks, especially those necessitating longer context awareness.
+
+
+## Conclusion
+
+By following these integration steps, you can efficiently extend the context length of your generative language models, harnessing the power of Position Interpolation to enhance model performance without the need for extensive retraining.

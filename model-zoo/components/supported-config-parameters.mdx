@@ -1,0 +1,80 @@
+---
+title: "      Supported Config Parameters     "
+---
+  
+
+The Cerebras Model Zoo supports an extensive range of models, each with its own set of parameters. This document provides a comprehensive list of these parameters as defined in the Model Zoo.
+
+With the introduction of Config classes in the Model Zoo, each parameter is defined in the model’s `config file`. These classes, implemented as Python dataclasses, organize and validate the parameters necessary for model definition and training.
+
+Common parameters across models[#](#common-parameters-across-models "Permalink to this headline")
+-------------------------------------------------------------------------------------------------
+
+**1.** **RunConfig Parameters**:
+
+[`RunConfig`](../../port/_autosummary/cerebras.modelzoo.config_manager.config_classes.base.run_config.RunConfig.html#cerebras.modelzoo.config_manager.config_classes.base.run_config.RunConfig "cerebras.modelzoo.config_manager.config_classes.base.run_config.RunConfig")
+
+**2.** **Sparsity Parameters**:
+
+[`SparsityBaseConfig`](../../port/_autosummary/cerebras.modelzoo.config_manager.config_classes.base.sparsity_config.SparsityBaseConfig.html#cerebras.modelzoo.config_manager.config_classes.base.sparsity_config.SparsityBaseConfig "cerebras.modelzoo.config_manager.config_classes.base.sparsity_config.SparsityBaseConfig")
+
+**3.** **Optimizer Parameters**:
+
+[`OptimizerConfig`](../../port/_autosummary/cerebras.modelzoo.config_manager.config_classes.base.optimizer_config.OptimizerConfig.html#cerebras.modelzoo.config_manager.config_classes.base.optimizer_config.OptimizerConfig "cerebras.modelzoo.config_manager.config_classes.base.optimizer_config.OptimizerConfig")
+
+Model Specific Parameters[#](#model-specific-parameters "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+### Large Language Model (LLM) parameters[#](#large-language-model-llm-parameters "Permalink to this headline")
+
+|     |     |
+| --- | --- |  
+| [BERT config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/config.py) | [Bloom config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bloom/config.py) |
+| [BTLM config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/btml/config.py) | [DPO config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/dpo/config.py) |
+| [DPR config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/dpr/config.py) | [Falcon config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/falcon/config.py) |
+| [GPT2 config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2/config.py) | [GPT3 config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt3/config.py) |
+| [GPTJ config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gptj/config.py) | [Llama config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/llama/config.py) |
+| [Mistral config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mistral/config.py) | [MPT config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mpt/config.py) |
+| [SantaCoder config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/santacoder/config.py) | [StarCoder config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/starcoder/config.py) |
+| [T5 config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/t5/config.py) | [Transformer config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/transformer/config.py) |
+
+### Vision model parameters[#](#vision-model-parameters "Permalink to this headline")
+
+|     |     |
+| --- | --- |  
+| [DiT config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/vision/dit/config.py) | [Vision Transformer config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/vision/vision_transformer/config.py) |
+
+### Multimodal model parameters[#](#multimodal-model-parameters "Permalink to this headline")
+
+[LLaVA config](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/llava/config.py)
+
+Understanding Config classes structure[#](#understanding-config-classes-structure "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------
+
+Each of these parameters are present as part of a Config class. A Config class, implemented as a Python dataclass, serves as a container for storing essential settings and parameters needed for defining and training a model.
+
+Each of these class atributes correspond to the respective section in a YAML file which is used to define the parameters for a training run.
+
+A config class looks like this:
+```
+class <ConfigClass>:
+    train_input = Optional[DataConfig] = None
+
+    eval_input = Optional[DataConfig] = None
+
+    model = <ModelConfigClass> = required
+
+    sparsity: Optional[SparsityConfig] = None
+
+    optimizer: OptimizerConfig = required
+
+    runconfig: RunConfig = required
+
+```
+
+For more information about Config classes, refer to the [Model Zoo config classes](model_zoo_config_classes.html) documentation.
+
+Additional notes[#](#additional-notes "Permalink to this headline")
+-------------------------------------------------------------------
+
+Each model has a designated `ModelConfigClass`. In cases where a model is a variant of another, it may inherit the `ModelConfigClass` from the parent model. To understand more about this inheritance and the hierarchy of config classes, visit the [Config class hierarchy](model_zoo_config_classes.html#config-class-hierarchy) documentation.

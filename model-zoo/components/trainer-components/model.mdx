@@ -1,0 +1,120 @@
+---
+title: "        Model       "
+---
+  
+Model[#](#model "Permalink to this headline")
+=============================================
+
+This page will cover how to pass a model into the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer"). The `model` is the main [`Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)") that all training and validation is run on. It is required by all [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instances.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure to have read through [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models. In this document, you will be using the tools and configurations outlined in those pages.
+
+Configure the `model`[#](#configure-the-model "Permalink to this headline")
+---------------------------------------------------------------------------
+
+To set the model to train/validate using the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") use the `model` argument.
+
+<CodeGroup>
+```Tab YAML
+
+All `model` subkeys are passed as arguments to the model class. The model class is decided by the `model_fn` in your run script.
+
+trainer:
+  init:
+    ...
+    model:
+      vocab_size: 1024
+      max_position_embeddings: 1024
+      ...
+    ...
+  ...
+
+```
+
+```Tab Python
+The model can be passed as either:
+
+* a callable assumed to be a function that takes in no arguments returns a [`Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")
+    
+* a [`Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)") is passed and used as is
+    
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model
+
+trainer = Trainer(
+    ...,
+    model=lambda: Gpt2Model(
+        vocab_size=1024,
+        max_position_embeddings=1024,
+        ...,
+    ),
+    ...,
+)
+...
+```
+</CodeGroup>
+<Note>
+Note
+
+If passing the `model` as a [`Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)") directly, it is optimal to first initalize the model inside of the Cerebras device context.
+
+For example:
+```
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model
+
+# Initialize the Cerebras backend for efficient processing.
+backend = cstorch.backend("CSX")
+
+# Use the backend's device context manager for initializing the model.
+with backend.device:
+    model = Gpt2Model(
+        vocab_size=1024,
+        max_position_embeddings=1024,
+        ...,
+    )
+
+# Compile the model using the Cerebras backend for optimized execution.
+trainer = Trainer(
+    ...,
+    backend=backend,
+    model=model,
+    ...,
+)
+...
+```
+
+
+This ensures that model parameters are automatically moved to the Cerebras device, optimizing memory usage and enhancing initialization speed. For more information, see [Efficient weight initialization](../../../tutorials/efficient-weight-initialization.html#efficient-weight-initialization).
+</Note>
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That covers specifying the model to train/validate with the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer"). You should now understand the various ways to configure the model and how the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") accepts a model.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

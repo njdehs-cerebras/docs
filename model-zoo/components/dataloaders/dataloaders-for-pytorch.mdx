@@ -1,0 +1,54 @@
+---
+title: "        Dataloaders For Pytorch       "
+---
+  
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Efficient data loading is crucial for high-performance machine learning. PyTorch enhances data loading speed through parallelized data loading, batch retrieval of indices, and streaming to progressively download datasets.
+
+PyTorch offers a powerful data loading utility class (`torch.utils.data.DataLoader`). The key argument for this [DataLoader](https://pytorch.org/docs/stable/data.html#torch.utils.data.DataLoader) is the “Dataset”, which specifies the source of data. PyTorch supports two primary types of Datasets:
+
+> 1.  [Map-style datasets](https://pytorch.org/docs/stable/data.html#torch.utils.data.Dataset) (`Dataset`) is a map from indices/keys to data samples. So, if `dataset[idx]` is accessed, that reads `idx-th` from a directory on disk.
+>     
+> 2.  [Iterable-style datasets](https://pytorch.org/docs/stable/data.html#torch.utils.data.IterableDataset) (`IterableDataset`) represents an iterable over data samples. This is very suitable where random reads are expensive or even improbable, and where the batch size depends on the fetched data. So, if `iter(dataset)` is called, returns a stream of data from a database, or remote server, or even logs generated in real time.
+>     
+
+In the Cerebras Model Zoo, dataloaders extend these base types to implement additional functionalities. For instance, the `BertCSVDynamicMaskDataProcessor` ([code](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/bert/BertCSVDynamicMaskDataProcessor.py)) extends `IterableDataset` and `BertClassifierDataProcessor` ([code](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/bert/BertClassifierDataProcessor.py)) extends `Dataset`.
+
+Properties of PyTorch Dataloader[#](#properties-of-pytorch-dataloader "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
+
+For comprehensive details on the properties of PyTorch dataloaders, refer to [this page](https://pytorch.org/docs/stable/data.html).
+
+Cerebras Model Zoo Dataloaders[#](#cerebras-model-zoo-dataloaders "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+The Cerebras Model Zoo includes several example dataloaders that extend `IterableDataset` and add functionalities like input encoding and tokenization. Notable examples are:
+
+> * [BertCSVDataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/bert/BertCSVDataProcessor.py) \- Reads `CSV` files containing the input text tokens and `MLM` and `NSP` features
+>     
+> * [GptHDF5MapDataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/gpt/GptHDF5MapDataProcessor.py) \- A `HDF5` map style dataset processor to read from `HDF5` format for GPT pre-training
+>     
+> * [T5DynamicDataProcessor](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/nlp/t5/T5DynamicDataProcessor.py) \- Reads text files containing the input text tokens, adds extra ids for language modelling task on the fly
+>     
+
+Creating a custom dataloader with PyTorch[#](#creating-a-custom-dataloader-with-pytorch "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------
+
+To create your own dataloader keep in mind these tips:
+
+1.  Ensure coherence between the dataloader output and the neural network model input: If you are using a model from the Cerebras Model Zoo, refer to the README file of the model to understand the required data format. For example, if using [GPT-2](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2/), ensure your input function produces the [features dictionary](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2#gpt-2-features-dictionary).
+    
+2.  Utilize Cerebras-supported file types: Create your dataset by extending one of the native dataset types. The Cerebras ecosystem supports files of types `HDF5`, `CSV`, and `TXT`. Other file types are not tested and may not be supported.
+    
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Effective use of PyTorch dataloaders can dramatically improve the efficiency of your data loading processes. By leveraging the capabilities provided by PyTorch and the Cerebras Model Zoo, you can customize your data handling to meet the specific needs of your machine learning models. This ensures a streamlined, efficient workflow, enabling you to focus on model development and performance.
+
+What’s next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+To learn more about creating a custom dataloader, refer to our step-by-step tutorial on [Creating custom dataloaders](custom_dataloaders.html).

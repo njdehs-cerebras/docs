@@ -1,0 +1,20 @@
+---
+title: "          Cerebras Modelzoo Tools Convert Config To Mup         "
+---
+  
+This script uses user provided SP GPT-2/3 yaml config to calculate and then generate a correspoding muP yaml config.
+
+This script requires arguments for the base model for which you tuned the hyperparameters: lr\_base, std\_base and m_embed 1) (required) input SP yaml config 2) (optional) base model hidden dimension 3) (optional) base learning rate. Ensure that the config has two sequential Linear schedulers. First lr scheduler should be the linear warm-up and second scheduler should do linear decay. 4) (optional) base initialization standard deviation 5) (optional) embedding output multiplier 6) (optional) Output path to store the muP yaml config
+
+The default values for the optional arguments base\_lr, base\_init\_std and m\_embed are set with the “Empirically Tuned Values” in the Cerebras-GPT paper: [https://arxiv.org/abs/2304.03208](https://arxiv.org/abs/2304.03208). Also, the default base\_layer\_width is set to 256 as used in this paper.
+
+Example usage: python convert\_config\_to\_mup.py -i &lt;path/to/yaml&gt;/params\_gpt3\_tiny.yaml -d\_base 256 -lr\_base 6.e-3 -std\_base 0.08 -m_base 10.
+
+Functions
+
+|     |     |
+| --- | --- |  
+| [`check_default_args`](cerebras.modelzoo.tools.convert_config_to_mup.check_default_args.html#cerebras.modelzoo.tools.convert_config_to_mup.check_default_args "cerebras.modelzoo.tools.convert_config_to_mup.check_default_args") |     |
+| [`generate_mup_config`](cerebras.modelzoo.tools.convert_config_to_mup.generate_mup_config.html#cerebras.modelzoo.tools.convert_config_to_mup.generate_mup_config "cerebras.modelzoo.tools.convert_config_to_mup.generate_mup_config") |     |
+| [`main`](cerebras.modelzoo.tools.convert_config_to_mup.main.html#cerebras.modelzoo.tools.convert_config_to_mup.main "cerebras.modelzoo.tools.convert_config_to_mup.main") |     |
+| [`parse_argument`](cerebras.modelzoo.tools.convert_config_to_mup.parse_argument.html#cerebras.modelzoo.tools.convert_config_to_mup.parse_argument "cerebras.modelzoo.tools.convert_config_to_mup.parse_argument") |     |

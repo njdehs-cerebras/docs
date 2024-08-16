@@ -1,0 +1,1255 @@
+---
+title: "Release Notes"
+description: "The following are the release notes for the Cerebras software."
+---
+
+## Release 2.3.0
+
+## New Model Support
+
+### Beta Support for Mixture of Experts (MoE)
+
+Release 2.3.0 now supports Mixture of Experts (MoE) models in Model Zoo. This new feature allows for significantly higher quality and faster inferencing in various AI applications. MoE models leverage a mixture of specialized expert networks to improve performance and efficiency, particularly in large-scale text generation and other complex tasks. This update ensures that users can take advantage of state-of-the-art (SOTA) techniques to enhance their AI models’ capabilities and outputs.
+
+### New Model Zoo Models
+
+We are excited to announce the following models with training scripts and configuration files have been added to Model Zoo:
+
+- [Mixtral 8x7B and 8x22B](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mixtral/): Mistral AI’s latest Mixtral models are now available as a Beta feature. Mixtral models incorporate Sparse Mixture of Experts (SMoE) for significantly higher quality and faster inferencing in text generation.
+
+- [Multimodal Simple](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/multimodal_simple/): A new model enhancing multimodal capabilities for processing multiple images intermingled with text, significantly improving model flexibility and performance. This release also includes improved checkpoint conversion scripts.
+
+- [ESM-2](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/) and [ESM-2 Classification](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/classification/): ESM-2 (Evolutionary Scale Modeling 2) is a SOTA model trained on a masked language modeling objective for predicting protein sequences. This release also includes ESM Classification, a specialized model for predicting if a given protein sequence lives inside or outside a cell, as well as other protein functions and characteristics.
+
+
+## Key Enhancements
+
+### Enhanced API for Training and Validation
+
+Release 2.3.0 introduces an entirely new and improved API for training and validating models through Cerebras Model Zoo. Through the new [Trainer class](../Model-zoo/trainer-overview.html) and a new [YAML configuration format](../Model-zoo/yaml/index.html), you can now do complex training and validation runs and easily customize the behavior. Some notable new capabilities enabled through this new workflow include:
+
+- Ability to run [upstream pretraining](../Model-zoo/core_workflows/pretrain.html) and downstream validation (through [Eleuther Evaluation Harness](../Model-zoo/core_workflows/downstream_eeh.html) and [BigCode Evaluation Harness](../Model-zoo/core_workflows/downstream_bceh.html)) interleaved with training.
+
+- Ability to specify and run hyperparameter scheduling all from a single YAML configuration.
+
+- Ability to combine a [multi-phase training](../Model-zoo/core_workflows/multi_phase.html) with different batch sizes or max sequence lengths in a single config file or python script.
+
+- Ability to extend the Trainer functionality through [callbacks](../Model-zoo/Components/trainer/callbacks.html), all specifiable within the new YAML configuration format. Callbacks allow you to inject functionality into the Trainer to modify the training loop as you see fit. This enables adding Alerts or writing custom stopping criteria that fit your needs.
+
+- Ability to flexibly configure [checkpoint](../Model-zoo/Components/trainer/checkpoint.html) management with auto-cleanup policies, customize the loading behavior, and more.
+
+
+### Improved Data Preprocessing framework
+
+In Release 2.3.0, we have significantly enhanced our [data preprocessing](../Model-zoo/Components/Data-preprocessing/data_preprocessing.html) framework to be more flexible and extensible.
+
+- Ability to easily format their [input dataset](../Model-zoo/Components/Data-preprocessing/input_data_configuration.html) (for prompt-completion, or chat-style datasets) using [pre-built hooks](../Model-zoo/Components/Data-preprocessing/read_hooks.html) or by [writing custom hooks](../Model-zoo/Components/Data-preprocessing/read_hooks.html).
+
+- Ability to create [custom tokenizers](../Model-zoo/Components/Data-preprocessing/custom_tokenizer.html) and [token generators](../Model-zoo/Components/Data-preprocessing/token_generator.html) to preprocess data for a variety of training objectives and new models.
+
+- We have expanded our capabilities to preprocess datasets from Hugging Face, while still supporting local datasets as in previous versions.
+
+- Ability to easily preprocess [Hugging Face datasets](../Model-zoo/Components/hdf5_preprocessing.html).
+
+
+### Enhanced μP Configuration Interface
+
+Release 2.3.0 introduces a new interface for [configuring models](../Model-zoo/tutorials/mup/mup_docs.html) in μP (Maximal Update Parametrization) through Model Zoo. μP is a technique that enables faster and more stable training of large models by adjusting how different parts of the network are updated during learning. Notable changes to the way we handle and support μP include:
+
+- Beta support for three new models: GPTJ, BERT Pretrain, and T5.
+
+- The ability to specify the dimensions of the proxy model in the parameters of the target model for automatic initializer, weight, and learning rate scaling.
+
+- Additional tunable hyperparameters designed to assist with stabilizing output and attention logits.
+
+- Finer-grain control of layer-specific learning rate scaling through the addition of supported learning rate adjustment groups in μP models.
+
+- Backward compatibility with previous μP configurations, along with checkpoint and configuration conversion tools to update your models to the new interface.
+
+
+### Config Class improvements
+
+All new models, including multimodal models, now have [config classes](../Model-zoo/Components/model_zoo_config_classes.html). Config classes help prevent errors and make code easier to manage by defining expected data types and constraints, providing a clear and organized way to handle configuration settings.
+
+### Performance Boost GPT Models
+
+In Release 2.3.0, we’ve increased model FLOPs utilization (MFU) for GPT class models like [LLaMA](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/llama/) and [JAIS](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/jais/) with extended sequence lengths. MFU is the best way to measure LLM training efficiency, and looks at how much of the maximum possible computing power is used for only the necessary training tasks. These models now experience:
+
+Experience a significant performance enhancement for GPT class models with extended sequence lengths.
+
+- 3% improvement in MFU and training time for 32K Maximum Sequence Length (MSL)
+
+- 8% improvement in MFU and training time for 128K Maximum Sequence Length (MSL)
+
+
+### CBfloat16 (CB16) support for Input Activations and Multimodal models
+
+The CB16 data format significantly accelerates model performance on the Cerebras platform. In R2.3.0, CB16 can be used for input activations, enabling cb16 for multimodal models like LlaVa 1.5.
+
+### Flexible Batch Size configuration
+In version 2.3.0, users can now specify an arbitrary global batch size without needing it to be divisible by the number of systems in a multi-system training run. Our platform automatically selects appropriate micro-batch sizes to ensure an even distribution across CS-X systems, eliminating the need to change the global batch size when scaling the number of systems up or down. Note that while batch sizes are no longer constrained, certain values can still result in low samples/second performance. Click [here](../Model-zoo/tutorials/microbatching.html) to learn more!
+
+## Release 2.2.1
+
+
+### New general features
+- In Release 2.2.1, we now support **Train and Eval** \- a new workflow mode that will automatically switch between training and evaluation modes within the same process, to enable period validation during training runs. This means you no longer need to start and stop a run on the CSX cluster to switch between train and eval jobs, improving workflow efficiency and optimizing system utilization. Click [here](../Model-zoo/tutorials/llm.html#validate-during-training) for details on how to configure Train and Eval.
+
+- Llama 3 is now in the Model Zoo: Meta’s latest **Llama 3 model is now available in the Cerebras Model Zoo** as a reference in both 8B and 70B configurations, ensuring continuity of work for users interested in switching to the latest and greatest. Llama 3 runs at comparable-to-better performance on the Cerebras platform, compared to Llama 2. To access Llama models in the Model Zoo, click [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/llama/).
+
+- Release 2.2.1 now includes support for the Dense Passage Retriever (DPR) on CS-X, which uses separate encoders for questions and passages to improve search results in large datasets. This is particularly useful for building intelligent virtual assistants! Please visit the link to our [DPR model](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/dpr/) for a reference implementation and YAML config files.
+
+- In Release 2.2.1, we introduced our new chunk-based data preprocessor that maximizes CPU utilization through concurrent processing in the pipeline and ensures fault tolerance with a checkpoint system for recovery. It also offers a real-time progress bar and detailed logging for continuous performance tracking.
+
+
+## Release 2.2.0
+
+### New general features
+
+- The **Cerebras CS-3** is officially released, featuring the WSE-3, offering up to 2x faster performance! R2.2 ensures enhanced efficiency and compatibility with key models like GPT-2, GPT-3, LLaMA, and more, all rigorously tested for peak performance, with reference examples provided in our [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo).
+
+- Release 2.2.0 delivers significant **usability improvements to the Cerebras Model Zoo**. Model Zoo now supports config classes for easy management of model configuration and automatic validation of YAML inputs, introduces clearer directory organization, new model registry APIs, and enhanced NLP data preprocessing tools for more efficient ML development and experimentation. Learn about our [Model Zoo improvements](../port/index.html).
+
+- **Note on breaking changes in restructured Model Zoo** - The directory restructuring introduces backwards-incompatible changes to Cerebras package imports. Please make sure to make the following changes to your files:
+
+
+    | Previous import | New import |
+    | --- | --- |
+    | `import cerebras_appliance` | `import cerebras.appliance` |
+    | `import cerebras_pytorch` | `import cerebras.pytorch as cstorch` |
+    | `from modelzoo import` | `from cerebras.modelzoo import` |
+
+- Release 2.2.0 introduces support for **EleutherAI’s Evaluation Harness (EEH) version v0.4.0**. Learn about our supported EEH tasks.
+
+
+### New GenAI features
+
+- Introducing **Multimodal support**, enabling Visual Question & Answering use cases. In the Cerebras Model Zoo, we provide a reference [Multimodal LLaVA model](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/llava) architecture with CLIP-ViT and Vicuna encoders, offering flexible backbone replacement and layer freezing in training, alongside 7B and 13B configs, checkpoint converters, and extensive dataset support for Pretraining and Instruction finetuning. For more information on Cerebras checkpoints released on Hugging Face, click [here](https://huggingface.co/collections/cerebras/cerebras-llava-65f9c3cda9205f7264787911).
+
+- Release 2.2.0 delivers **higher-performance Sliding Window Attention (SWA)** support (Child et al., Beltagy et al.), an approach which allows models to handle longer sequences at lower compute cost. In R2.2.0, models using SWA like Mistral 7B-32k can experience performance improvements of 57%. You can see an example of SWA being used in Mistral 7B [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mistral/configs/params_mistral_7B.yaml) in the Model Zoo.
+
+- Introducing **Position Interpolation** for models using RoPE. Position interpolation enables pre-trained LLMs to process longer context windows beyond their original pre-trained lengths, while preserving quality on the original context length. This significantly reduces computational load and training time, while increasing task flexibility. Learn more about how to work with Position Interpolation here.
+
+- The Cerebras data preprocessing tool now officially supports **dataset processing for Direct Preference Optimization (DPO)** datasets. Learn more here.
+
+
+### Sparsity
+
+- The **Sparsity API has been revamped for greater clarity and usability**. The keys to specify sparsity in the YAML configuration have changed. For more information, refer to [Sparsifying models](../tutorials/sparsity.html).
+
+
+### Key API & behavior changes
+
+- `max_checkpoints` **is now stateless** across multiple invocations of `run.py`. This means that checkpoints generated by a previous run in the same `model_dir` will no longer be counted towards `max_checkpoints` for the current run, and that the previous checkpoints will **no longer be automatically deleted** in the current run. This provides you with greater flexibility to control which checkpoints are deleted vs. saved from run to run, but also means you may want to keep a closer eye on remaining disk space.
+
+- The `use_cs_grad_accum` **YAML parameter in Model Zoo models has been deprecated** and no longer needs to be explicitly configured to work with gradient accumulation. To set specific micro batch sizes and enable or disable gradient accumulation, you should now directly set the `micro_batch_size` YAML parameter to none | auto | explore | &lt;positive_int&gt;. See page working\_with\_microbatches for details.
+
+- **Specifying** `micro_batch_size` **when constructing a** `cstorch.backend` **is now deprecated**. To specify `micro_batch_size` using the cstorch API, pass this option to `cstorch.utils.data.DataExecutor` instead. This change gives users the ability to choose different micro batch sizes for train vs. eval tasks.
+
+- In Release 2.1.0, the directory structure of some files under `model_dir` has changed. There are now subdirectories for each individual run with their own artifacts. These subdirectories are named `model_dir/cerebras_logs/<train|eval>/<timestamp>`. Checkpoints, Tensorboard event files, and YAMLs still exist directly under `model_dir`. The most recent run’s subdirectory can be accessed using the symlink - `model_dir/cerebras_logs/latest`. Run logs have been moved from `model_dir/run_xxx.log` to:
+
+    `model_dir/cerebras_logs/<train|eval>/<timestamp>/run.log`
+
+    or
+
+    `model_dir/cerebras_logs/latest/run.log`
+
+
+
+
+### Known Issues
+
+- Release 2.2.0 temporarily introduces an issue with **training models using context lengths longer than 32K**. This is being actively worked on and will be fixed in an upcoming patch release.
+
+- In Release 2.2.0, **the automatic kernel generation feature (Autogen) is temporarily unavailable**. If your model previously required autogen and is now no longer compiling, reach out to the Cerebras Support Team for assistance. We will be restoring autogen functionality in a future release.
+
+
+Release 2.1.1
+
+- In Release 2.1.0, a behavior was introduced where, if the user did not specify the `max_checkpoints` parameter in the runconfig portion of the yaml config file, it would default to 5 and only retain the 5 most recent checkpoints. In release 2.1.1, `max_checkpoints` now defaults again to infinity, reverting back to previous default checkpoint saving behavior.
+
+- In Release 2.1.1, the automatic kernel generation feature (autogen) is temporarily unavailable. Make sure that in your runconfig file, you set `autogen_policy:disabled` if you were previously using it (for more information on how to do this, click on [Autogenerating fused kernels for loss operations](../Fundamentals/autogen.html#how-to-autogen)). If your model previously required autogen and is now no longer compiling, reach out to the Cerebras Support Team for assistance. We will be restoring autogen functionality in the next release.
+
+## Release 2.1.0
+
+Release 2.1.0 introduces minor changes to transformers model implementations and runner API in Model Zoo. To ensure seamless migration from 2.0.2, a checkpoint and model YAML configuration must be “converted” to become compatible with Release 2.1.0. For more information, refer to [Upgrading Checkpoints From Previous Versions](../Model-zoo/Migration/porting-checkpoints.html#previous-versions-checkpoint-upgrade).
+
+### New features and Enhancements
+
+#### General Features
+
+- We optimized weight-initialization, step leading to a 25% reduction in time to the first loss - time from launching a training job till the first loss appears in the logs. This speed-up is an outcome of [Lazy Weight Initialization](../tutorials/efficient-weight-initialization.html#lazy-init), a new feature that enables tracing a model’s initialization. Lazy initialization allows us to defer initializing the weights to when it is optimal. At the moment, it’s being deferred so that weight initialization happens in parallel with compilation.
+
+- We now offer training with [Per-layer Precision Optimization Levels (POL)](../tutorials/per-layer-pol.html) in the Cerebras Wafer-Scale cluster. This feature empowers fine-grained precision control for each layer, enhancing convergence stability and mitigating numerical instabilities inherent in low-precision kernel data types.
+
+- We updated the Cerebras-tailored Grafana dashboards to provide ML Admins with an overall usage of the cluster and to provide ML users with detailed information about their jobs. The dashboard queries were updated to support large-scale clusters and jobs better.
+
+
+#### Large Language Models
+- Release 2.1.0 improves training speed for autoregressive decoder-only transformers by up to 20% by leveraging the custom Cerebras 16-bit floating point format `cbfloat`. Training jobs can be switched seamlessly from `bfloat` to `cbfloat` with dynamic loss scaling without impact on model accuracy. For more information, refer to our documentation on [Numerical Precision Level](../how_to_guides/cs-1-data-formats.html).
+
+- Release 2.1.0 introduces dynamic loss scaling for [cbfloat16](../how_to_guides/cs-1-data-formats.html#ref-cbfloat16) training. When initializing from `bfloat` checkpoints from past releases without loss scaling, explicitly specify `--load_checkpoint_states` or its `runconfig` equivalent to ensure parameter loading from `params.yaml`. Subsequent checkpoints will inherit dynamic loss scaling and not require this.
+
+- We introduce automatic batch exploration for large language models to help users find the throughput-optimal micro-batch size seamlessly.
+
+- Release 2.1.0 includes support for running non-generative (non-autoregressive) evaluation tasks in Eleuther AI’s Evaluation Harness (EEH) on the Cerebras Wafer-Scale cluster. The supported EEH version is v0.3.0. Supported Model Zoo models are GPT2, GPT3, BTLM, BLOOM, LLaMA, Mistral, MPT, StarCoder, and SantaCoder on CS-2.
+
+- Release 2.1.0 introduces [Map and Iterable dataloaders](../tutorials/dataloader-checkpointing.html) for large language models in Model Zoo, enhancing training workflow efficiency.
+
+- Cerebras now enables direct HDF5 generation from raw sources, streamlining workflow efficiency and enabling unparalleled control over data format and granularity. Check out our detailed guide to learn about the process.
+
+
+#### Sparsity
+
+- In release 2.1.0, we introduce [Sparse Iso-FLOP Transformations for Maximizing Training Efficiency](https://arxiv.org/abs/2303.11525), a technique designed to improve model quality over dense without increasing training FLOPs. To get started with Sparse-IFT, we have provided a comprehensive Sparsity how-to-guide. Additionally, you can explore reference configurations in the Model Zoo to leverage it effectively in your projects. The Model Zoo reference configuration is accessible [SPDF Model Zoo configuration](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt3/configs/sparsity/pretraining). For more information, you can read our [blog](https://www.cerebras.net/blog/can-sparsity-make-ai-models-more-accurate) or contact the support team.
+
+
+### Other features
+
+- In Release 2.1.0, the directory structure of some files under `model_dir` have changed. There are now subdirectories for each individual run with their own artifacts. These subdirectories are named `model_dir/cerebras_logs/<train|eval>/<timestamp>`. Checkpoints, Tensorboard event files, and YAMLs still exist directly under `model_dir`. The most recent run’s subdirectory can be accessed using the symlink - `model_dir/cerebras_logs/latest`. Run logs have been moved from `model_dir/run_xxx.log` to:
+
+    `model_dir/cerebras_logs/<train|eval>/<timestamp>/run.log`
+
+    or
+
+    `model_dir/cerebras_logs/latest/run.log`
+
+
+### Known Issues
+
+- If a run is terminated mid-execution, temporary debug artifacts may accumulate excess storage space. Users should manually clear the `model_dir/cerebras_logs` data when safe to delete if no longer necessary for debugging.
+
+- Automatic batch exploration support is limited to LLM networks. A runtime error will be issued if you attempt to use automatic batch exploration with computer vision networks.
+
+
+## Release 2.0.2
+
+### New features and enhancements
+
+#### Cerebras Software
+
+- Cerebras now supports PyTorch version 2.0 and we have released a new [Cerebras PyTorch 2.0 API](../api/cerebras_pytorch/index.html). This helps us continue to improve the usability and generalizability of our software stack and ability to support the latest advancements in PyTorch. Users no longer have to install the custom PyTorch wheel as part of Cerebras software setup.
+
+- The `experimental_api` flag within the `runconfig` portion of model configuration YAML files is deprecated with the official release of the Cerebras PyTorch 2.0 API.
+
+- All Model Zoo models now use the new [Cerebras PyTorch 2.0 API](../api/cerebras_pytorch/index.html). Users will not notice a change to the configuration YAML and `run.py` workflow, but now users can also write their own training loops and make other customizations. See more information on how to [write your own training loop](../tutorials/custom-training-loop.html).
+
+- When writing custom models, note that optimizers and learning rate schedulers have been moved into `cerberas_pytorch`. See documentation [here](../tutorials/custom-training-loop.html) for details. Losses and layer implementations from the layers API still remain in the Cerebras Model Zoo. For more information, contact our support team.
+
+- We improved deterministic restart of custom dataloaders with the new Cerebras PyTorch API. Refer to our [documentation](../tutorials/dataloader-checkpointing.html) to see how to save and load the dataloader state along with existing mechanisms for saving model checkpoints during a training run.
+
+
+#### Sparsity
+
+- With release 2.0.2, we introduce [Sparse Pretraining and Dense Finetuning (SPDF)](https://arxiv.org/abs/2303.10464), a technique designed to accelerate pretraining by incorporating high levels of sparsity while maintaining downstream task accuracy through dense finetuning. To get started with SPDF, we have provided a comprehensive Sparsity how-to-guide. Additionally, you can explore reference configurations in the Model Zoo to leverage SPDF effectively in your projects. Click here for [SPDF Model Zoo configuration](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt3/configs/sparsity).
+
+- With release 2.0.2, we introduce [Sparse Pretraining and Dense Finetuning (SPDF)](https://arxiv.org/abs/2303.10464), a technique designed to accelerate pretraining by incorporating high levels of sparsity while maintaining downstream task accuracy through dense finetuning. To get started with SPDF, we have provided a comprehensive Sparsity how-to-guide. Additionally, you can explore reference configurations in the Model Zoo to leverage SPDF effectively in your projects. Click here for [SPDF Model Zoo configuration](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt3/configs/sparsity).
+
+
+#### Large Language Models
+
+- Cerebras released [Bit Tensor Language Model(BTLM)](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/btlm), the best performing and the most downloaded 3B model in the world, in July. G42, a Cerebras strategic partner, released the #1 Arabic language model in the world, **Jais**, in September. Both models used high-performing architectures ([Maximal Update Parameterization (μP)](https://arxiv.org/abs/2203.03466), [SwiGLU](https://arxiv.org/abs/2002.05202) activations, [ALiBi](https://arxiv.org/abs/2108.12409) position encodings). More details can be found in in the [BTLM](https://arxiv.org/abs//2309.11568) paper.
+
+- Both static and dynamic weight sparsity are supported in release 2.0.2 for [faster training](https://www.cerebras.net/blog/harnessing-the-power-of-sparsity-for-large-gpt-ai-models) and [higher accuracy](https://www.cerebras.net/blog/can-sparsity-make-ai-models-more-accurate). We provide example sparse model configurations in the Cerebras Model Zoo. For more information, refer to our sparsity how-to-guide.
+
+- GPT style models train with approximately 50% improved performance in release 2.0.2.
+
+- [LLaMa 7B, 13B, 70B](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/llama) is supported for training from scratch, continuous pretraining, or fine-tuning from a pretrained checkpoint.
+
+- [Falcon 40B](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/falcon) is supported for training from scratch, continuous pretraining, or fine-tuning from a pretrained checkpoint.
+
+- [StarCoder 15B](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/starcoder) is supported for training from scratch, continuous pretraining, or fine-tuning from a pretrained checkpoint.
+
+- The default dataloader for GPT-style models is now GptHDF5MapDataProcessor.
+
+
+#### Computer Vision Models
+
+* Added support for the [Diffusion Transformer(DIT)](https://arxiv.org/abs/2212.09748). Our [DiT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/vision/dit) model supports AdaLN conditioning and the following model sizes: Small, Base, Large, XL, 2B. Diffusion Transformer also supports multiple patch-sizes like /2, /4, and /8 and image sizes up to 512 x 512.
+
+
+### Other features
+
+- We have deprecated old PyTorch BaseModel and BaseRunner classes as part of our update to PyTorch 2.0. Check out our latest [Cerebras PyTorch 2.0 API](../api/cerebras_pytorch/index.html).
+
+- Enabling gradient accumulation now makes the stack search for a micro-batch size that provides good training throughput performance. This makes compile times longer. Users may avoid this compile time by supplying a micro-batch size with the `micro_batch_size` parameter within the `train_input` and `eval_input` sections of the model configuration YAML. Note that `batch_size/num_csx` must be a multiple of `micro_batch_size`. Micro-batch sizes with good performance are recommended within the gradient accumulation Micro-batch size setting in YAML params within the Cerebras Developer Documentation.
+
+- Distributed data parallel model evaluation is now supported on multiple CS-2 systems in a Wafer-Scale cluster.
+
+- Previous limitations in T5 compile times have been addressed. T5 XXL compile time is now less than 90 minutes with a specified micro-batch size.
+
+- Jobs submitted from the user nodes to the Wafer-Scale Cluster now include a token that identifies the user submitting the job. This token can be validated on the appliance cluster for user authentication. This change is made to improve security. Machine learning users will not notice any difference in their workflows.
+
+- We improved messages related to job scheduling errors to provide clear guidance for users to take corrective action.
+
+- Loss scaling by number of tokens is supported on single box and multi-box, with and without gradient accumulation. See our documentation.
+
+- The `is_pretrained_checkpoint` flag has been deprecated for clarity. Users should instead use the `load_checkpoint_states` in conjunction with `checkpoint_path` to specify which components are loaded from the checkpoint. Allowed values are `model`, `optimizer`, `dataloader`, `grad_scaler`, `lr_scheduler`. For more information, see the PyTorch params documentation.
+
+- Model checkpoints in 2.0 have a new format. When converting checkpoints from pre-2.0 releases to release 2.0+, refer to the fix\_checkpoints\_prior_releases page in addition to the [Convert checkpoints and model configs](../Model-zoo/Migration/porting-checkpoints.html#convert-checkpoints-hf-cs).
+
+
+### Known Issues
+
+* [DIT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/vision/dit) supports up to 1k by 1k image sizes, but compile time for this input size is extremely long.
+
+* We encourage users to save models and artifacts (with model_dir) on fast storage (SSD backed, local or NFS) to achieve significant improvement in weight initialization, checkpoint loading, and sending weights from host to wafer when using cached compilation.
+
+* Using larger batch sizes provides better training performance but increases compile times.
+
+* Dynamic sparsity cannot be used with gradient accumulation (`use_cs_grad_accum` in `runconfig` of YAML) in release 2.0.2.
+
+* Computer vision workloads (UNet and ResNet) will cause out of memory errors if scheduled in parallel with other jobs on the appliance.
+
+* Hugging Face’s Transformers library does not support Maximal Update Parameterization (muP) or models with SwiGLU and ALiBi. If you have a Cerebras GPT2/3 checkpoint that uses muP, it is possible to convert it to the GPT2 Hugging Face model to perform inference. Custom models can still be used with Hugging Face via the Hugging Face Hub.
+
+* Gradient accumulation for computer vision models is supported by the software stack but has not been fully tested across all model variants. We plan to perform comprehensive qualification testing for CV models with gradient accumulation as part of the upcoming 2.1 release. This will ensure that larger batch sizes can be confidently utilized for your computer vision tasks.
+
+* The number of heads `num_heads` within a transformer block should not be a prime number.
+
+
+## Release 2.0.0 and 2.0.1
+<Info>
+Note
+
+2.0.0 and 2.0.1 were our special, small-distribution releases. 2.0.2 is our general release.
+</Info>
+
+## Release 1.9.2
+
+### Other features
+
+- This release contains a patch fix for security vulnerability [CVE-2023-4911](https://cve.mitre.org/cgi-bin/cvename.cgi?name=CVE-2023-4911). For RockyLinux it is covered by [this patch](https://errata.rockylinux.org/RLSA-2023:5455). The release contains the package and script required to deploy this security vulnerability patch.
+
+
+## Release 1.9.1
+
+### New features and enhancements
+
+#### Large Language Models
+
+- Maximal Update Parameterization (muP), used for improving training stability and transferring hyperparameters from smaller language models to Larger Language Models (including CerebrasGPT), is now available for GPT-2 and GPT-3 style models. See the How-to guide for usage.
+
+- New checkpoint converters between Hugging Face and Cerebras formats have been added. See more at ../port/porting-checkpoints.
+
+- Gradient accumulation is enabled for all transformer language models in 1.9.1 through YAML config.
+
+- Pre-trained [Falcon 7B](https://github.com/Cerebras/modelzoo/tree/main/modelzoo/models/nlp/falcon) is supported in Model Zoo.
+
+- Pre-trained [LLaMA 7B, 13B, and 33B](https://github.com/Cerebras/modelzoo/tree/main/modelzoo/models/nlp/llama) are supported in Model Zoo.
+
+- [BLOOM 7B](https://github.com/Cerebras/modelzoo/tree/main/modelzoo/models/nlp/bloom) is available in Model Zoo. ALiBi positional encodings can be enabled in all GPT-style models through the `model` section in the configuration yaml.
+
+
+```Bash
+position_embedding_type: 'alibi'
+
+alibi_trainable_slopes: False # whether the slopes of the alibi embedding is trainable (default to False).
+
+alibi_implementation: 'expand' # We support `embedding` and `expand` with default set to `expand`.
+```
+
+#### Computer vision models
+
+* Fixed bugs and improved performance for computer vision models.
+
+
+### Other features
+
+* Improved stdout messages. Added console progress bars to provide more detail about the operations on the Wafer Scale Cluster.
+
+* Improved tooling for cluster resource management, job monitoring, and performance monitoring. For more information, see ../getting-started/csctl.
+
+* Pipeline mode and TensorFlow support is deprecated in 1.9.1. All models must use PyTorch and weight streaming functionality. There is no longer a need to specify a `{pipelined,weight_streaming}` argument in `run.py` because all models will run in `weight_streaming` mode by default. All models previously supported in Pipeline are now supported for Weight Streaming.
+
+* The `batch_size` parameter in Model Zoo `yaml` configuration files now represents the total effective batch size of the model and is divided evenly across the specified `num_csx` CSX systems. This differs from pre-1.9.0 behavior, where the `batch size` parameter defined the batch size per CSX, not globally. Note that `batch_size` must now be divisible by `num_csx`.
+
+* Custom worker containers are enabled by default, allowing user environment to be replicated into the worker servers running inside the appliance. The deployment/admin user needs to specify the cluster volume that can be used for virtual environment copy. This feature can also be turned off during deployment if needed.
+
+
+### Known Issues
+
+* Some dataloader implementations from Model Zoo require evaluation to be done on a single CS-2 rather than multiple CS-2s. Multibox evaluation has no explicit limitation, but these dataloaders require the dataset to be sharded in such a way that each worker gets at least one file. Evaluation datasets are often small and not split into many files.
+
+* All T5 limitations from Release 1.8 remain.
+
+* Loss scaling by number of tokens (`num_tokens`) is not yet fully supported and requires coordination with the Cerebras team.
+
+* GPT NeoX suffers NaNs when trained with extremely long sequence lengths (30k, 50k).
+
+* The base, pre-trained Falcon and LLaMA variants are supported. Other variants, such as those with long sequence lengths or different numbers of heads, may not be supported.
+
+* Running several jobs in parallel with the same `model_dir` can cause issues.
+
+
+## Release 1.9.0[#](#release-1-9-0 "Permalink to this headline")
+<Info>
+Note
+
+1.9.0 was a special, small-distribution release. 1.9.1 is our general release.
+</Info>
+## Release 1.8.0[#](#release-1-8-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id17 "Permalink to this headline")
+
+#### Large language models[#](#id18 "Permalink to this headline")
+
+* Added support for **T5 models up to 11B parameters** with Weight Streaming execution mode. T5 is supported **with source and target inputs up to 2K tokens**.
+
+* Added support for **BERT pre-training** with Weight Streaming execution mode. BERT is supported **with input sequences up to 30K tokens**.
+
+* Added support for gradient accumulation for GPT-style and BERT-style language models, allowing for larger effective batch sizes. See gradient_accumulation for more details.
+
+* Added support for deterministic checkpointing of dataloaders for language models to enable pausing and restarting of training runs without using duplicate samples or batches. See dataloader_restart for more details.
+
+* In past releases pre-layer normalization in our T5 & Transformer models required setting `use_pre_encoder_decoder_layer_norm: False`. This was confusing, and we have changed the behavior in 1.8. To enable pre-layer normalization you should instead set `use_pre_encoder_decoder_layer_norm: True`. This update better aligns the naming of the parameter to its usage. To use release 1.7 checkpoints in release 1.8, you’ll need to update the config to reflect this change. Directions for converting configuration files can be found in our [checkpoint conversion documentation](../Model-zoo/Migration/porting-checkpoints.html#convert-checkpoints-hf-cs).
+
+* You may now control the activation function used by the BERT pooler (`pooler_nonlinearity`) and masked language model head (`mlm_nonlinearity`) independently of the activation used for the rest of the model (`encoder_nonlinearity`). Both will default to `encoder_nonlinearity` if not explicitly set. Use the [checkpoint conversion documentation](../Model-zoo/Migration/porting-checkpoints.html#convert-checkpoints-hf-cs) to convert 1.7 configuration files to 1.8 to have access to this feature.
+
+
+#### Computer vision models[#](#id19 "Permalink to this headline")
+
+* Added support for 3D UNet model in Weight Streaming execution to enable segmentation of large volumes of up to 512 x 512 x 160 pixels. Single CS-2 system support only. Check our reference implementation and learn more in the [Model Zoo](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/vision/pytorch/unet#u-net-3d-model).
+
+* Multi-channel multi-class segmentation is now supported for 2D UNet.
+
+* 2D UNet now supports image sizes up to 7k x 7k
+
+* Improved 2D CNN robustness & support, for example ResNet 2D on up to 1k x 1k images
+
+* 2D UNet now runs at high performance on 256 x 256 resolution
+
+
+### Other features[#](#id20 "Permalink to this headline")
+
+* We are releasing scripts and instrucions for checkpoint and configuration conversion to and from corresponding Hugging Face models and between Cerebras software versions. More details in [Convert checkpoints and model configs](../Model-zoo/Migration/porting-checkpoints.html#convert-checkpoints-hf-cs).
+
+* Added support for `eval_all` and `train_and_eval` to enable users to evaluate models throughout long training runs or evaluate all checkpoints after training has completed. Mode details in eval.
+
+* The Cerebras Model Zoo run scripts have been updated with a more informative and explicit command line interface. For more details please read [Launch your job](../Fundamentals/cs-appliance.html#cs-appliance).
+
+* The script `run_appliance.py` has now been deprecated for TensorFlow in favour of one single script called `run.py` that employs the aforementioned run script changes.
+
+* More custom losses and non-linearities are now supported with AutoGen feature. It allows users to swap operations (losses, nonlinearities, positional encodings) for language models and improves performance of loss functions with fused kernels. Learn more about [Kernel autogeneration with AutoGen](../Fundamentals/autogen.html#autogen).
+
+* You can now use scalar and tensor summaries in PyTorch to track various tensors of interest during training. Internally we heavily rely on these features for example to track parameters like gradient norms during training of large language models. Learn mode about how to model-summaries.
+
+
+### Known Issues[#](#id21 "Permalink to this headline")
+
+* T5 with input or output sequences longer than 1024 tokens (`src_max_sequence_length` and `tgt_max_sequence_length` parameters in model yaml config file) may have compile times of over 3 hours. T5 is only supported with input and output sequences up to 2048 tokens.
+
+* T5 has limitations with respect to gradient accumulation and batch sizes (BS).
+
+    * Gradient accumulation is not supported for T5.
+
+    * At [precision optimization level](https://docs.cerebras.net/en/latest/wsc/general/cs-1-data-formats.html#precision-optimization-level) 0 (POL0), the largest supported batch size for T5 model with 11B parameters is 220.
+
+    * At precision optimization levels 1 and 2 (POL1 and POL2) batch sizes over 770 for T5 3B and over 260 for T5 11B will result in a long compile time.
+
+    * Models will not compile if `(vocabulary V / (heads * Greatest_Common_Divisor(Sin, Sout)) > 2^11`.
+
+
+* Maximum supported vocabulary size for language models is 1 million.
+
+* Downloading data sets from the internet within data loaders is not supported. As a workaround, please download data sets and prepare them outside the dataloader function. See [PyTorch FC MNIST implementation](https://github.com/Cerebras/modelzoo/blob/main/modelzoo/fc_mnist/pytorch/prepare_data.py) for an example and additional details.
+
+* Users creating their own models and training scripts must separate the dataloader or input_fn into a separate Python file from the rest of the training script, in order to avoid the error described [here](../troubleshooting/error_receiving_activations.html#error-recv-activations-troubleshooting).
+
+* The experimental PyTorch API does not save checkpoints at steps 0 and 1 in the correct format. No issues with checkpoints at other steps or outside the experimental API.
+
+* When `share_embedding_weights` parameter is set to `True` for PyTorch GPT-style models (e.g. [here](https://github.com/Cerebras/modelzoo/blob/main/modelzoo/models/nlp/gpt3/configs/Cerebras_GPT/111m.yaml#L43#L43)), custom settings for `embedding_initializer` in the yaml configuration (like [here](https://github.com/Cerebras/modelzoo/blob/main/modelzoo/models/nlp/gpt3/configs/Cerebras_GPT/111m.yaml#L43#L66)), are ignored. Embedding weights are initialized with default configuration (normal distribution, std=0.02). This is done by the `__rest_parameters` [function](https://github.com/Cerebras/modelzoo/blob/main/modelzoo/models/nlp/gpt2/gpt2_model.py#L180), which is called at the end of the [GPT2LMHeadModel initialization](https://github.com/Cerebras/modelzoo/blob/main/modelzoo/models/nlp/gpt2/gpt2_model.py#L173)
+
+
+## Release 1.7.1[#](#release-1-7-1 "Permalink to this headline")
+
+### New features and enhancements[#](#id24 "Permalink to this headline")
+
+#### Unified user workflow on the Wafer-Scale Cluster[#](#unified-user-workflow-on-the-wafer-scale-cluster "Permalink to this headline")
+
+* User workflow on the Wafer-Scale Cluster is now the same for Pipelined and Weight Streaming execution. The same launching scripts and the same environment can now be used to run larger models with Weight Streaming execution and smaller models with Pipelined execution. Use additional command line argument with `run.py` for PyTorch and with `run_appliance.py` for Tensorflow: set `--execution_strategy` argument to `pipeline` or `weight_streaming` to specify execution mode.
+
+* Note that Pipelined execution only supports using one CS-2 for each run. It is only valid to specify `--num_csx=1` in the run command for Pipelined execution. Weight Streaming does not have such requirement.
+
+
+### Known issues[#](#id25 "Permalink to this headline")
+
+#### Specifying number of workers[#](#specifying-number-of-workers "Permalink to this headline")
+
+* `--num_workers_per_csx` denotes the maximum number of Kubernetes worker pods per CS-X. Note that these are distributed across physical worker nodes attached to each CS-X on the Wafer-Scale Cluster.
+
+* For this release, please specify `--num_workers_per_csx=8` as a command line argument in the run command for Pipelined execution. Weight Streaming execution does not need to specify this argument.
+
+
+#### Specifying path in the configuration file[#](#specifying-path-in-the-configuration-file "Permalink to this headline")
+
+* Please specify absolute paths for any configuration parameters that are used by dataloaders in PyTorch or the input_fn in TensorFlow. More specifically, this applies to all variables in `train_input` and/or `eval_input` sections of the configuration yamls.
+
+
+#### Padding token in loss calculation[#](#padding-token-in-loss-calculation "Permalink to this headline")
+
+* TensorFlow BERT fine-tuning token classification model does not support padding tokens in loss on the Wafer-Scale Cluster for both Pipelined and Weight Streaming execution. Please set `include_padding_in_loss: False` in the configuration yaml. We believe it makes the most sense to exclude padding tokens in the loss calculation. Such setting differs from the original public implementation where token padding is included in the loss, which is most likely used for performance optimization on GPUs, leading to our eval accuracy being potentially different from published numbers. This does not apply to the PyTorch version or the Original Cerebras Installation.
+
+
+#### TensorFlow BERT SQuAD Unsupported[#](#tensorflow-bert-squad-unsupported "Permalink to this headline")
+
+* TensorFlow BERT fine-tuning model for SQuAD is not supported in appliance (neither Pipelined nor Weight Streaming). If you would like to fine-tune BERT with SQuAD, please use the PyTorch version.
+
+
+## Release 1.7.0[#](#release-1-7-0 "Permalink to this headline")
+
+
+### New features and enhancements[#](#id26 "Permalink to this headline")
+
+#### Large language models[#](#id27 "Permalink to this headline")
+
+* Added support for GPT-J-style models up to 20B parameters in PyTorch, e.g. GPT-J 6B, GPT-NeoX 20B. More example configs can be found in [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo/tree/master/modelzoo/models/nlp/gptj/configs).
+
+* Added new GPT-3 variants up to 20B parameters both in TensorFlow and PyTorch.
+
+* Improved performance (throughput) for GPT-style models by up to 1.5x compared to the previous release.
+
+
+#### Computer vision models[#](#id29 "Permalink to this headline")
+
+* Added support for UNet 2D in Weight Streaming execution to enable large input sizes of up to 5k x 5k resolutions. Both Training and Eval workflows are supported. Single CS-2 system support only. Single-channel single-class segmentation only in this release.
+
+
+### Other features[#](#id30 "Permalink to this headline")
+
+* Added support for bfloat16 data type for large language models in PyTorch and enabled precision knobs for performance optimization.
+
+* Added support for training language models with sparse weights in PyTorch; training with static sparsity masks is now enabled, and scripts to convert a dense PyTorch checkpoint into a sparse version are available.
+
+* Improved error messages for easy-to-understand, user-actionable errors.
+
+* Expanded support for PyTorch learning rate schedules and loss functions.
+
+
+### Known issues[#](#id31 "Permalink to this headline")
+
+#### Running eval with UNet in PyTorch, Weight Streaming execution[#](#running-eval-with-unet-in-pytorch-weight-streaming-execution "Permalink to this headline")
+
+* UNet model eval with metrics mIOU, DSC on images of size 4096 x 4096 pixels causes failures and is a known issue. All default configurations and image sizes published in the Model Zoo have been tested and expected to work without issues. The issue may manifest itself with other non-tested image sizes. The expected error is as follows:
+```Bash
+status = StatusCode.INTERNAL details = "KM to RT IR Translation Failed"
+debug_error_string = "UNKNOWN:Error received from peer ipv4:10.254.104.16:443 {grpc_message:"KM to RT IR Translation Failed", grpc_status:13, created_time:"2022-12-15T00:27:47.134671257-08:00"}"
+```
+Please contact Cerebras support if you run into failures.
+
+## Release 1.6.1[#](#release-1-6-1 "Permalink to this headline")
+
+### New features and enhancements[#](#id32 "Permalink to this headline")
+
+#### Weight Streaming models in PyTorch[#](#weight-streaming-models-in-pytorch "Permalink to this headline")
+
+* Early access support for GPT model variants, up to 1.5B parameters in PyTorch on single CS-2 systems.
+
+
+#### Security-related Updates and Error fixes[#](#security-related-updates-and-error-fixes "Permalink to this headline")
+
+* Restricts the weight streaming jobs to be run with respective uid/gid security context only and disallows root user
+
+* Creation of volume mounts is now limited to worker nodes only to avoid security issues from broader access.
+
+* Adds new feature of “KeepAlive” to coordinator node in appliance which helps to keep track of the client activity and prevents jobs from hanging indefinitely
+
+* Pipeline workflow in Appliance now uses the scheduler to choose the CS system automatically and doesn’t require user to specify the `cs_ip` explicitly
+
+
+## Release 1.6.0[#](#release-1-6-0 "Permalink to this headline")
+
+
+### New features and enhancements[#](#id33 "Permalink to this headline")
+
+#### Weight streaming models[#](#weight-streaming-models "Permalink to this headline")
+
+* Up to 2x performance improvement for GPT-style models with weight streaming training on CS-2 systems.
+
+* Early access support for additional GPT model variants, up to 20B parameters on single CS-2 systems.
+
+
+#### Cerebras Wafer-Scale Cluster[#](#cerebras-wafer-scale-cluster "Permalink to this headline")
+
+* This is the first production release of software support for weight streaming on the Cerebras Wafer-Scale Cluster. This includes a simple workflow that allows users to easily submit and scale large training jobs to a Cerebras cluster. Refer to our TF and PyTorch getting started guides on how to run your pipeline and weight streaming models on the cluster.
+
+
+#### Multi-node CS-2 support[#](#multi-node-cs-2-support "Permalink to this headline")
+
+* Expands Cerebras Wafer-Scale Cluster to support 8x CS-2s on GPT-style models and achieves near linear scaling performance.
+
+
+#### PyTorch support[#](#pytorch-support "Permalink to this headline")
+
+* Introduces Cerebras PyTorch Layer API that implements a subset of PyTorch APIs with Cerebras custom implementations that take advantage of our high-performance kernels and provides drop-in replacement to the native PyTorch version.
+
+* Includes a demo of GPT2 model that uses the Layer API and implements the model.
+
+* Added support for label-smoothed cross entropy for pipelined models in PyTorch.
+
+
+#### Cerebras Model Zoo[#](#id34 "Permalink to this headline")
+
+* Launched a public version of Cerebras sample model implementations through [Cerebras Model Zoo github repository](https://github.com/Cerebras/modelzoo).
+
+
+## Release 1.5.0[#](#release-1-5-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id35 "Permalink to this headline")
+
+#### Weight streaming[#](#weight-streaming "Permalink to this headline")
+
+* Significant performance boost in the evaluation of accuracy for large-scale GPT models. Evaluation performance is now on par with training performance.
+
+* Added support for vocab sizes up to 231 for GPT-style models when run with weight streaming execution.
+
+
+#### Multi-node CS-2 support[#](#id36 "Permalink to this headline")
+
+* Expands Cerebras Wafer-Scale Cluster to support 4x CS-2s on GPT-style models.
+
+* Cerebras Wafer-Scale Clusters are composed of CS-2 systems, MemoryX and SwarmX nodes, input pre-processing servers and associated internal network switches. End-user workflow is supported via appliance model, where the user submits a job to the cluster as if it were a single device.
+
+<Info>
+Note
+
+To learn more and get a demo of our cluster capabilities and appliance workflow, contact Cerebras support by sending email to [support@cerebras.net](mailto:support%40cerebras.net).
+</Info>
+<Info>
+Note
+
+CSoft 1.5 deprecates some of our experimental models that were brittle and not suitable to run with many variants of model implementation. The deprecated models are: RNN, GNN, CTR, Audio and RevBERT which were previously supported in demo mode.
+</Info>
+## Release 1.4.0[#](#release-1-4-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id37 "Permalink to this headline")
+
+#### Weight Streaming[#](#id38 "Permalink to this headline")
+
+* Single CS-2 System now supports training of multi-billion parameter NLP models including GPT-3XL 1.3 billion, GPT-J 6 billion, GPT-3 13 billion and more via the weight streaming mode of execution.
+
+* Training on GPT-J (6B parameters) is now supported for longer sequences up to 30K tokens on single CS-2 system.
+
+* Switching between these extreme scale models can be achieved by just a few changes in config file.
+
+
+#### PyTorch models[#](#pytorch-models "Permalink to this headline")
+
+* We have made performance Improvements for small- to medium-sized PyTorch models through support for Multi-Replica (MR) + Variable Tensor Shape (VTS), including: - Multi-replica improves fabric utilization and throughput performance. - VTS improves performance for dataset with variable length sequence.
+
+* Models now support MR + VTS: BERT, Transformer (AIAYN) and T5.
+
+* We added an adafactor optimizer support to T5 model in PyTorch to achieve robust convergence.
+
+
+#### TensorFlow models[#](#tensorflow-models "Permalink to this headline")
+
+* We have added support for a multi-replica mode and variable sequence length to T5 model in pipeline execution to further boost performance on CS-2 System.
+
+
+#### Multi-node CS-2 support[#](#id39 "Permalink to this headline")
+
+* This release introduces 2X CS-2 cluster in demo mode that leverages a weight streaming support cluster (composed of CS2 systems, MemoryX and SwarmX systems, worker servers and associated internal network switches) to efficiently run extreme scale NLP models.
+
+* The end-to-end user workflow can be thought of and handled as a single network-attached service appliance. In this appliance model, the user submits a job to the weight streaming cluster as if it were a single device.
+
+<Info>
+Note
+
+To learn more and get a demo of our cluster capabilities and appliance workflow, contact Cerebras support by sending email to [support@cerebras.net](mailto:support%40cerebras.net).
+</Info>
+### Known issues[#](#id40 "Permalink to this headline")
+
+#### Running eval on Cerebras system[#](#running-eval-on-cerebras-system "Permalink to this headline")
+
+When running in `eval` mode on CS-1 system, if `--nodes` and `--tasks_per_node` value pairs are **not** set to one of the following, then the session may hang. This issue exists for both TensorFlow and PyTorch.
+
+1.  `--nodes==1 --tasks_per_node=2`, or
+
+2.  `--nodes==2 --tasks_per_node=1`
+
+    1. **Workaound**: Make sure that you use one of the above settings for `--nodes` and `--tasks_per_node`. For example:
+    ```Bash
+    --nodes=1 --tasks_per_node=2
+    ```
+    2. The `eval` performance is not affected by these Slurm resource settings. See the example command below:
+    ```Bash
+    csrun_wse python run.py --mode=eval \
+    --nodes=1 --tasks_per_node=2 \
+    --params configs/your-params-file.yaml \
+    --model_dir your-model-dir \
+    --cs_ip=10.255.253.0
+    ```
+
+
+## Release 1.3.0[#](#release-1-3-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id41 "Permalink to this headline")
+
+#### PyTorch models[#](#id42 "Permalink to this headline")
+
+* Supports Variable Tensor Shapes (VTS) for Transformer, T5 and BERT models, which boosts performance significantly
+
+* Added support for BERT Finetuning tasks: SQUAD (Q&A), Classifier (SST) and Summarization (SUM)
+
+* Supports fixed positional embeddings.
+
+* Upgrades to the latest version of PyTorch 1.11.
+
+
+#### Weight streaming mode[#](#weight-streaming-mode "Permalink to this headline")
+
+* GPT-J 6B-parameter model in Tensorflow is supported for pretraining on single CS-2 system
+
+* The abstractive summarization fine-tuning task supported for GPT-J (6B parameters).
+
+* Eval metrics supported for GPT-2, GPT-3 variants, GPT-J. Metrics include perplexity, accuracy and BPB, BPC, BPW.
+
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+#### Multi-replica mode[#](#multi-replica-mode "Permalink to this headline")
+
+* Multi-replica mode is now supported across Transformer and BERT Tensorflow models.
+
+* Multi-replica mode also adds Variable Tensor Shape support to further boost performance for these models.
+
+
+### Known issues[#](#id43 "Permalink to this headline")
+
+#### GPT-J (6B parameters) model[#](#gpt-j-6b-parameters-model "Permalink to this headline")
+
+- There is a non-determinism on the GPU side we are currently debugging, so in order to match the GPU reference, CS-2 run should start from the same initial checkpoint.
+
+- There is an unexplained shuffle happening when the input function runs out of data and needs to repeat the dataset. So, in order to get the exact match, the reference should run for less number of steps than the dataset, or the dataset needs to be extended, so that repeat doesn’t happen.
+
+- When running the GPT-J 6B model, each weight streaming server should be configured to have 512 GB of total memory. It is recommended to have at least 128 GB of physical memory and any remainder as swap space.
+
+
+#### Running eval on Cerebras system[#](#id44 "Permalink to this headline")
+
+When running in `eval` mode on CS-1 system, if `--nodes` and `--tasks_per_node` value pairs are **not** set to one of the following, then the session may hang. This issue exists for both TensorFlow and PyTorch.
+
+1.  `--nodes==1 --tasks_per_node=2`, or
+
+2.  `--nodes==2 --tasks_per_node=1`
+    1. **Workaound**: Make sure that you use one of the above settings for `--nodes` and `--tasks_per_node`. For example:
+    ```Bash
+    --nodes=1 --tasks_per_node=2
+    ```
+    2. The `eval` performance is not affected by these Slurm resource settings. See the example command below:
+    ```Bash
+    csrun_wse python run.py --mode=eval \
+    --nodes=1 --tasks_per_node=2 \
+    --params configs/your-params-file.yaml \
+    --model_dir your-model-dir \
+    --cs_ip=10.255.253.0
+    ```
+
+
+* * *
+
+## Release 1.2.0[#](#release-1-2-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id45 "Permalink to this headline")
+
+#### PyTorch models[#](#id46 "Permalink to this headline")
+
+* Train and Eval mode is now supported for PyTorch BERT Base with sequences upto 4k tokens and BERT Large with sequences upto 2k tokens. Includes support for common eval metrics (eval loss, MLM accuracy, NSP accuracy, perplexity).
+
+* Train and Eval mode is now supported for RoBERTa configuration in PyTorch BERT.
+
+* Adds support for BERT-NER finetuning
+
+* Train and Eval mode is now supported for the PyTorch Transformer-Attention is All You Need model.
+
+* Train and Eval mode is now supported for PyTorch T5 model with configurations up to ~500M parameters, e.g., T5-Small 60M and T5-Base 220M
+
+* Train and Eval mode is now supported for PyTorch GPT-2 model with configurations with up to ~770M parameters, e.g., GPT-2 Small 117M, GPT-2 Medium 345M, GPT-2 Large 774M
+
+
+#### Weight streaming execution mode[#](#weight-streaming-execution-mode "Permalink to this headline")
+
+* A new execution mode, called **weight streaming** mode, to run extremely large models, is introduced as an early release. See [Weight Streaming Execution](../Concepts/cerebras-execution-modes.html#cerebras-execution-modes) for a detailed explanation of the weight streaming concept.
+
+* In weight streaming mode, support is added for eval on GPU.
+
+* In weight streaming mode, support is added to store checkpoints and resume training from checkpoints.
+
+* Support is added in weight streaming mode to track training runs with TensorBoard.
+
+
+#### Weight streaming models[#](#id47 "Permalink to this headline")
+
+The following models support weight streaming mode. These models are in early beta.
+
+* GPT-3 XL (1.3 billion total parameters) running on a single CS-2 system.
+
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+#### Input analyzer for Slurm resources[#](#input-analyzer-for-slurm-resources "Permalink to this headline")
+
+- The `cs_input_analyzer` is a new Bash script that recommends Slurm resource settings you need to run on Cerebras system. These recommendations are generated by this script for a given `input_fn` and model. To use this tool, run it manually. See [The cs\_input\_analyzer Script](../../original/scripts/cs-input-analyzer.html#cs-input-analyzer-original).
+
+
+### Known issues[#](#id48 "Permalink to this headline")
+
+#### Running eval on Cerebras system[#](#id49 "Permalink to this headline")
+
+When running in `eval` mode on CS-1 system, if `--nodes` and `--tasks_per_node` value pairs are **not** set to one of the following, then the session may hang. This issue exists for both TensorFlow and PyTorch.
+
+1.  `--nodes==1 --tasks_per_node=2`, or
+
+2.  `--nodes==2 --tasks_per_node=1`
+
+  1. **Workaound**: Make sure that you use one of the above settings for `--nodes` and `--tasks_per_node`. For example:
+    ```Bash
+    --nodes=1 --tasks_per_node=2
+    ```
+  2. The `eval` performance is not affected by these Slurm resource settings. See the example command below:
+    ```Bash
+    csrun_wse python run.py --mode=eval \
+    --nodes=1 --tasks_per_node=2 \
+    --params configs/your-params-file.yaml \
+    --model_dir your-model-dir \
+    --cs_ip=10.255.253.0
+    ```
+
+
+Release 1.1.0[#](#release-1-1-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id50 "Permalink to this headline")
+
+#### PyTorch[#](#pytorch "Permalink to this headline")
+
+* The PyTorch support is enhanced. Key changes include but not limited to:
+
+    * Support for `eval` mode is added for BERT and FC-MNIST PyTorch models. These models now support both `train` and `eval` modes.
+
+     * Enhanced the flexibility in specifying the `cerebras.framework.torch.initialize()`.
+
+     * Use of `cbfloat16` data format (see [CB16 Half-Precision](../../original/general/cs-1-data-formats.html#cb16-original)) is now supported.
+
+     * Made mixed precision interface more intuitive, via `GradScaler` (see [Dynamic loss scaling](../Model-zoo/tutorials/dynamic-loss-scaling.html#dynamic-loss-scaling)).
+
+     * Fixed several bugs in the areas of numerics, convergence and performance.
+
+
+
+##### PyTorch models[#](#id51 "Permalink to this headline")
+
+The following PyTorch models are supported.
+
+* A PyTorch version of FC-MNIST.
+
+* The PyTorch versions of BERT Base and BERT Large.
+
+     * RoBERTa (Next Sentence Prediction (NSP) only) configurations are supported. See `roberta_base.yaml` and `roberta_large.yaml`.
+
+     * Longer Maximum Sequence Length (MSL) configurations are supported, at least up to MSL 4096.
+
+
+* The PyTorch Transformer-Attention is All You Need model is added as a Beta feature.
+
+    This model can be compiled using `run.py` with the `--compile_only` flag, as well as run on CPU or GPU using `run_cpu_gpu.py`.
+
+    To train this model on the Cerebras System at your own risk, comment out the following lines from `run.py`:
+    ```Bash
+    if not runconfig_params["compile_only"]:
+    raise ValueError(
+        "Running the Transformer model on the Cerebras System is in beta."
+        "Convergence is not guaranteed. Remove this exception to proceed."
+    )
+    ```
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+
+##### Supported PyTorch ops[#](#supported-pytorch-ops "Permalink to this headline")
+
+- A preliminary list of supported PyTorch ops is released.
+
+
+#### Multi-replica data parallel training[#](#multi-replica-data-parallel-training "Permalink to this headline")
+
+A new feature called **multi-replica data parallel training** is released. Currently this feature is available only for TensorFlow models. When you use this feature, the Cerebras compiler uses several copies (replicas) of the same model to run data parallel training.
+
+### Known issues[#](#id52 "Permalink to this headline")
+
+#### T5 and Transformer (Attention is All You Need)[#](#t5-and-transformer-attention-is-all-you-need "Permalink to this headline")
+
+* The TensorFlow versions of the T5 and Transformer models are not guaranteed to converge. These models can still be compiled to the Cerebras system. However, to train these models on the Cerebras System at your own risk, comment out the following lines from `run.py` of the model:
+  ```Bash
+  if not runconfig_params["compile_only"]:
+    raise ValueError(
+        "Running the Transformer model on the Cerebras System is in beta."
+        "Convergence is not guaranteed. Remove this exception to proceed."
+    )
+  ```
+
+
+* When you train the TensorFlow Transformer model on Cerebras system, you will see a modest increase in loss volatility, compared to the runs on GPUs. This is due to numerical differences. The pre-training eval accuracy is expected to be within a few percent of the equivalent model trained on a GPU.
+
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+#### Running eval on Cerebras system[#](#id53 "Permalink to this headline")
+
+When running in `eval` mode on CS-1 system, if `--nodes` and `--tasks_per_node` value pairs are **not** set to one of the following, then the session may hang. This issue exists for both TensorFlow and PyTorch.
+
+1.  `--nodes==1 --tasks_per_node=2`, or
+
+2.  `--nodes==2 --tasks_per_node=1`
+
+    1. **Workaound**: Make sure that you use one of the above settings for `--nodes` and `--tasks_per_node`. For example:
+    ```Bash
+    --nodes=1 --tasks_per_node=2
+    ```
+    2. The `eval` performance is not affected by these Slurm resource settings. See the example command below:
+    ```Bash
+    csrun_wse python run.py --mode=eval \
+    --nodes=1 --tasks_per_node=2 \
+    --params configs/your-params-file.yaml \
+    --model_dir your-model-dir \
+    --cs_ip=10.255.253.0
+    ```
+
+
+#### Multi-replica data parallel training[#](#id54 "Permalink to this headline")
+
+- Eval on Cerebras system is not yet supported for multi-replica data parallel trained models. You can run eval on CPU or GPU for these models.
+
+
+#### PyTorch[#](#id55 "Permalink to this headline")
+
+- For PyTorch, when you are targeting GPU, the following warning will be displayed. This can be safely ignored. This issue does not exist when you target Cerebras system for your acceleration.
+
+```Bash
+UserWarning: Detected call of ``lr_scheduler.step()`` before
+``optimizer.step()``. In PyTorch 1.1.0 and later, you should
+call them in the opposite order: ``optimizer.step()`` before
+``lr_scheduler.step()``.  Failure to do this will result in
+PyTorch skipping the first value of the learning rate schedule.
+```
+
+* For PyTorch models only, to run the training on the Cerebras system, the `cs_ip` flag must include both the IP address and the port number of the CS system. Only the IP address, for example: `--cs_ip 192.168.1.1`, will not be sufficient. You must also include the port number, for example: `--cs_ip 192.168.1.1:9000`.
+
+
+* * *
+
+## Release 1.0.0[#](#release-1-0-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id56 "Permalink to this headline")
+
+#### PyTorch (BETA)[#](#pytorch-beta "Permalink to this headline")
+
+Support is added, in beta phase only, for the PyTorch framework. The models and quickstart provided are strictly intended as advanced information only.
+
+- A PyTorch version of FC-MNIST is added as a part of PyTorch (BETA) support.
+
+    This version only supports compiling on a CPU node with the `train` mode. To train this model on the Cerebras System at your own risk, edit the `run.py` file and comment out the entire `raise ValueError()` function, as shown below:
+    ```Bash
+    elif runconfig_params["mode"] == TRAIN:
+        # raise ValueError(
+        #    "Training PyTorch models on the Cerebras System is in beta "
+        #    "and is only validated with the default config provided in the "
+        #    "Model Zoo. Remove this exception and use the provided config to"
+        #    "proceed."
+        #)
+        runner.train(train_loader)
+    ```
+- The PyTorch versions of BERT Base and BERT Large are added as a part of PyTorch (BETA) support.
+
+     These versions only support compiling on a CPU node with the `train` mode. To train these models on the Cerebras System at your own risk, edit the `run.py` file and comment out the entire `raise ValueError()` function, as shown below:
+     ```Bash
+     elif runconfig_params["mode"] == TRAIN:
+        #raise ValueError(
+        #"Training PyTorch models on the Cerebras System is in beta "
+        #"and is only validated with the default configs provided in the "
+        #"Model Zoo. Remove this exception and use one of the provided "
+        #"configs to proceed."
+        #)
+        runner.train(train_loader)
+     ```
+
+
+
+#### RevBERT[#](#revbert "Permalink to this headline")
+
+A new TensorFlow model, the RevBERT is introduced. The RevBERT is a Cerebras-specific BERT model that improves the BERT performance on Cerebras accelerator. Using the RevBERT model you can run up to 20x larger batch sizes and 2.7x larger models on the Cerebras System. This version of RevBERT is only supported with TensorFlow and only supports the `train` mode.
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+#### Transformer (Attention Is All You Need)[#](#transformer-attention-is-all-you-need "Permalink to this headline")
+
+Support is added in the `train` mode for Variable Sequence Length (VSL) on the CS system.
+
+#### T5 model[#](#t5-model "Permalink to this headline")
+
+- Support is enhanced from loss-only eval to full eval metrics.
+
+- Support is added in the `train` mode for Variable Sequence Length (VSL) on the CS system.
+
+
+#### GPT-2[#](#gpt-2 "Permalink to this headline")
+
+Support is added in the `train` mode for Variable Sequence Length (VSL) on the CS system.
+
+* * *
+
+## Release 0.9.0[#](#release-0-9-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id57 "Permalink to this headline")
+
+Two new Slurm wrapper scripts are introduced to make it easy to run on CS system and on the CPU. These scripts will replace `srun_train` and `salloc_node`. See below:
+
+- The `csrun_wse` script can be used to execute training, evaluation and prediction on the CS system.
+
+- The `csrun_cpu` script can be used to launch a given user command on a CPU, within the Cerebras Singularity container.
+
+Support is added for the [Transformer (Attention Is All You Need)](https://arxiv.org/abs/1706.03762), with the following capabilities:
+
+- Example dataset and preprocessing scripts for English-to-German translation included.
+
+- On CS system: Training, and Eval (loss only).
+
+- On GPU: Train, Eval (`eval` and `eval_all`).
+
+
+Support is added for the [following T5](https://arxiv.org/abs/1910.10683) family of models:
+
+* Small model:
+
+    * dmodel = 512
+
+    * dff = 2,048.
+
+    * 8-headed attention.
+
+    * 6 layers each in the encoder and decoder.
+
+    * About 60 million parameters.
+
+
+* Model:
+
+    * Base, BERT Base-sized encoder and decoder.
+
+    * About ~ 220 million parameters.
+
+
+* Model: Large, BERT Large-sized encoder and decoder.
+
+    * dmodel = 1,024.
+
+    * dff = 4,096.
+
+    * dkv = 64.
+
+    * 16-headed attention.
+
+    * 24 layers each in the encoder and decoder.
+
+    * Around 770 million parameters.
+
+
+* Sample dataset: [Colossal Clean Crawled Corpus (C4) dataset](https://github.com/allenai/allennlp/discussions/5056).
+
+* On CS system: Pre-training, Eval (loss only).
+
+* On GPU: Train, Eval (`eval` and `eval_all`).
+
+
+The variable sequence length (VSL) performance of BERT-style encoder-decoder models is enhanced. Previously, a sequence of less than pre-defined maximum sequence length is padded up to the maximum sequence length. The compute and memory are also spent on processing these tokens used for padding, resulting in a significant loss of performance.
+
+With this enhancement, by taking advantage of the sparsity the tokens used for padding are not processed, thereby enhancing the performance of the variable length sequences.
+
+The performance-optimized variable sequence length is now available for the following models on the CS system:
+
+* BERT Pre-training (training only).
+
+* RNN Language Model (LM) (training only).
+
+* RNN Sentiment (training only).
+
+
+Performance is enhanced for long sequences (MSL up to 8K for smaller models) for BERT- and GPT-style models. This is accomplished by making use of sparse attention to reduce memory requirements.
+
+### Known issues[#](#id59 "Permalink to this headline")
+
+- When you use AdamW Optimizer and if both the following conditions are true:
+  - The parameter `weight_decay` is set to a non-zero value, and
+  - The parameter `loss_scaling_factor` is not set to “dynamic”.
+
+then the execution will stop with the following error message:
+  <Info>
+    Error
+
+    “When using the AdamW optimizer with weight decay, set the `loss_scaling_factor` to dynamic.”
+  </Info>
+- For the models T5 and Transformer (Attention Is All You Need), the performance in samples-per-sec is optimal when the source `max_seq_len` and the target `max_seq_len` are equal.
+
+- When running evaluation with a BERT model, if the `max_predictions_per_seq` parameter is set to an odd value and if the following conditions are true:
+  - The tensor is multi-dimensional (>1D).
+    - The inner dimension is an odd value.
+    - The datatype is < 4 bytes, i.e., FP16 or INT16 or UINT16.
+then this leads to a compile failure in 0.9.0 and execution failure in 0.8.0.
+**Workaround**: Set the `max_predictions_per_seq` parameter to an even value.
+
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+
+* * *
+
+## Release 0.8.0[#](#release-0-8-0 "Permalink to this headline")
+
+### New features and enhancements[#](#id60 "Permalink to this headline")
+
+- Inference is now supported for the following models:
+
+    - Graph Convolutional Network
+    - Graph Attention Network
+
+
+<Info>
+Note
+
+If you are interested in these models, contact Cerebras support by sending email to `support@cerebras.net`.
+</Info>
+- A new feature, multi-model inference, is introduced. Using this you can run multiple neural network models on the CS system, send inference requests to these models and receive prediction responses.
+
+
+- Early stopping is now supported using a custom hook called `CerebrasEarlyStoppingHook`. Using this hook, you can terminate early a neural network training based on some logic.
+
+
+* * *
+
+## Release 0.7.1[#](#release-0-7-1 "Permalink to this headline")
+
+### New features and enhancements[#](#id61 "Permalink to this headline")
+
+- Evaluation and prediction are now supported on the CS system for BERT networks. While executing the `run.py`, you can run evaluation or prediction with your network as follows:
+
+    - **Evaluation**: Use `--mode eval` to use the evaluation feature.
+
+    - **Prediction**: Use `--mode predict` to use the prediction feature.
+
+* * *
+
+## Release 0.7.0[#](#release-0-7-0 "Permalink to this headline")-
+
+### New features and enhancements[#](#id62 "Permalink to this headline")
+
+* Performance is improved for BERT Large models with MSL 512. This is accomplished by making a tradeoff that mitigates the need for large buffer memory.
+
+
+* Support is added for combined Dice loss and Softmax Cross-entropy (CE) loss.
+
+
+* Support for TensorFlow summaries is added.
+
+
+* A new datatype called CB16 is introduced. The CB16 is Cerebras’ 16-bit format, also referred to as `cbfloat16`. The CB16 is a floating-point format with 6-bit exponent and 9-bit explicit mantissa. This allows for double the dynamic range of FP16. See [Control numerical precision level](../how_to_guides/cs-1-data-formats.html#data-formats).
+
+
+* A new feature that projects the performance of your network is added to the Cerebras Graph Compiler (CGC). Now when your compile is successful, the generated report includes projections on how your network might perform on the CS system.:
+
+
+* A new feature called incremental compile is added to the Cerebras Graph Compiler (CGC). After you compile your model the first time, the incremental compile feature of CGC will automatically speed up the subsequent compile runs of your model by reusing, wherever possible, the optimizations already performed.
+
+
+* The input function analyzer is enhanced. Now called `analyze_input_fn_compile`, this tool provides a detailed log identifying any missing functions and provides recommendations on parameter values to enhance the training performance on the CS system.
+
+
+* Introduced a new method called Cerebras AUTOTUNE (`CS_AUTOTUNE`), which is similar to the TensorFlow `tf.data.AUTOTUNE`. When you are targeting the CS system, using `CS_AUTOTUNE` instead of `tf.data.AUTOTUNE` will result in a better specification of parameters such as:
+  * `num_parallel_calls`
+  * `cycle_length`
+  * `num_parallel_reads`
+
+
+* A new function, `KerasModelToCerebrasEstimator`, is provided to convert a Keras model so the model can be run using the `CerebrasEstimator`.
+
+
+* While setting the runtime configuration options, in v0.6.3 and earlier versions you were required to add the following code for the Slurm cluster resolver.
+```Bash
+  from cerebras.tf.cs_slurm_cluster_resolver import CSSlurmClusterResolver
+slurm_cluster_resolver = CSSlurmClusterResolver()
+cluster_spec = slurm_cluster_resolver.cluster_spec()
+task_type, task_id = slurm_cluster_resolver.get_task_info()
+os.environ['TF_CONFIG'] = json.dumps({
+    'cluster': cluster_spec.as_dict(),
+    'task': {'type': task_type, 'index': task_id}
+})
+  ```
+Now this is done automatically. This means that your Slurm-orchestrated TensorFlow code that contains the above statements should be edited as follows:
+```Bash
+# Do not remove the following import statement.
+
+from cerebras.tf.cs_slurm_cluster_resolver import CSSlurmClusterResolver
+
+# Remove the following lines starting CGC v0.7.0.
+
+ slurm_cluster_resolver = CSSlurmClusterResolver()
+ cluster_spec = slurm_cluster_resolver.cluster_spec()
+ task_type, task_id = slurm_cluster_resolver.get_task_info()
+ os.environ['TF_CONFIG'] = json.dumps({
+     'cluster': cluster_spec.as_dict(),
+     'task': {'type': task_type, 'index': task_id}
+ })
+```
+
+#### Breaking changes[#](#breaking-changes "Permalink to this headline")
+
+* The `use_cs` parameter in the cerebras estimator interface is removed and will result in compiler error if used in this API. The target hardware will now be automatically determined from a combination of the runtime configuration parameter `cs_ip` and the `use_cs` parameter setting in the method definitions for `train`.
+
+* The format of the YAML config files for all the models is changed as follows:
+  * All the training-related parameters have been moved to the `runconfig` section.
+  * The `max_steps` parameter is added as a default parameter to control the duration of training.
+
+### Known issues[#](#id63 "Permalink to this headline")
+
+* For BERT, a change in the `max_gradient_norm` hyperparameter value will not result in reduced incremental compile times.
+
+
+* In v0.6.3, in some cases, when you enable dynamic loss scaling and an arbitrary operation is performed on the computed loss, then the Cerebras compiler may give error and fail to compile.
+
+     **Workaround**: In v0.7.0 you can workaround this error by disabling the dynamic loss scaling by setting `loss_scaling_factor` to a constant value either equal to or greater than 1.0.
+
+
+* * *
+
+## Release 0.6.3[#](#release-0-6-3 "Permalink to this headline")
+
+### New features and enhancements[#](#id64 "Permalink to this headline")
+
+* The overall performance is improved for BERT for max sequence length 128 (MSL128) variants. This improvement varies based on the fabric and model configuration. Enable the following custom Cerebras configuration flag only for BERT MSL128 variants to see this performance improvement:
+```Bash
+  config.matching.kernel.no\_dcache\_spill_splits = True
+```
+<Tip>
+    Tip
+
+    The Cerebras implementation sets this flag by default for BERT runs with MSL128.
+</Tip>
+* The kernel matching phase of the Cerebras Graph Compiler (CGC) is enhanced to significantly reduce the kernel matching time and improve flexibility. With this enhancement, the kernel matching phase is completed within 60 seconds in a majority of cases. As a result, the overall compile time will be reduced in these cases.
+
+
+### Resolved issues[#](#resolved-issues "Permalink to this headline")
+
+* Resolved a kernel matching issue with 1DConv models with embeddings, when a Conv1D layer is stacked on top of an embedding layer.
+
+

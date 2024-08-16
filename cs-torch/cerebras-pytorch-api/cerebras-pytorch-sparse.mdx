@@ -1,0 +1,783 @@
+---
+title: "cerebras.pytorch.sparse`"
+---
+## Sparsity Algorithms[#](#sparsity-algorithms "Permalink to this headline")
+
+These classes are the built-in sparsity algorithms. [`SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.SparsityAlgorithm") is the abstract base class that all sparsity algorithms should derive from.
+
+**_class_ cerebras.pytorch.sparse.**`SparsityAlgorithm`**(_sparsity_, _init_method='random'_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm)[#](#cerebras.pytorch.sparse.SparsityAlgorithm "Permalink to this definition")
+
+Base class for all sparsity algorithms.
+
+This class is responsible for sparsifying parameters and registering hooks to apply the sparsity pattern to the parameters before forward and to the gradients after backward. It also registers hooks to update the sparsity pattern after each optimizer step.
+<Warning>
+Warning
+
+The way that sparse parameters are represented in the cerebras.pytorch API is via a mask tensor. This mask tensor is multiplied inplace to the original dense parameter before forward and to the gradients after backward. However, this is not the way that sparse parameters are represented on a Cerebras system. There, sparse parameters are handled natively in CSR format. As such, there is no mask tensor that can be referenced on the system side. What this means is that using the mask tensor haphazardly can lead to compile failures. Even if compile succeeds, any operations performed on the mask can be very computationally expensive. Having said that, there are several operations on masks that are supported on the Cerebras system. Please see the usage in the prepackaged algorithms as a guide for when and how it is acceptable to use the mask.
+</Warning>
+Constructs a SparsityAlgorithm instance.
+
+**Parameters:**
+
+* **sparsity** (_Optional_[_Union_[_float,_ [_cerebras.pytorch.sparse.utils.HyperParameterSchedule_](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")_\]__\]_) – The sparsity level to use for the algorithm. This can be a float or a [`HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule"). If a dictionary is passed in, then it is automatically converted to a [`HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+* **init_method** (_Union__\[__str__,_ _Callable__\[__\[__torch.nn.Parameter__,_ _torch.FloatTensor__,_ _Optional__\[__cerebras.pytorch.sparse.utils.ScoreShaper__\]__,_ _Optional__\[_[_torch.device_](https://pytorch.org/docs/stable/tensor_attributes.html#torch.device "(in PyTorch v2.4)")_\]__\]__,_ _torch.BoolTensor__\]__\]_) – The method to use to initialize the sparsity mask. See [`make_init_method`](#cerebras.pytorch.sparse.init.make_init_method "cerebras.pytorch.sparse.init.make_init_method") for more details.
+
+
+**_property_** `num\_sparse\_params_`: ** _int_**[#](#cerebras.pytorch.sparse.SparsityAlgorithm.num_sparse_params "Permalink to this definition")
+
+Return the number of parameters that have been sparsified by this algorithm.
+
+`get_sparse_params`**(_obj_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.get_sparse_params)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.get_sparse_params "Permalink to this definition")
+
+Get all sparse parameters that were sparsified by this algorithm.
+
+**Parameters:**
+
+**obj** (_Union__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")_,_ [_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")_\]_) – The object to get sparse parameters from.
+
+**Returns:**
+
+If obj is a Tensor, returns the sparse parameter associated with that tensor (if any). If obj is a Module, returns an iterator over all sparse parameters of the module
+
+and its submodules recursively.
+
+If obj is an Optimizer, returns an iterator over all sparse parameters associated
+
+with the optimize param groups.
+
+Return type
+
+_Union_\[cerebras.pytorch.sparse.base.SparseParameter, _Generator_\[cerebras.pytorch.sparse.base.SparseParameter, None, None\]\]
+
+`initialize`**()**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.initialize)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.initialize "Permalink to this definition")
+
+Initialize the sparsity pattern for all parameters sparsified by this algorithm.
+
+`csx_annotate_sparsity`**(_param_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.csx_annotate_sparsity)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.csx_annotate_sparsity "Permalink to this definition")
+
+Annotate the parameter with hints about the sparsity pattern.
+
+These hints are used as performance hints for the Cerebras compiler.
+
+**Parameters:** **param** (_cerebras.pytorch.sparse.base.SparseParameter_) – The sparse parameter to annotate with hints.
+
+**_property_** `sparsity`**:  Dict**\[[torch.Tensor](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)"),  [cerebras.pytorch.sparse.utils.HyperParameterSchedule](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")\]_[#](#cerebras.pytorch.sparse.SparsityAlgorithm.sparsity "Permalink to this definition")
+
+Return the mapping between a parameter and its sparsity schedule.
+
+`sparsify_parameter`**(_module_, _name_, _param_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.sparsify_parameter)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.sparsify_parameter "Permalink to this definition")
+
+Initialize the mask for a parameter in the given module.
+
+**Parameters:**
+
+* **module** ([_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")) – The module that owns the parameter
+
+* **name** (_str_) – The full name of the parameter
+
+* **param** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – The parameter to initialze the sparsity mask for.
+
+
+**_final_** `apply`**(_obj_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.apply)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.apply "Permalink to this definition")
+
+Sparsify the passed in object.
+<Info>
+Note
+
+This is called implicitly when calling `module.apply(sparsity)` or `optimizer.apply(sparsity)`
+</Info>
+**Parameters:** **obj** (_Union__\[_[_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")_,_ [_cerebras.pytorch.optim.optimizer.Optimizer_](optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")_\]_) – a `torch.nn.Module` or a `cstorch.optim.Optimizer` object to sparsify.
+
+`sparsify_module`**(_module_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.sparsify_module)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.sparsify_module "Permalink to this definition")
+
+Sparsify the `torch.nn.Module` object.
+
+**Parameters:** **module** ([_torch.nn.Module_](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)")) – the `torch.nn.Module` object to sparsify
+
+`prune_weight`**(_sparse_param_)**[#](#cerebras.pytorch.sparse.SparsityAlgorithm.prune_weight "Permalink to this definition")
+
+Prune the dense weight and register a hook to prune the gradients.
+<Info>
+Note
+
+This is called automatically in a module forward pre-hook.
+</Info>
+`_grad_hook`**(_p_, _grad_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm._grad_hook)[#](#cerebras.pytorch.sparse.SparsityAlgorithm._grad_hook "Permalink to this definition")
+
+Hook to prune the gradients after backward().
+<Info>
+Note
+
+This is called automatically in the parameter’s backward grad hook.
+</Info>
+Parameters
+
+* **p** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – The original parameter.
+
+* **grad** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – The gradient of the parameter.
+
+
+`sparsify_optimizer`**(_optimizer_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.sparsify_optimizer)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.sparsify_optimizer "Permalink to this definition")
+
+Sparsify the `torch.optim.Optimizer` object.
+
+**Parameters:** **optimizer** ([_torch.optim.Optimizer_](https://pytorch.org/docs/stable/optim.html#torch.optim.Optimizer "(in PyTorch v2.4)")) – the `torch.optim.Optimizer` object to sparsify
+
+**_abstract_** `update`**(_optimizer=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.update)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.update "Permalink to this definition")
+
+Update the parameter’s sparsity masks.
+
+**Parameters:** **optimizer** (_Optional__\[_[_cerebras.pytorch.optim.optimizer.Optimizer_](optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.optimizer.Optimizer")_\]_) – The optimizer that is being used to update the sparse parameters.
+
+`register_target_sparsity_hook`**(_hook_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.register_target_sparsity_hook)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.register_target_sparsity_hook "Permalink to this definition")
+
+Register a hook which will be called when a new target sparsity is computed. It should have the following signature:
+
+> hook(sparsity, name, target)
+
+`sparsity` argument is the sparsity instance being used. `name` is the name of the group of parameters that the target sparsity is being computed for. `target` is the computed target sparsity value.
+
+**Parameters:** **hook** (_Callable_) – The user defined hook to be registered.
+
+**Returns:** a handle that can be used to remove the added hook by calling `handle.remove()`
+
+**Return type:** `torch.utils.hooks.RemovableHandle`
+
+`register_computed_sparsity_hook`**(_hook_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.register_computed_sparsity_hook)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.register_computed_sparsity_hook "Permalink to this definition")
+
+Register a hook which will be called when a new sparsity mask is computed. It should have the following signature:
+
+> hook(sparsity, name, computed)
+
+`sparsity` argument is the sparsity instance being used. `name` is the name of the parameter that the mask belongs to. `computed` is the calculated sparsity level of the newly computed mask.
+
+**Parameters:**
+
+**hook** (_Callable_) – The user defined hook to be registered.
+
+**Returns:** a handle that can be used to remove the added hook by calling `handle.remove()`
+
+**Return type:** `torch.utils.hooks.RemovableHandle`
+
+`visit_state`**(_f_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.visit_state)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.visit_state "Permalink to this definition")
+
+Apply a callable to the stateful tensors.
+
+`state_dict`**()**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.state_dict)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.state_dict "Permalink to this definition")
+
+Return a dictionary of all stateful tensors.
+
+`load_state_dict`**(_state_dict_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/base.html#SparsityAlgorithm.load_state_dict)[#](#cerebras.pytorch.sparse.SparsityAlgorithm.load_state_dict "Permalink to this definition")
+
+Load the state of all stateful tensors.
+
+### Static Sparsity Algorithms[#](#static-sparsity-algorithms "Permalink to this headline")
+
+**_class_ cerebras.pytorch.sparse.**`Static`**(_sparsity=None_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/static.html#Static)[#](#cerebras.pytorch.sparse.Static "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.base.SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.base.SparsityAlgorithm")
+
+Constructs a Static sparsity instance.
+
+**Parameters:** **sparsity** (_Optional__\[__float__\]_) – A float specifying the level of sparsity to apply to each parameter
+
+### Dynamic Sparsity Algorithms[#](#dynamic-sparsity-algorithms "Permalink to this headline")
+
+**_class_ cerebras.pytorch.sparse.**`DynamicSparsityAlgorithm`**(_sparsity=None_, _update=None_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/dynamic.html#DynamicSparsityAlgorithm)[#](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.base.SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.base.SparsityAlgorithm"), `abc.ABC`
+
+Constructs a DynamicSparsityAlgorithm instance.
+
+**Parameters:**
+
+* **sparsity** (_Optional__\[__Union__\[__float__,_ _dict__\]__\]_) –
+
+    A float specifying the level of sparsity to apply to each parameter or a dictionary specifying the schedule to use for sparsity. The dictionary must have a “type” key, which specifies the type of schedule to use. The remaining keys are schedule-specific. The following schedule types are supported:
+
+     * ”[`constant`](#cerebras.pytorch.sparse.utils.Constant "cerebras.pytorch.sparse.utils.Constant")”
+
+    * ”[`linear`](#cerebras.pytorch.sparse.utils.Linear "cerebras.pytorch.sparse.utils.Linear")”
+
+    * ”[`exp`](#cerebras.pytorch.sparse.utils.Exp "cerebras.pytorch.sparse.utils.Exp")”
+
+    * ”[`power`](#cerebras.pytorch.sparse.utils.Power "cerebras.pytorch.sparse.utils.Power")”
+
+     * ”[`cosine`](#cerebras.pytorch.sparse.utils.Cosine "cerebras.pytorch.sparse.utils.Cosine")”
+
+     * ”[`cycling`](#cerebras.pytorch.sparse.utils.Cycling "cerebras.pytorch.sparse.utils.Cycling")”
+
+* **update** (_Optional__\[__Union__\[__Dict__,_ _Callable__\[__\[__torch.LongTensor__\]__,_ _torch.BoolTensor__\]__\]__\]_) – A dictionary specifying the schedule to use for updating the sparsity pattern. The dictionary must contain keys that can be used to construct either a [`FreqSchedule`](#cerebras.pytorch.sparse.utils.FreqSchedule "cerebras.pytorch.sparse.utils.FreqSchedule") or a [`ListSchedule`](#cerebras.pytorch.sparse.utils.ListSchedule "cerebras.pytorch.sparse.utils.ListSchedule"). If not provided, the sparsity pattern will be updated every step.
+
+
+**_property_** `is_update_step_`**_:  torch.BoolTensor_**[#](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm.is_update_step "Permalink to this definition")
+
+Returns a boolean tensor indificating whether the current step is an update step according to the update schedule.
+
+**_abstract_ **`update_mask`**(_p_, _mask_, _sparsity_)**[#](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm.update_mask "Permalink to this definition")
+
+Compute an updated sparsity pattern.
+
+**Parameters:**
+
+* **p** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – the parameter to sparsify
+
+* **mask** (_torch.tensor__(__dtype=torch.bool__)_) – the current mask of param p
+
+* **sparsity** (_torch.tensor__(__dtype=torch.float32__)_) – the desired sparsity level
+
+
+**Returns:** The updated sparsity pattern on parameter p
+
+**Return type:** [torch.Tensor](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")
+
+**_class_ cerebras.pytorch.sparse.`GMP`**(_**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/gmp.html#GMP)[#](#cerebras.pytorch.sparse.GMP "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm")
+
+Implements Gradual Magnitude Pruning
+
+Sparsity increases monotonically based on weight magnitude.
+
+See: [https://arxiv.org/abs/1710.01878](https://arxiv.org/abs/1710.01878)
+
+**Parameters:** ****kwargs** – All arguments are passed to the [`DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.DynamicSparsityAlgorithm")’s constructor.
+
+Example
+-----------
+-----------
+```Bash
+
+sparsity_opt = cstorch.sparse.GMP(
+schedule={“type”: “exp”, “init”: 0, “gamma”: 1000*math.log(0.3) update={“freq”: 1000},
+
+)
+```
+
+**_class_ cerebras.pytorch.sparse.**`SET`**(_drop_fraction=0.3_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/set.html#SET)[#](#cerebras.pytorch.sparse.SET "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm")
+
+Implements Sparse Evolutionary Training (SET)
+
+Sparsity levels stay constant throughout training, but the lowest magnitude weights are pruned and then regrown randomly.
+
+See: [https://arxiv.org/abs/1707.04780](https://arxiv.org/abs/1707.04780)
+
+**Parameters:**
+
+* **drop_fraction** (_Union__\[__int__,_ _float__,_ _List__\[__int__\]__,_ _List__\[__float__\]__,_ _Tuple__,_ _Dict__,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_cerebras.pytorch.sparse.utils.HyperParameterSchedule_](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")_\]_) – Fraction of non-pruned weights to drop each update step. Either a constant or a step-aware hyperparamter.
+
+* ****kwargs** – Any additional arguments are passed to the [`DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.DynamicSparsityAlgorithm")’s constructor.
+
+
+Example:
+
+```Bash
+sparsity_opt = cstorch.sparse.SET(
+    sparsity=0.9,
+    update={"freq": 100, "stop": 1000},
+    drop_fraction={"type": "cosine", "init": 0.3, "half_period": 1000},
+)
+```
+
+**_class_ cerebras.pytorch.sparse.**`RigL`**(_drop_fraction=0.3_, _balance\_in\_groups=None_, _balance\_out\_groups=None_, _**kwargs_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/rigl.html#RigL)[#](#cerebras.pytorch.sparse.RigL "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.dynamic.DynamicSparsityAlgorithm")
+
+Implements Rigging the Lottery (RigL)
+
+Sparsity levels stay constant throughout training, but the lowest magnitude weights are pruned and then regrown using a proxy measure of where a pruned connection would have had the most impact by finding the highest magnitude (dense) gradients of pruned weights.
+
+See: [https://arxiv.org/abs/1911.11134](https://arxiv.org/abs/1911.11134)
+
+**Parameters:**
+
+* **drop_fraction** (_Union__\[__int__,_ _float__,_ _List__\[__int__\]__,_ _List__\[__float__\]__,_ _Tuple__,_ _Dict__,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_cerebras.pytorch.sparse.utils.HyperParameterSchedule_](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")_\]_) – Fraction of non-pruned weights to drop each update step. Either a constant or a step-aware hyperparamter.
+
+* **balance\_in\_groups** (_int_) – The number of groups used by [`InputGroupScoreShaper`](#cerebras.pytorch.sparse.utils.InputGroupScoreShaper "cerebras.pytorch.sparse.utils.InputGroupScoreShaper")
+
+* **balance\_out\_groups** (_int_) – The number of groups used by [`OutputGroupScoreShaper`](#cerebras.pytorch.sparse.utils.OutputGroupScoreShaper "cerebras.pytorch.sparse.utils.OutputGroupScoreShaper")
+
+* ****kwargs** – Any additional arguments are passed to the [`DynamicSparsityAlgorithm`](#cerebras.pytorch.sparse.DynamicSparsityAlgorithm "cerebras.pytorch.sparse.DynamicSparsityAlgorithm")’s constructor.
+
+* **super** ().\_\_init\_\_([**](#id1)kwargs) –
+
+
+Example:
+
+```Bash
+sparsity = cstorch.sparse.RiGL(
+    sparsity=0.9,
+    update={"freq": 100, "stop": 1000},
+    drop_fraction={"type": "cosine", "init": 0.3, "half_period": 1000},
+)
+```
+
+### Group Sparsity Algorithm[#](#group-sparsity-algorithm "Permalink to this headline")
+
+_class_ cerebras.pytorch.sparse.Group(_groups=None_)[\[source\]](../../../_modules/cerebras/pytorch/sparse/group.html#Group)[#](#cerebras.pytorch.sparse.Group "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.base.SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.base.SparsityAlgorithm")
+
+Group sparsity algorithm. This algorithm allows for multiple sparsity algorithms to be applied to different groups of parameters.
+
+For example:
+
+```Bash
+sparsity = cstorch.sparse.Group({
+    "fc1.*": cstorch.sparse.Static(sparsity=0.5),
+    "fc2.*": cstorch.sparse.GMP(
+        schedule=[0.3, 0.4, 0.5],
+        update: {"freq": 100}
+    ),
+})
+sparsity.add("fc3.*", cstorch.sparse.RigL(sparsity=0.5))
+
+model.apply(sparsity)
+optimizer.apply(sparsity)
+```
+The group sparsity algorithm will apply the sparsity algorithms to the parameters that match the filter. If a parameter name matches multiple filters, the first filter that matches will be used.
+
+**Parameters:**
+
+**groups** (_Dict__\[__str__,_ [_cerebras.pytorch.sparse.base.SparsityAlgorithm_](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.base.SparsityAlgorithm")_\]_) – A dictionary of filter -> algorithm pairs. See [`add`](#cerebras.pytorch.sparse.Group.add "cerebras.pytorch.sparse.Group.add") for more details.
+
+add(_filter_, _algorithm_)[\[source\]](../../../_modules/cerebras/pytorch/sparse/group.html#Group.add)[#](#cerebras.pytorch.sparse.Group.add "Permalink to this definition")
+
+Add a sparsity algorithm to the group.
+
+**Parameters:**
+
+* **filter** (_Union__\[__str__,_ _Callable__\[__\[__str__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _bool__\]__\]_) –
+
+    A string, list of strings, or callable that takes a parameter name and a parameter tensor and returns True if the parameter should be sparsified.
+
+    If one or more strings are provided, the filter will match if any of the strings match the parameter name. The strings may contain glob patterns, e.g. “fc1.*” will match all parameters in the “fc1” module.
+
+* **algorithm** ([_cerebras.pytorch.sparse.base.SparsityAlgorithm_](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.base.SparsityAlgorithm")) – An instance of [`SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.SparsityAlgorithm")
+
+
+`extend`**(_group_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/group.html#Group.extend)[#](#cerebras.pytorch.sparse.Group.extend "Permalink to this definition")
+
+Extend the group with the filters and algorithms from another group.
+
+**Parameters:**
+
+**group** ([_cerebras.pytorch.sparse.group.Group_](#cerebras.pytorch.sparse.Group "cerebras.pytorch.sparse.group.Group")) – An instance of [`Group`](#cerebras.pytorch.sparse.Group "cerebras.pytorch.sparse.Group")
+
+## Configuration routine[#](#configuration-routine "Permalink to this headline")
+
+The highest level entry-point to enabling sparsity is [`configure`](#cerebras.pytorch.sparse.configure "cerebras.pytorch.sparse.configure"), which will configure a sparsity algorithm and return it. The config dictionary follows the same form as given in Sparsity via YAML.
+
+*cerebras.pytorch.sparse.*`configure`**(_config_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/configure.html#configure)[#](#cerebras.pytorch.sparse.configure "Permalink to this definition")
+
+If `param_filter` is not provided, the following default param filter gets applied.
+
+**cerebras.pytorch.sparse.configure.**`default_sparse_param_filter(`_name_, _param_)[\[source\]](../../../_modules/cerebras/pytorch/sparse/configure.html#default_sparse_param_filter)[#](#cerebras.pytorch.sparse.configure.default_sparse_param_filter "Permalink to this definition")
+
+Return True if the given parameter should be sparse.
+
+Only returns true if the parameter is > 1D and not an embedding or norm or lm\_head or pe\_helper.
+
+**Parameters:**
+
+* **name** (_str_) – Name of the parameter
+
+* **param** (_torch.nn.Parameter_) – The parameter itself
+
+
+## Customizing Sparsity & Reference[#](#customizing-sparsity-reference "Permalink to this headline")
+
+Several building blocks can be inherited from or composed to help build new dynamic sparsity algorithms or customize the behavior of existing ones.
+
+### `cerebras.pytorch.sparse.init`[#](#module-cerebras.pytorch.sparse.init "Permalink to this headline")
+
+Sparsity mask initialization methods and helpers, invoked by [`SparsityAlgorithm`](#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.SparsityAlgorithm").
+
+**cerebras.pytorch.sparse.init.**`random`**(_p_, _sparsity_, _score_shaper=None_, _device=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/init.html#random)[#](#cerebras.pytorch.sparse.init.random "Permalink to this definition")
+
+Uniformly random sparsity pattern.
+
+A score tensor with the same shape as the parameter is randomly generated with values between 0.0 and 1.0. The mask is then created by taking the [`top-k`](#cerebras.pytorch.sparse.utils.make_mask_topk_sparsity "cerebras.pytorch.sparse.utils.make_mask_topk_sparsity") of the score tensor, where k is determined by the sparsity level.
+
+**cerebras.pytorch.sparse.init.**`topk`**(_p_, _sparsity_, _score_shaper=None_, _device=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/init.html#topk)[#](#cerebras.pytorch.sparse.init.topk "Permalink to this definition")
+
+Prune lowest magnitude weights.
+
+**cerebras.pytorch.sparse.init.**`from_zeros`**(_p_, _sparsity_, _score_shaper=None_, _device**=None_)[\[source\]](../../../_modules/cerebras/pytorch/sparse/init.html#from_zeros)[#](#cerebras.pytorch.sparse.init.from_zeros "Permalink to this definition")
+
+Any zeros currently in the weights represent pruned connections. NOTE: Doesn’t actualy honor the configured sparsity.
+
+**cerebras.pytorch.sparse.init.**`checkerboard`**(_p_, _sparsity_, _score_shaper=None_, _device=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/init.html#checkerboard)[#](#cerebras.pytorch.sparse.init.checkerboard "Permalink to this definition")
+
+Mostly for stress and performance testing, creates a sparsity mask that is maximally distributed in a checkerboard across the weight.
+
+**cerebras.pytorch.sparse.init**.`make\_init\_method`**(_init_method_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/init.html#make_init_method)[#](#cerebras.pytorch.sparse.init.make_init_method "Permalink to this definition")
+
+Returns the corresponding init method callable for the given init_method.
+
+**Parameters:**
+
+**init_method** (_Union__\[__str__,_ _Callable__\[__\[__torch.nn.Parameter__,_ _torch.FloatTensor__,_ _Optional__\[__cerebras.pytorch.sparse.utils.ScoreShaper__\]__,_ _Optional__\[_[_torch.device_](https://pytorch.org/docs/stable/tensor_attributes.html#torch.device "(in PyTorch v2.4)")_\]__\]__,_ _torch.BoolTensor__\]__\]_) –
+
+The method to use to initialize the sparsity mask. This can be a string or a callable. If a string, it must be one of
+
+> * ”[`random`](#cerebras.pytorch.sparse.init.random "cerebras.pytorch.sparse.init.random")”: Randomly initialize the mask
+>
+> * ”[`topk`](#cerebras.pytorch.sparse.init.topk "cerebras.pytorch.sparse.init.topk")”: prune the lowest magnitude weights
+>
+> * ”[`from_zeros`](#cerebras.pytorch.sparse.init.from_zeros "cerebras.pytorch.sparse.init.from_zeros")”: Any zeros in the weights represent pruned connections
+>
+> * ”[`checkerboard`](#cerebras.pytorch.sparse.init.checkerboard "cerebras.pytorch.sparse.init.checkerboard")”: Creates a sparsity mask that is maximally distributed across the weight
+>
+
+If a callable, it must have the signature:
+
+```
+def init_method(
+    param: torch.Tensor,
+    sparsity: float,
+    scope_shaper: Optional[ScoreShaper] = None,
+    device: Optional[torch.device] = None
+) -> torch.Tensor:
+```
+
+**where**
+
+* `param` is the original dense parameter
+
+* `sparsity` is the sparsity level
+
+* `scope_shaper` is an optional callable that can be used to reshape the mask
+
+* `device` is optionally the device to use to initialize the mask
+
+
+### `cerebras.pytorch.sparse.utils`[#](#cerebras-pytorch-sparse-utils "Permalink to this headline")
+
+**_class_ cerebras.pytorch.sparse.utils.**`HyperParameterSchedule`[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#HyperParameterSchedule)[#](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "Permalink to this definition")
+
+Base class for step-aware hyperparameters used in Sparsity Optimizers.
+
+**_abstract_** `compute`**(_step_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#HyperParameterSchedule.compute)[#](#cerebras.pytorch.sparse.utils.HyperParameterSchedule.compute "Permalink to this definition")
+
+Return a torch.Tensor with the value of the hyperparatmer at the given step.
+
+**Parameters:**
+
+**step** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – int64 tensor holding current step
+
+**Returns:** **torch.Tensor on the device of step with the value of the**
+
+hyperparamter
+**Return type:** [torch.Tensor](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")
+
+`update`**(_is\_update\_step_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#HyperParameterSchedule.update)[#](#cerebras.pytorch.sparse.utils.HyperParameterSchedule.update "Permalink to this definition")
+
+Given a boolean tensor indicating if this is an update step, update the internal state of this hyperparameter.
+
+**Parameters:** **is\_update\_step** ([_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")) – A boolean tensor indicating if this is an update step.
+
+visit_state(_fn_)[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#HyperParameterSchedule.visit_state)[#](#cerebras.pytorch.sparse.utils.HyperParameterSchedule.visit_state "Permalink to this definition")
+
+Applies a lambda to each stateful value.
+
+`get\_min\_max_end`**(_begin_, _end_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#HyperParameterSchedule.get_min_max_end)[#](#cerebras.pytorch.sparse.utils.HyperParameterSchedule.get_min_max_end "Permalink to this definition")
+
+Given a beginning and ending step, compute the statistics of this step-aware hyper parameter. Used for estimating memory requirements for dynamic sparsity.
+
+Return \[min, max, ending\]
+
+**_class_ cerebras.pytorch.sparse.utils.**`Constant`**(_value_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Constant)[#](#cerebras.pytorch.sparse.utils.Constant "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Constant at every step.
+
+**Parameters:**
+
+**value** (_float_) – The constant value of the hyperparameter
+
+**_class_ cerebras.pytorch.sparse.utils**`.Linear**`(_init_, _slope_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Linear)[#](#cerebras.pytorch.sparse.utils.Linear "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Linear change from an initial value.
+
+\\(y(step) = init + step \\cdot slope\\)
+
+**Parameters:**
+
+* **init** (_float_) – The initial value of the hyperparameter
+
+* **slope** (_float_) – The rate of change of the hyperparameter
+
+
+**_class_ cerebras.pytorch.sparse.utils.**`Exp`**(_init_, _gamma_, _final=1_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Exp)[#](#cerebras.pytorch.sparse.utils.Exp "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Exponential, approaching an asymptotic final value
+```
+\\(y(step) = final + (init-final) e^{step \\cdot gamma}\\)
+```
+`Parameters:`
+
+* **init** (_float_) – The initial value of the hyperparameter
+
+* **gamma** (_float_) – The rate of change of the hyperparameter
+
+* **final** (_float_) – The final value of the hyperparameter (Default: 1.0)
+
+
+**_class_ cerebras.pytorch.sparse.utils.**`Power`**(_init_, _beta_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Power)[#](#cerebras.pytorch.sparse.utils.Power "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Power law.
+
+\\(y(step) = init \\cdot beta^{step}\\)
+
+Parameters
+
+* **init** (_float_) – The initial value of the hyperparameter
+
+* **beta** (_float_) – The rate of change of the hyperparameter
+
+
+**_class_ cerebras.pytorch.sparse.utils.**`Cosine`**(_init_, _half_period_, _minimum=0.0_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Cosine)[#](#cerebras.pytorch.sparse.utils.Cosine "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Cosine function for oscilating between an initial (maximum) value down to a minimum and back to the maximum every period.
+
+\\(y(step) = o + a \\cdot \\cos(step \\cdot \\pi / half\\_period)\\), where \\(o = (init + minimum)/2\\) and \\(a = init - o\\).
+
+Parameters
+
+* **init** (_float_) – The initial value of the hyperparameter
+
+* **half_period** (_float_) – The number of steps to complete a full cycle
+
+* **minimum** (_float_) – The minimum value of the hyperparameter
+
+
+**_class_ cerebras.pytorch.sparse.utils.**`Cycling`**(_values_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Cycling)[#](#cerebras.pytorch.sparse.utils.Cycling "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Hyper parameter cycling between discrete values at update steps.
+
+**Parameters:**
+
+**values** (_List__\[__float__\]_) – A list of discrete values to cycle through
+
+**_class_ cerebras.pytorch.sparse.utils.**`Lambda`**(_fn_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#Lambda)[#](#cerebras.pytorch.sparse.utils.Lambda "Permalink to this definition")
+
+Bases: [`cerebras.pytorch.sparse.utils.HyperParameterSchedule`](#cerebras.pytorch.sparse.utils.HyperParameterSchedule "cerebras.pytorch.sparse.utils.HyperParameterSchedule")
+
+Invoke a user’s lambda function of step to obtain the hyper parameter.
+
+**Parameters:**
+
+**fn** (_Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – A lambda function that takes a step and returns a hyperparameter
+
+**cerebras.pytorch.sparse.utils.**`make\_hyperparam\_schedule`**(_schedule_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#make_hyperparam_schedule)[#](#cerebras.pytorch.sparse.utils.make_hyperparam_schedule "Permalink to this definition")
+
+Given some user specified configuration, construct a HyperParameterSchedule object that is step aware.
+
+**_class_ cerebras.pytorch.sparse.utils.**`FreqSchedule`**(_freq=1_, _start=0_, _stop=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#FreqSchedule)[#](#cerebras.pytorch.sparse.utils.FreqSchedule "Permalink to this definition")
+
+Bases: `cerebras.pytorch.sparse.utils.UpdateSchedule`
+
+When schedulding sparsity update steps on a regular interval, this class allows configuring the start and stop step in addition to the update frequency.
+
+**Parameters:**
+
+* **freq** – The frequency of steps at which to update the sparsity pattern (Default: 1)
+
+* **start** – The step at which to start updating the sparsity pattern (Default: 0)
+
+* **stop** – The step at which to stop updating the sparsity pattern (Default: None)
+
+
+**_class_ cerebras.pytorch.sparse.utils.**`ListSchedule`**(_steps_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#ListSchedule)[#](#cerebras.pytorch.sparse.utils.ListSchedule "Permalink to this definition")
+
+Bases: `cerebras.pytorch.sparse.utils.UpdateSchedule`
+
+When schedulding requires an irregular update cadence, explicit steps can be provided as a list.
+
+Parameters
+
+**steps** (_Union__\[__List__\[__int__\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]_) – A list of steps at which to update the sparsity pattern
+
+**cerebras.pytorch.sparse.utils.**`make\_update\_schedule`**(_update_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#make_update_schedule)[#](#cerebras.pytorch.sparse.utils.make_update_schedule "Permalink to this definition")
+
+Instantiate a supported schedule type.
+
+**_class_ cerebras.pytorch.sparse.utils.**`ScoreFlattener`[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#ScoreFlattener)[#](#cerebras.pytorch.sparse.utils.ScoreFlattener "Permalink to this definition")
+
+Bases: `cerebras.pytorch.sparse.utils.ScoreShaper`
+
+Default ScoreShaper which everything is flattened, providing a global competition for magnitude. If only sub-portions of the weight should compete for magnitude, provide an alternative shaper object.
+
+**_class_ cerebras.pytorch.sparse.utils.**`OutputGroupScoreShaper`**(_num_groups_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#OutputGroupScoreShaper)[#](#cerebras.pytorch.sparse.utils.OutputGroupScoreShaper "Permalink to this definition")
+
+Bases: `cerebras.pytorch.sparse.utils.ScoreShaper`
+
+A ScoreShaper interface when weights are logically shaped as \[num\_groups\*out\_per\_group, insize\], but need to be scored in a “balanced” fashion as \[num\_groups, out\_per\_group\*insize\]
+
+Examples
+
+```Bash
+>>> # Common score used for the following examples
+>>> score=torch.tensor([[1.0, 2.0],
+...                     [0.0, -1.0]])
+```
+```Bash
+
+>>> # 50% sparsity, drops the 2 lowest magnitude
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.5),
+... )
+tensor([[ True,  True],
+        [False, False]])
+```
+```Bash
+>>> # 50% sparsity, but computed rowwise
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.5),
+...     score_shaper=OutputGroupScoreShaper(num_groups=2)
+... )
+tensor([[False,  True],
+        [ True, False]])
+```
+
+**_class_ cerebras.pytorch.sparse.utils.**`InputGroupScoreShaper`**(_num_groups_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#InputGroupScoreShaper)[#](#cerebras.pytorch.sparse.utils.InputGroupScoreShaper "Permalink to this definition")
+
+Bases: `cerebras.pytorch.sparse.utils.ScoreShaper`
+
+A ScoreShaper interface when weights are logically shaped as \[outsize, num\_groups\*in\_per\_group\], but need to be scored in a “balanced” fashion as \[num\_groups, outsize\*in\_per\_group\]
+
+Examples
+
+```Bash
+
+>>> # Common score used for the following examples
+>>> score=torch.tensor([[1.0, 0.0],
+...                     [2.0, -1.0]])
+```
+
+```Bash
+
+>>> # 50% sparsity, drops the 2 lowest magnitude
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.5),
+... )
+tensor([[ True, False],
+        [ True, False]])
+```
+```Bash
+
+>>> # 50% sparsity, but computed columnwise
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.5),
+...     score_shaper=InputGroupScoreShaper(num_groups=2)
+... )
+tensor([[False,  True],
+        [ True, False]])
+```
+
+**cerebras.pytorch.sparse.utils.**`make\_mask\_drop_minimum`**(_score_, _mask_, _drop_fraction_, _score_shaper=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#make_mask_drop_minimum)[#](#cerebras.pytorch.sparse.utils.make_mask_drop_minimum "Permalink to this definition")
+
+Given a sparse `score` (with `mask`), return a new `torch.BoolTensor` the same shape as mask where a `drop_fraction` portion of the currently present (`mask==True`) connections are dropped (`mask==False`).
+
+The connections are dropped at positions corresponding to the lowest values of `score`.
+
+Equivalently, a subset of `mask` is returned corresponding to the highest magnitude elements of `score`.
+
+**Parameters:** * **score** (_torch.FloatTensor_) – Values used to evaluate which positions to drop
+
+* **mask** (_torch.BoolTensor_) – Current connections, same shape as `score`
+
+* **drop_fraction** (_torch.FloatTensor_) – What fraction of current connections to drop
+
+* **score_shaper** (_Optional__\[__Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]__\]_) – If given, `score` (and `mask`) will be interpreted as multiple independent subtensors. This can be used to ensure sparsity distribution is “balanced” or to produce blockwise sparsity. By default, `score` and `mask` are reinterpreted as 1D tensors, yielding completely unstructured sparsity.
+
+
+**Returns:** New mask that has existing connections dropped. No connections will be regrown (unless drop_fraction is negative).
+
+**Return type:** torch.BoolTensor
+
+**cerebras.pytorch.sparse.utils.**`make\_mask\_grow_maximum`**(_score_, _mask_, _sparsity_, _mask_nonzero=None_, _score_shaper=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#make_mask_grow_maximum)[#](#cerebras.pytorch.sparse.utils.make_mask_grow_maximum "Permalink to this definition")
+
+Given a sparse `score` (with `mask`), return a new torch.BoolTensor the same shape as `mask` where some currently pruned connections are regrown (from those positions with the highest score) such that the returned mask has the given target sparsity.
+
+If `mask` is already less sparse (has more connections) than the target, none are regrown and the original mask is returned as-is. That is, the given `mask` should be more sparse than the target sparsity.
+
+**Parameters:** * **score** (_torch.FloatTensor_) – Values used to evaluate which positions to regrow
+
+* **mask** (_torch.BoolTensor_) – Current connections, same shape as `score`
+
+* **drop_fraction** – What fraction of current connections to drop
+
+* **mask_nonzero** (_Optional__\[__torch.IntTensor__\]_) – If given, the number of nonzero elements currently in the mask, used to control the number of connections needing regrowth. If it is not given, will be computed as `mask.nonzero().int()`. Since `make_mask_grow_maximum` is often used in conjunction with `make_mask_drop_minimum`, this value is commonly available.
+
+* **score_shaper** (_Optional__\[__Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]__\]_) – If given, `score` (and `mask`) will be interpreted as multiple independent subtensors. This can be used to ensure sparsity distribution is “balanced” or to produce blockwise sparsity. By default, `score` and `mask` are reinterpreted as 1D tensors, yielding completely unstructured sparsity.
+
+
+**Returns:** New mask that has connections regrown necessary to reach (decrease to) the target sparsity.
+
+**Return type:** torch.BoolTensor
+
+**cerebras.pytorch.sparse.utils.**`make\_mask\_topk_sparsity`**(_score_, _sparsity_, _score_shaper=None_)**[\[source\]](../../../_modules/cerebras/pytorch/sparse/utils.html#make_mask_topk_sparsity)[#](#cerebras.pytorch.sparse.utils.make_mask_topk_sparsity "Permalink to this definition")
+
+Given a dense `score`, return a `torch.BoolTensor` which is True at positions corresponding to values in the top `k = (1-sparsity)*score.numel()` of `score`.
+
+**Parameters:**
+
+* **score** (_torch.FloatTensor_) – Values used to evaluate which positions to keep.
+
+* **sparsity** (_torch.FloatTensor_) – rankless tensor in range \[0,1\] controlling fraction of the resulting mask that will be pruned.
+
+* **score_shaper** (_Optional__\[__Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ _Tuple__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_,_ _Callable__\[__\[_[_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__,_ [_torch.Tensor_](https://pytorch.org/docs/stable/tensors.html#torch.Tensor "(in PyTorch v2.4)")_\]__\]__\]__\]_) – If given, `score` will be interpreted as multiple independent subtensors. This can be used to ensure sparsity distribution is “balanced” or to produce blockwise sparsity. By default, `score` is reinterpreted as a 1D tensor, yielding completely unstructured sparsity.
+
+
+**Returns:**
+
+`mask` with given `sparsity`, keeping only the highest values from `score`.
+
+**Return type:** torch.BoolTensor
+
+Examples
+
+```Bash
+>>> # Common score used for the following examples
+>>> score=torch.tensor([[1.0, 2.0],
+...                     [0.0, -1.0]])
+```
+```Bash
+>>> # 25% sparsity, drops the one lowest magnitude
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.25),
+... )
+tensor([[ True,  True],
+        [ True, False]])
+```
+```
+>>> # 75% sparsity, drops the 3 lowest magnitude
+>>> make_mask_topk_sparsity(
+...     score=score,
+...     sparsity=torch.tensor(0.75),
+... )
+tensor([[False,  True],
+        [False, False]])
+```
+

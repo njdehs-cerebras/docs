@@ -1,0 +1,107 @@
+---
+title: "Model Zoo Overview"
+description: "The [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo) is a comprehensive repository offering a range of deep learning models optimized for the Cerebras hardware."
+---
+
+This collection is tailored to showcase the best practices for constructing models that exploit the robust capabilities of the Cerebras Wafer-Scale Cluster. With a focus on models developed in PyTorch, the Model Zoo provides detailed instructions for deploying neural network jobs on the Cerebras hardware, guiding users through compiling, validating, and training processes.
+
+<Info>
+Note
+
+From Release 2.2.0 onwards, the Cerebras Model Zoo has been reorganized to enhance clarity and usability. Users should note that this reorganization has resulted in updated paths that may require adjustments in previous projects.
+</Info>
+
+## List of models
+
+The [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo) includes various models:
+
+|     |     |
+| --- | --- |
+| [BERT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/) | [BERT Classifier](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/classifier/) |
+| [BERT Named Entity Recognition](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/token_classifier/) | [BERT Summarization](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/extractive_summarization/) |
+| [Bloom](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bloom/) | [BTLM](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/btlm/) |
+| [DiT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/vision/dit/) | [DPO](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/dpo/) |
+| [DPR](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/dpr/) | [ESM-2](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/) |
+| [ESM-2 Classification](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/classification/) | [Falcon](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/falcon/) |
+| [GPT-2](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt2/) | [GPT-3](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gpt3/) |
+| [GPT-J](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gptj/) | [GPT-J(Fine-tuning) Summarization](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/gptj/continuous_pretraining) |
+| [JAIS](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/jais/) | [LLaMA, LLaMA-2, LLaMA-3](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/llama/) |
+| [Multimodal LLaVA](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/llava/) | [Multimodal Simple](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/multimodal_simple/) |
+| [Mistral](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mistral/) | [Mixtral](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mixtral/) |
+| [MPT](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mpt) | [MNIST (fully connected)](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//fc_mnist/pytorch) |
+| [RoBERTa](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/bert/) | [Starcoder](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/starcoder/) |
+| [T5](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/t5/) | [Transformer](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/transformer/) |
+
+To deploy your neural network jobs on the Cerebras Wafer-Scale Cluster, refer to the Quick start guide. This guide will walk you through the necessary steps to compile, validate, and train models from this Model Zoo using your preferred framework.
+
+## Model portability
+
+The [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo) facilitates model portability, providing tools that aid users in adapting existing models or crafting new ones using Cerebras APIs. This includes a spectrum of user stages, from beginners to advanced users, with varying levels of integration and customization:
+
+**Beginners**
+
+Start with Cerebras [data preprocessing tools](../port/prepare-data/dataloader_pt.html#dataloader-pt-mz) and use model implementations found in the [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo).
+
+**Intermediate Users**
+
+Intermediate users can integrate their data preprocessing methods by referring to the section [Create your own data preprocessing](../port/prepare-data/dataloader_pt.html#dataloader-pt-custom).
+
+**Advanced Users**
+
+Define your PyTorch model or code using the `run` function in the [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo) and [Supported Operations API](../port/define-model/modules.html#supported-ops).
+
+## Modules overview
+
+The Model Zoo’s structure is designed to be user-friendly, offering an organized array of models, datasets, tools, and utilities. Features include:
+
+Key features of the Cerebras Model Zoo include:
+
+* Reorganized models and datasets categorized by classes (**NLP**, **Vision**, **Multimodal**).
+
+* Registry APIs that enable querying of paths and supported combinations for each model.
+
+* Config classes designed to encapsulate parameters in YAML files, providing a clear class hierarchy and ensuring the validation of configurations used with models.
+
+* Enhanced data preprocessing tools for NLP models, significantly improving performance.
+
+
+With the reorganization, paths within the Model Zoo have been updated. Users should refer to the updated documentation to align their projects with the new structure.
+
+The structure of the Cerebras Model Zoo is illustrated in the diagram below:
+
+[![../../images/model-zoo/model_reorg.png](../../images/model-zoo/model_reorg.png)](../../images/model-zoo/model_reorg.png)
+
+Fig. 7 Cerebras Model Zoo structure[#](#id5 "Permalink to this image")
+
+## List of modules in the Model Zoo
+
+The principal modules in the Cerebras Model Zoo include:
+
+|     |     |
+| --- | --- |
+| Modules | Description |
+| [modelzoo.config_manager](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/config_manager/) | For configuration classes and base-level configuration. Know more about config classes here. |
+| [modelzoo.data](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data/) | Hosting data processing scripts and loaders for vision and NLP models |
+| [modelzoo.layers](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/layers/) | Containing layers and modules for model building and adaptation |
+| [modelzoo.losses](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/losses/) | Offering a variety of loss functions for different model training phases |
+| [modelzoo.models](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/) | Implementing a range of models across NLP, vision, and multimodal domains |
+| [modelzoo.data_preparation](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/) | Providing tools for data preprocessing stages |
+| [modelzoo.tools](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/tools/) | Containing utilities for model conversion and configuration |
+| [modelzoo.common](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/common/) | Hosting common utilities across different models |
+| [modelzoo.trainer](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/trainer/) | Trainer API that facilitates training and validating Model Zoo models |
+
+This redesign aims to streamline the user experience, making it easier for ML developers and researchers to explore, experiment, and develop solutions efficiently within the Cerebras ecosystem. The documentation further enriches this experience, offering examples and guidance on utilizing the Model Zoo’s Registry APIs and Config Classes, thereby enhancing the model development and deployment process.
+
+## Updated directory paths in Model Zoo as of R2.2.0
+
+The paths in the recently restructured Cerebras Model Zoo have been updated. Below is a table that compares the new paths with their corresponding older versions.
+
+| Old Path (relative to $MODELZOO) | New Path (relative to $MODELZOO) |
+| --- | --- |
+| common/pytorch/* <br />common/run_utils/* <br />common/model_utils/* | common/ |
+| common/pytorch/layers | layers/ |
+| common/pytorch/input<br />common/input | data/ |
+| models/nlp/* <br />vision/pytorch/* <br />multimodal/pytorch/* | models/nlp/* <br />models/vision/* <br />models/multimodal/* |
+| data_preparation/* | data_preparation/ |
+| common/pytorch/model_utils/ | tools/ |
+| fc_mnist/ | fc_mnist/ |

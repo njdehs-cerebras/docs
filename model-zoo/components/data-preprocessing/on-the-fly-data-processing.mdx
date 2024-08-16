@@ -1,0 +1,103 @@
+---
+title: "        On The Fly Data Processing       "
+---
+  
+On-the-Fly Data Processing[#](#on-the-fly-data-processing "Permalink to this headline")
+=======================================================================================
+
+A new `preprocessing` section in the `train_input` and `eval_input` sections of the YAML configuration file enables on-the-fly data preprocessing during training and/or evaluation. This reduces the turnaround time when running experiments on relatively smaller dataset. It also reduces storage requirements. The parameters for `preprocessing` are the same as those defined for data preprocessing. The same data processing algorithms and techniques used for offline data preprocessing are applied here. For multibox runs, sharding is based on the number of input files inside the input directory. The number of input files should be greater than or equal to the number of systems multiplied by the number of workers per system. Below are examples for pretraining and fine-tuning configurations.
+
+To enable this:
+
+Specify the data_processor as `RawDatasetProcessor` in the `train_input` section and import from `cerebras.modelzoo.data_preparation.raw_dataset_processor.RawDatasetProcessor`.
+
+Supported Modes[#](#supported-modes "Permalink to this headline")
+-----------------------------------------------------------------
+
+* **Pretraining**
+    
+* **Fine-tuning**
+    
+<Note>
+Note
+
+Shuffling is not yet supported.
+
+</Note>
+Pretraining Example[#](#pretraining-example "Permalink to this headline")
+-------------------------------------------------------------------------
+
+The following configuration is for on-the-fly data preprocessing for pretraining:
+```
+train_input:
+    preprocessing:
+        data_processor: "RawDatasetProcessor"
+        processing:
+            custom_tokenizer: gpt2tokenizer
+            tokenizer_params:
+                encoder_file: /path/to/gpt2-encoder.json
+                vocab_file: /path/to/gpt2-vocab.bpe
+            sep_token: None
+            batch_size: 4
+            max_seq_length: 256
+            seed: 0
+            read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks:text_read_hook"
+            read_hook_kwargs:
+                data_keys:
+                    text_key: "text"
+        dataset:
+            data_keys:
+                jsonl_key: "text"
+        setup:
+            data:
+                source: /path/to/text_data
+                type: local
+            mode: pretraining
+            processes: 1
+```
+
+Fine-Tuning Example[#](#fine-tuning-example "Permalink to this headline")
+-------------------------------------------------------------------------
+
+The following configuration is for on-the-fly data preprocessing for fine-tuning:
+```
+train_input:
+    preprocessing:
+        processing:
+            data_processor: "RawDatasetProcessor"
+            custom_tokenizer: gpt2tokenizer
+            tokenizer_params:
+                encoder_file: /path/to/gpt2-encoder.json
+                vocab_file: /path/to/gpt2-vocab.bpe
+            sep_token: None
+            batch_size: 4
+            max_seq_length: 2048
+            seed: 0
+            read_hook: "cerebras.modelzoo.data_preparation.data_preprocessing.hooks:prompt_completion_text_read_hook"
+            read_hook_kwargs:
+                data_keys:
+                    prompt_key: "prompt"
+                    completion_key: "completion"
+        dataset:
+            prompt_key: "prompt"
+            completion_key: "completion"
+        setup:
+            data:
+                source: /path/to/sum_data
+                type: local
+            mode: finetuning
+            processes: 1
+
+```
+
+Configuration[#](#configuration "Permalink to this headline")
+-------------------------------------------------------------
+
+**preprocessing**:
+
+> * **processing**: See [Setting Up the Environment](../../../port/prepare-data/data_preprocessing.html#handling-setup-params)
+>     
+> * **dataset**: See [Modes and Dataset Parameters](../../../port/prepare-data/data_preprocessing.html#modes-section)
+>     
+> * **setup**: See [Handling Input Data](../../../port/prepare-data/data_preprocessing.html#handling-input-data)
+>

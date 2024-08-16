@@ -1,0 +1,71 @@
+---
+title: "Gradient Scaling"
+description: "Gradient scaling can improve convergence when training models with float16 gradients by minimizing gradient underflow. "
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+Please see the [PyTorch docs](https://pytorch.org/docs/stable/amp.html#gradient-scaling) for a more detailed explanation.
+
+To facilitate gradient scaling, we introduce a Cerebras-compliant implementation of the AMP GradScaler class found in core PyTorch at [`cerebras.pytorch.amp.GradScaler`](../api/cerebras_pytorch/amp.html#cerebras.pytorch.amp.GradScaler "cerebras.pytorch.amp.GradScaler"). For example:
+
+```Bash
+grad_scaler = cstorch.amp.GradScaler(loss_scale="dynamic")
+```
+
+It is designed to be as similar as possible to the API of the CUDA AMP GradScaler class.
+
+Its usage is identical to the usage of the CUDA AMP GradScaler:
+
+```Bash
+loss: torch.Tensor = ...
+
+optimizer.zero_grad()
+# Scale the loss before calling the backward pass
+grad_scaler.scale(loss).backward()
+
+# Unscales the gradients of the optimizer's assigned params in-place
+# to facilitate things like gradient clipping
+grad_scaler.unscale_(optimizer)
+
+# (Optional) Global gradient clipping
+torch.nn.utils.clip_grad_norm_(
+    model.parameters(),
+    1.0,  # max gradient norm
+)
+
+# Step the optimizer using the grad scaler
+grad_scaler.step(optimizer)
+
+# update the grad scaler once all optimizers have been stepped
+grad_scaler.update()
+```
+
+### Using automatic mixed precision with `cbfloat16` or `bfloat16`[#](#using-automatic-mixed-precision-with-cbfloat16-or-bfloat16 "Permalink to this headline")
+
+By default, automatic mixed precision uses `float16`. If you want to use `cbfloat16` or `bfloat16` instead of `float16`, call [`cerebras.pytorch.amp.set_half_dtype`](../api/cerebras_pytorch/amp.html#cerebras.pytorch.amp.set_half_dtype "cerebras.pytorch.amp.set_half_dtype"), e.g.
+
+```Bash
+cstorch.amp.set_half_dtype("cbfloat16")
+```
+
+### `cerebras.pytorch.amp.optimizer_step`[#](#cerebras-pytorch-amp-optimizer-step "Permalink to this headline")
+
+We introduce an optional helper function [`cerebras.pytorch.amp.optimizer_step`](../api/cerebras_pytorch/amp.html#cerebras.pytorch.amp.optimizer_step "cerebras.pytorch.amp.optimizer_step") to take care of the details of gradient scaling
+
+```Bash
+cstorch.amp.optimizer_step(
+    loss,
+    optimizer,
+    grad_scaler,
+    max_gradient_norm=...,  # optionally perform gradient clipping by norm
+    max_gradient_val=...,  # optional perform gradient clipping by value
+)
+```
+<Info>
+Note
+
+It is useful for quickly constructing typical examples that use gradient scaling without needing to type up the details or worry about whether the grad scaler is being used correctly.
+
+This is entirely optional and only covers the basic gradient scaler use case. For more complicated use cases, the grad scaler object must be used explicitly.
+</Info>

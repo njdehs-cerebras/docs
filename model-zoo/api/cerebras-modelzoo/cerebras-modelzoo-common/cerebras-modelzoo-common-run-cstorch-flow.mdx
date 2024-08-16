@@ -1,0 +1,27 @@
+---
+title: "          Cerebras Modelzoo Common Run Cstorch Flow         "
+---
+  
+
+Generic run scripts build using the cstorch API.
+
+Functions
+
+|     |     |
+| --- | --- |  
+| [`compute_grad_norm`](cerebras.modelzoo.common.run_cstorch_flow.compute_grad_norm.html#cerebras.modelzoo.common.run_cstorch_flow.compute_grad_norm "cerebras.modelzoo.common.run_cstorch_flow.compute_grad_norm") | Compute the model wise and per layer norm of the gradients. |
+| [`compute_params_norm`](cerebras.modelzoo.common.run_cstorch_flow.compute_params_norm.html#cerebras.modelzoo.common.run_cstorch_flow.compute_params_norm "cerebras.modelzoo.common.run_cstorch_flow.compute_params_norm") | Compute the model wise norm of the parameters. |
+| [`get_cluster_config`](cerebras.modelzoo.common.run_cstorch_flow.get_cluster_config.html#cerebras.modelzoo.common.run_cstorch_flow.get_cluster_config "cerebras.modelzoo.common.run_cstorch_flow.get_cluster_config") | Sets up CS cluster config for the run. |
+| [`get_model_checkpoint`](cerebras.modelzoo.common.run_cstorch_flow.get_model_checkpoint.html#cerebras.modelzoo.common.run_cstorch_flow.get_model_checkpoint "cerebras.modelzoo.common.run_cstorch_flow.get_model_checkpoint") | Get the path to the model checkpoint, if any. |
+| [`log_input_summary`](cerebras.modelzoo.common.run_cstorch_flow.log_input_summary.html#cerebras.modelzoo.common.run_cstorch_flow.log_input_summary "cerebras.modelzoo.common.run_cstorch_flow.log_input_summary") | Log the input tensors to tensorboard. |
+| [`optimizer_step_with_summaries`](cerebras.modelzoo.common.run_cstorch_flow.optimizer_step_with_summaries.html#cerebras.modelzoo.common.run_cstorch_flow.optimizer_step_with_summaries "cerebras.modelzoo.common.run_cstorch_flow.optimizer_step_with_summaries") | Customized equivalent to cstorch.amp.optimizer_step additionally featuring grad norm summaries. |
+| [`run_cstorch_eval`](cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_eval.html#cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_eval "cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_eval") | Runs the evaluation workflow built using the cstorch API. |
+| [`run_cstorch_flow`](cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_flow.html#cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_flow "cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_flow") | Set up the cstorch run and call the appropriate helper based on the mode. |
+| [`run_cstorch_train`](cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_train.html#cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_train "cerebras.modelzoo.common.run_cstorch_flow.run_cstorch_train") | Runs the training workflow built using the cstorch API. |
+| [`setup_hf_env_vars`](cerebras.modelzoo.common.run_cstorch_flow.setup_hf_env_vars.html#cerebras.modelzoo.common.run_cstorch_flow.setup_hf_env_vars "cerebras.modelzoo.common.run_cstorch_flow.setup_hf_env_vars") |     |
+
+Classes
+
+|     |     |
+| --- | --- |  
+| [`GradScalerParams`](cerebras.modelzoo.common.run_cstorch_flow.GradScalerParams.html#cerebras.modelzoo.common.run_cstorch_flow.GradScalerParams "cerebras.modelzoo.common.run_cstorch_flow.GradScalerParams") | Dataclass for parsing grad scaler params from optimizer params. |

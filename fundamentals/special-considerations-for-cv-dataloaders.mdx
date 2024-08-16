@@ -1,0 +1,24 @@
+---
+title: "Special Considerations For Cv Dataloaders"
+description: "ML Training is often bottenecked at the dataloader stage."
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+In the Cerebras Wafer-Scale Cluster, in order to improve dataloading speeds, we can avoid network dataset streaming via the `create_worker_cache` function. This enables caching of a dataset to local SSD, which has significantly faster read speeds versus network.
+
+## Procedure[#](#procedure "Permalink to this headline")
+
+To enable worker_cache for a new dataloader, we need to ensure that data directory is added to the worker_cache on the worker node. The utility function `create_worker_cache` allows users to cache the directory on the worker node. It looks at the src directory, and caches this directory on the worker_cache if it doesn’t exist and there is enough space on the cache (shouldn’t exceed 80% after the directory is cached). It returns the path to the directory on the worker_cache.
+
+Users just need to replace the returned directory with the original `data_dir` in the dataloader.
+
+Users just need to replace the returned directory with the original <code class="docutils literal notranslate"><span class="pre">data_dir</span></code> in the dataloader.
+
+<Info>
+
+Note
+
+The `create_worker_cache` should be called only for the worker task.
+
+</Info>

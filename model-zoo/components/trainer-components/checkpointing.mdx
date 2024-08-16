@@ -1,0 +1,268 @@
+---
+title: "        Checkpointing       "
+---
+  
+On this page, you will learn about how to configure the checkpointing behavior of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") with a [`Checkpoint`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint") object. By the end you should have a cursory understanding on how to use the [`Checkpoint`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint") class in conjunction with the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+* You must have installed the Cerebras Model Zoo (click [here](../../../Getting-started/Setup-installation.html#setup-installation) if you haven’t).
+    
+* You must be familiar with the [Trainer](../../trainer-overview.html#trainer-overview).
+    
+
+Configure Trainer Checkpoint Behavior[#](#configure-trainer-checkpoint-behavior "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------
+
+Primary checkpointing functionality is done using the [`Checkpoint`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint") core callback. You can control the cadence at which you save checkpoints, the naming convention of checkpoints saved, and various other useful functionalities. For details on all options, see [`Checkpoint`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint").
+
+An example of a checkpoint configuration is shown here:
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    checkpoint:
+      steps: 100
+      save_initial_checkpoint: True
+      checkpoint_name: "checkpoint_{step}.mdl"
+    ...
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Checkpoint
+
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+        save_initial_checkpoint=True,
+        checkpoint_name="checkpoint_{step}.mdl",
+    ),
+)
+```
+</CodeGroup>
+
+In this example, you will save a checkpoint every 100 train steps. You will also save an initial checkpoint prior to training. The saved checkpoints will be named:
+```
+["checkpoint_0.mdl", "checkpoint_100.mdl", "checkpoint_200.mdl", ...]
+
+```
+
+### Automatically loading from the most recent checkpoint[#](#automatically-loading-from-the-most-recent-checkpoint "Permalink to this headline")
+
+The `autoload_last_checkpoint` can be used to autoload the most recent checkpoint from `model_dir`. If you have the following checkpoints in `model_dir`:
+```
+["checkpoint_0.mdl", ..., "checkpoint_19900.mdl", "checkpoint_20000.mdl"]
+
+```
+
+If you enable `autoload_last_checkpoint` like in the example below, the run will automatically load from the checkpoint with the largest step value, in this case `"checkpoint_20000.mdl"`.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    checkpoint:
+      steps: 100
+      autoload_last_checkpoint: True
+    ...
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Checkpoint
+
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+        autoload_last_checkpoint=True
+    ),
+)
+```
+</CodeGroup>
+
+### Checkpoint loading strictness[#](#checkpoint-loading-strictness "Permalink to this headline")
+
+The `disable_strict_checkpoint_loading` option can be used to loosen the validation done when loading a checkpoint. If True, the model will not raise an error if the checkpoint contains keys that are not present in the model.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+  checkpoint:
+  steps:  100
+  disable\_strict\_checkpoint_loading:  True
+  ...
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Checkpoint
+
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+        disable_strict_checkpoint_loading=True
+    ),
+)
+```
+</CodeGroup>
+
+Selective Checkpoint State Saving[#](#selective-checkpoint-state-saving "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------
+
+You can specify which individual checkpoint states to be saved using the [`SaveCheckpointState`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.SaveCheckpointState "cerebras.modelzoo.trainer.callbacks.SaveCheckpointState") callback. The [`SaveCheckpointState`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.SaveCheckpointState "cerebras.modelzoo.trainer.callbacks.SaveCheckpointState") callback allows us to: - Save an alternative checkpoint with a subset of states to conserve storage space. - Can be used to bypass [checkpoint deletion policies](#checkpoint-deletion-policy).
+
+In the example below, you will save an alternative checkpoint every 5 checkpoints saved (500 steps) that only contains the `"model"` state.
+
+<Note>
+Note
+
+`k` in [`SaveCheckpointState`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.SaveCheckpointState "cerebras.modelzoo.trainer.callbacks.SaveCheckpointState") refers to taking an alterative checkpoint every `k` checkpoint steps, not every `k` steps.
+</Note>
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    checkpoint:
+      steps: 100
+    callbacks:
+      - SaveCheckpointState:
+          k: 5
+          checkpoint_states: "model"
+    ...
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    SaveCheckpointState,
+)
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+    ),
+    callbacks=[
+        SaveCheckpointState(k=5, checkpoint_states="model"),
+    ],
+)
+```
+</CodeGroup>
+
+Selective Checkpoint State Loading[#](#selective-checkpoint-state-loading "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------
+
+You can specify which individual checkpoint states to be loaded using the [`LoadCheckpointStates`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoadCheckpointStates "cerebras.modelzoo.trainer.callbacks.LoadCheckpointStates") callback. The [`LoadCheckpointStates`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoadCheckpointStates "cerebras.modelzoo.trainer.callbacks.LoadCheckpointStates") callback allows us to:
+
+* Perform [fine-tuning](../../core_workflows/finetuning.html#wsc-modelzoo-fine-tuning), by loading the model state but starting the optimizer state from scratch and the global step from 0.
+    
+
+In the example below, you configure the Trainer to load only the `"model"` state from any checkpoint.
+
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    checkpoint:
+      steps: 100
+    callbacks:
+      - LoadCheckpointStates:
+          load_checkpoint_states: "model"
+    ...
+
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    LoadCheckpointStates,
+)
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+    ),
+    callbacks=[
+        LoadCheckpointStates(load_checkpoint_states="model"),
+    ],
+)
+```
+</CodeGroup>
+
+Checkpoint Deletion Policy[#](#checkpoint-deletion-policy "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+For long runs with limited storage space, it is important to have a way to control how checkpoints are deleted or retained. To control the number of checkpoints retained, use [`KeepNCheckpoints`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints "cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints"). The [`KeepNCheckpoints`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints "cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints") callback allows us to: - Constrain the amount of storage space checkpoints take up while still allowing for recent restart points in case a run is interrupted. - If you want to still keep long-term checkpoints over a larger cadence for validation purposes, checkpoints generated by [`SaveCheckpointState`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.SaveCheckpointState "cerebras.modelzoo.trainer.callbacks.SaveCheckpointState") are ignored by [`KeepNCheckpoints`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints "cerebras.modelzoo.trainer.callbacks.KeepNCheckpoints") (see [Selective Checkpoint State Saving](#selective-checkpoint-state-saving) for more details).
+
+In the example below, only the 5 most recent checkpoints will be retained.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    checkpoint:
+      steps: 100
+    callbacks:
+      - KeepNCheckpoints:
+          n: 5
+    ...
+
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    Checkpoint,
+    LoadCheckpointStates,
+)
+trainer = Trainer(
+    ...,
+    checkpoint=Checkpoint(
+        steps=100,
+    ),
+    callbacks=[
+        KeepNCheckpoints(n=5),
+    ],
+)
+
+```
+</CodeGroup>
+What’s next[#](#what-s-next "Permalink to this headline")
+---------------------------------------------------------
+
+To learn how to use advanced checkpointing to do a fine-tuning run, see see [Fine-Tuning with Validation](../../core_workflows/finetuning.html#wsc-modelzoo-fine-tuning).
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn about how you can configure a [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instance using a YAML configuration file, you can check out:
+
+* Trainer YAML Overview
+    
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

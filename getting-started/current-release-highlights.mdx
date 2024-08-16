@@ -1,0 +1,89 @@
+---
+title: "Current Release Highlights"
+description: "Release 2.3.0 now supports Mixture of Experts (MoE) models in Model Zoo."
+---
+
+## New Model Support
+
+### Beta Support for Mixture of Experts (MoE)
+
+ This new feature allows for significantly higher quality and faster inferencing in various AI applications. MoE models leverage a mixture of specialized expert networks to improve performance and efficiency, particularly in large-scale text generation and other complex tasks. This update ensures that users can take advantage of state-of-the-art (SOTA) techniques to enhance their AI models’ capabilities and outputs.
+
+### New Model Zoo Models
+
+We are excited to announce the following models with training scripts and configuration files have been added to Model Zoo:
+
+* [Mixtral 8x7B and 8x22B](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/mixtral/): Mistral AI’s latest Mixtral models are now available as a Beta feature. Mixtral models incorporate Sparse Mixture of Experts (SMoE) for significantly higher quality and faster inferencing in text generation.
+
+* [Multimodal Simple](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/multimodal/multimodal_simple/): A new model enhancing multimodal capabilities for processing multiple images intermingled with text, significantly improving model flexibility and performance. This release also includes improved checkpoint conversion scripts.
+
+* [ESM-2](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/) and [ESM-2 Classification](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/esm2/classification/): ESM-2 (Evolutionary Scale Modeling 2) is a SOTA model trained on a masked language modeling objective for predicting protein sequences. This release also includes ESM Classification, a specialized model for predicting if a given protein sequence lives inside or outside a cell, as well as other protein functions and characteristics.
+
+
+## Key Enhancements
+
+### Enhanced API for Training and Validation
+
+Release 2.3.0 introduces an entirely new and improved API for training and validating models through Cerebras Model Zoo. Through the new [Trainer class](../Model-zoo/trainer-overview.html) and a new [YAML configuration format](../Model-zoo/yaml/index.html), you can now do complex training and validation runs and easily customize the behavior. Some notable new capabilities enabled through this new workflow include:
+
+* Ability to run [upstream pretraining](../Model-zoo/core_workflows/pretrain.html) and downstream validation (through [Eleuther Evaluation Harness](../Model-zoo/core_workflows/downstream_eeh.html) and [BigCode Evaluation Harness](../Model-zoo/core_workflows/downstream_bceh.html)) interleaved with training.
+
+* Ability to specify and run hyperparameter scheduling all from a single YAML configuration.
+
+* Ability to combine a [multi-phase training](../Model-zoo/core_workflows/multi_phase.html) with different batch sizes or max sequence lengths in a single config file or python script.
+
+* Ability to extend the Trainer functionality through [callbacks](../Model-zoo/Components/trainer/callbacks.html), all specifiable within the new YAML configuration format. Callbacks allow you to inject functionality into the Trainer to modify the training loop as you see fit. This enables adding Alerts or writing custom stopping criteria that fit your needs.
+
+* Ability to flexibly configure [checkpoint](../Model-zoo/Components/trainer/checkpoint.html) management with auto-cleanup policies, customize the loading behavior, and more.
+
+
+### Improved Data Preprocessing framework
+
+In Release 2.3.0, we have significantly enhanced our [data preprocessing](../Model-zoo/Components/Data-preprocessing/data_preprocessing.html) framework to be more flexible and extensible.
+
+* Ability to easily format their [input dataset](../Model-zoo/Components/Data-preprocessing/input_data_configuration.html) (for prompt-completion, or chat-style datasets) using [pre-built hooks](../Model-zoo/Components/Data-preprocessing/read_hooks.html) or by [writing custom hooks](../Model-zoo/Components/Data-preprocessing/read_hooks.html).
+
+* Ability to create [custom tokenizers](../Model-zoo/Components/Data-preprocessing/custom_tokenizer.html) and [token generators](../Model-zoo/Components/Data-preprocessing/token_generator.html) to preprocess data for a variety of training objectives and new models.
+
+* We have expanded our capabilities to preprocess datasets from Hugging Face, while still supporting local datasets as in previous versions.
+
+* Ability to easily preprocess [Hugging Face datasets](../Model-zoo/Components/hdf5_preprocessing.html).
+
+
+### Enhanced μP Configuration Interface
+
+Release 2.3.0 introduces a new interface for [configuring models](../Model-zoo/tutorials/mup/mup_docs.html) in μP (Maximal Update Parametrization) through Model Zoo. μP is a technique that enables faster and more stable training of large models by adjusting how different parts of the network are updated during learning. Notable changes to the way we handle and support μP include:
+
+* Beta support for three new models: GPTJ, BERT Pretrain, and T5.
+
+* The ability to specify the dimensions of the proxy model in the parameters of the target model for automatic initializer, weight, and learning rate scaling.
+
+* Additional tunable hyperparameters designed to assist with stabilizing output and attention logits.
+
+* Finer-grain control of layer-specific learning rate scaling through the addition of supported learning rate adjustment groups in μP models.
+
+* Backward compatibility with previous μP configurations, along with checkpoint and configuration conversion tools to update your models to the new interface.
+
+
+### Config Class improvements
+
+All new models, including multimodal models, now have [config classes](../Model-zoo/Components/model_zoo_config_classes.html). Config classes help prevent errors and make code easier to manage by defining expected data types and constraints, providing a clear and organized way to handle configuration settings.
+
+### Performance Boost GPT Models
+
+In Release 2.3.0, we’ve increased model FLOPs utilization (MFU) for GPT class models like [LLaMA](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/llama/) and [JAIS](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo//models/nlp/jais/) with extended sequence lengths. MFU is the best way to measure LLM training efficiency, and looks at how much of the maximum possible computing power is used for only the necessary training tasks. These models now experience:
+
+Experience a significant performance enhancement for GPT class models with extended sequence lengths.
+
+* 3% improvement in MFU and training time for 32K Maximum Sequence Length (MSL)
+
+* 8% improvement in MFU and training time for 128K Maximum Sequence Length (MSL)
+
+
+### CBfloat16 (CB16) support for Input Activations and Multimodal models
+
+The CB16 data format significantly accelerates model performance on the Cerebras platform. In R2.3.0, CB16 can be used for input activations, enabling cb16 for multimodal models like LlaVa 1.5.
+
+### Flexible Batch Size configuration
+
+In version 2.3.0, users can now specify an arbitrary global batch size without needing it to be divisible by the number of systems in a multi-system training run. Our platform automatically selects appropriate micro-batch sizes to ensure an even distribution across CS-X systems, eliminating the need to change the global batch size when scaling the number of systems up or down. Note that while batch sizes are no longer constrained, certain values can still result in low samples/second performance. Click [here](../Model-zoo/tutorials/microbatching.html) to learn more!

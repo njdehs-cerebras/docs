@@ -1,0 +1,42 @@
+---
+title: "        Visualization And Debugging       "
+---
+  
+Visualization and Debugging[#](#visualization-and-debugging "Permalink to this headline")
+=========================================================================================
+
+We have introduced a new utility called **TokenFlow**, written in Flask, HTML/CSS, and JavaScript. This tool visualizes preprocessed data efficiently and in an organized fashion, allowing for easy debugging and error-catching of the output data. It can handle both text-only and multimodal datasets, visualizing images if available to verify dataset integrity.
+
+[![Alternative text](../../../../images/tokenflow.png)](../../../../_images/tokenflow.png)
+
+How To Use?[#](#how-to-use "Permalink to this headline")
+--------------------------------------------------------
+```
+python3 launch_tokenflow.py --output_dir <directory/of/file(s)>
+
+```
+
+Arguments[#](#arguments "Permalink to this headline")
+-----------------------------------------------------
+
+* `output_dir`: Contains the file(s) that are to be viewed in the GUI. _\[Required\]_
+    
+* `data_params:` Location of the `data_params.json` file for the preprocessed dataset. _\[Optional\]_
+    
+* `port:` In case the user wants to specify a different port for the flask server. _\[Optional, default=5000\]_
+    
+
+It is assumed that `data_params.json` is present in the same directory as `output_dir`. If not, we expect it to be passed using `--data_params </location/of/data_params.json>`.
+
+All the `.h5` files pulled from the `output_dir` are displayed in the dropdown, which are loaded when clicked. For each loaded file, all the available sequences are present in the second dropdown, which are also loaded when clicked.
+
+Visualized Information[#](#visualized-information "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+Given the dataset, TokenFlow displays the associated metadata, present in `data_params.json`, in the left column of the page. For each `.h5` file, TokenFlow also calculates the Top 5 tokens that occur most frequently accross all sequences in that file.
+
+On the right column, there are 4 sections. `input_strings` and `label_strings` are converted tokens from `input_ids` and `labels` respectively. The tokens in the string sections are highlighted in green when Loss weight is greater than zero for that specific token. Similarly, the tokens are highlighted in red when their Attention mask is set to zero.
+
+Hovering over any token in all 4 sections highlights their corresponding token in all the other sections. This helps in checking if the mapping of an id to token, or an input to its label is correct.
+
+Additionally, the hover opens up a popup. which displays additional information like the Position IDs and the token’s idx in MSL. Also, in the case of a multimodal dataset, hovering over the image pad tokens also displays the corresponding image in the popup itself.

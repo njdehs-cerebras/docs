@@ -1,0 +1,156 @@
+---
+title: "        Loop       "
+---
+  
+This page will cover the two [`LoopCallback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoopCallback "cerebras.modelzoo.trainer.callbacks.LoopCallback") subclasses and how to configure the training/validation loop of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") by using one of them.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure to have read through [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models. In this document, you will be using the tools and configurations outlined in those pages.
+
+Configure the `loop`[#](#configure-the-loop "Permalink to this headline")
+-------------------------------------------------------------------------
+
+The `loop` argument allows you to manage the training and/or validation loop. The [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") takes in a [`LoopCallback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoopCallback "cerebras.modelzoo.trainer.callbacks.LoopCallback") subclass that is used to configure loop options such as number of steps/epochs to run for and how often to run validation. A [`LoopCallback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoopCallback "cerebras.modelzoo.trainer.callbacks.LoopCallback") cannot be instantiated directly, [`TrainingLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") or [`ValidationLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ValidationLoop "cerebras.modelzoo.trainer.callbacks.ValidationLoop") must be used instead.
+
+### Configure for training[#](#configure-for-training "Permalink to this headline")
+
+The [`TrainingLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") callback is used to configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to run a `fit` task. The majority of loop arguments reference `step`. The `step` is simply a batch of training/validation data.
+
+**Arguments**
+
+* `num_steps`: The total number of steps to train for.
+    
+* `max_steps`: The maximum number of global steps to train for. `num_steps` supersedes this.
+    
+* `num_epochs`: The number of epochs to train for. Mutually exclusive with `num_steps`.
+    
+* `steps_per_epoch`: The number of steps to train for in each epoch.
+    
+* `eval_frequency`: The frequency at which validation is performed. See [`LoopCallback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoopCallback "cerebras.modelzoo.trainer.callbacks.LoopCallback") for more details on options.
+    
+* `eval_steps`: The number of validation steps to perform.
+    
+* `grad_accum_steps`: The number of steps to accumulate gradients before performing and optimizer step. Only relevant for `"CPU"` and `"GPU"` runs.
+    
+
+Note
+
+If you plan on running any kind of training (calling `fit`), you must use a [`TrainingLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop"). If you plan on running **only** validation, you may use a [`ValidationLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ValidationLoop "cerebras.modelzoo.trainer.callbacks.ValidationLoop").
+
+In the example below, we configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to run for 1000 steps and run validation for 50 steps every 100 training steps.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    loop:
+      num_steps: 1000
+      eval_steps: 50
+      eval_frequency: 100
+    ...
+  fit:
+    ...
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import TrainingLoop
+
+trainer = Trainer(
+    ...,
+    loop=TrainingLoop(
+        num_steps=1000,
+        eval_steps=50,
+        eval_frequency=100,
+    ),
+    ...,
+)
+
+trainer.fit(...)
+```
+</CodeGroup>
+
+### Configure for Validation[#](#configure-for-validation "Permalink to this headline")
+
+The [`ValidationLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ValidationLoop "cerebras.modelzoo.trainer.callbacks.ValidationLoop") callback is used to configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to run a `validate` or `validate_all` task.
+
+**Arguments**
+
+* `eval_steps`: The number of validation steps to perform.
+    
+* `hook`: The base name of the validation hooks to run. Used to extend validation functionality by implementing custom validation callbacks. See `EleutherEvalHarnessLoop` for an example. Defaults to `"validate"`.
+    
+<Note>
+Note
+
+[`ValidationLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ValidationLoop "cerebras.modelzoo.trainer.callbacks.ValidationLoop") can only be used if you plan on running **only** validation tasks (calling `validate` or `validate_all`). Otherwise, use [`TrainingLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop").
+</Note>
+In the example below, we configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to run validation for 100 steps. We do not need to set any training related options such as `num_steps` or `eval_frequency` since we are only running validation.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    loop:
+      eval_frequency: 100
+    ...
+  validate:
+    ...
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import ValidationLoop
+
+trainer = Trainer(
+    ...,
+    loop=ValidationLoop(
+        eval_frequency=100,
+    ),
+    ...,
+)
+
+trainer.validate(...)
+
+```
+</CodeGroup>
+
+<Note>
+Note
+
+[`TrainingLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") supports both training and validation because it instantiates a [`ValidationLoop`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.ValidationLoop "cerebras.modelzoo.trainer.callbacks.ValidationLoop") on initalization.
+</Note>
+<Note>
+Note
+
+Everytime validation runs, we are restarting the validation dataloaders from scratch. This is not the same for training where we resume training from the where we left off in the training dataloader.
+</Note>
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That covers how to configure the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") for training and/or validation. You should now understand how to use a [`LoopCallback`](../../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.LoopCallback "cerebras.modelzoo.trainer.callbacks.LoopCallback") subclass to configure training loop parameters such as number of steps and validation frequency.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

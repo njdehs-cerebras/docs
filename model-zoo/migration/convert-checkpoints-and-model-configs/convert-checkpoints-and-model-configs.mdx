@@ -1,0 +1,409 @@
+---
+title: "      Convert Checkpoints And Model Configs     "
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+We have designed our deep learning models within the Cerebras Model Zoo with a strong emphasis on versatility, enabling users to effortlessly make architectural adjustments using a single configuration file. To seamlessly convert model implementations between the Cerebras Model Zoo and other external code repositories, such as Hugging Face, we provide the **Checkpoint and Config Converter** \- `convert_checkpoint` tool.
+
+Use cases[#](#use-cases "Permalink to this headline")
+-----------------------------------------------------
+
+Here are some practical applications of this tool:
+
+* Seamlessly adapt a pretrained checkpoint obtained from an external code repository into a Cerebras Model Zoo-compatible configuration and checkpoint. This directly enables the continuation of training on the Cerebras CS system.
+    
+* Train a model within the Cerebras ecosystem using the Cerebras Model Zoo, and then convert it into an equivalent implementation, such as Hugging Face, for inference on other hardware platforms.
+    
+* “Upgrade” an older Cerebras Model Zoo config and checkpoint to so that they can continue to be used in a newer release (e.g., converting Cerebras Model Zoo release 2.1 checkpoints to 2.2). This ensures that older checkpoints remain compatible and functional with the latest model implementations, even as they evolve with new releases.
+    
+
+Support and limitations[#](#support-and-limitations "Permalink to this headline")
+---------------------------------------------------------------------------------
+<Note>
+Note
+
+Refer to our support and limitations on checkpoint conversions:
+
+* Currently, the automatic checkpoint converter tool supports conversion between Cerebras Model Zoo and Hugging Face implementations, ensuring seamless compatibility between these two platforms. If you have a separate, custom checkpoint format you would like to convert to, you can extend the [checkpoint converter script](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/tools/convert_checkpoint.py) in the Model Zoo or contact Cerebras for assistance.
+    
+* To update checkpoints that are multiple versions behind, incrementally run conversion through the intermediate releases (e.g., 1.9 -> 2.0 -> 2.1 -> 2.2). A list of supported converters can be found on this page, below. A checkpoint from a previous release must first be “fixed” to be 2.1 compatible, prior to conversion. See [Upgrading Checkpoints From Previous Versions](#previous-versions-checkpoint-upgrade) for more information.
+    
+* If you intend to convert from Cerebras Model Zoo to another repository at any point, we strongly recommend that you first execute a config conversion using the `convert-config` tool before initiating the training of your model. This proactive step allows you to assess whether your model can be seamlessly converted to another format. It’s important to note that other repositories may not support as many generalized model implementations as the Cerebras Model Zoo, and they may not accommodate your specific model modifications. For example, Hugging Face NLP model implementations have limitations on positional embeddings, making it impossible to add ALiBi embeddings to an LLaMA model.
+</Note>  
+
+Models supported[#](#models-supported "Permalink to this headline")
+-------------------------------------------------------------------
+
+The following is a list of models supported by the **Checkpoint and Config Converter** tool:
+
+|     |     |     |
+| --- | --- | --- |  
+| bert | bert-sequence-classifier | bert-token-classifier |
+| bert-summarization | bert-q&a | bloom |
+| bloom-headless | btlm | btlm-headless |
+| codegen | codegen-headless | code-llama |
+| code-llama-headless | dpo | dpr |
+| falcon | falcon-headless | flan-ul2 |
+| gpt2 | gpt2-headless | gpt2 with muP |
+| gptj | gptj-headless | gpt-neox |
+| gpt-neox-headless | jais | llama |
+| llama-headless | llamaV2 | llamaV2-headless |
+| llava | mpt | mpt-headless |
+| mistral | mistral-headless | octocoder |
+| octocoder-headless | roberta | santacoder |
+| santacoder-headless | sqlcoder | sqlcoder-headless |
+| starcoder | starcoder-headless | t5  |
+| transformer | ul2 | wizardcoder |
+| wizardcoder-headless | wizardlm | wizardlm-headless |
+
+Location[#](#location "Permalink to this headline")
+---------------------------------------------------
+
+The **Checkpoint and Config Converter** tool - `convert_checkpoint.py` is located in the Cerebras Model Zoo at the following path:
+
+[modelzoo/tools/convert_checkpoint.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/tools/convert_checkpoint.py)
+
+Definition[#](#definition "Permalink to this headline")
+-------------------------------------------------------
+
+The tool offers three commands:
+
+  
+| Command | Description |
+| --- | --- |
+| `list` | Displays all the available conversions (models and formats) |
+| `convert-config` | Performs only config conversion. |
+| `convert` | Performs both config and checkpoint conversion. In other words, the tool is supplied the old config and checkpoint and produces a new config and checkpoint. |
+
+Cerebras configuration files contain model parameters and configurations for the optimizer, train\_input, eval\_input, and runconfig. These components are crucial in many other open-source repositories, such as Hugging Face. Given that these properties cannot be automatically inferred by the converter tool, it is necessary to add these additional properties to the converted configuration file. To get started, you can refer to the example configs available in the Cerebras Model Zoo.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure you are in your Cerebras virtual environment. For example: `venv_cerebras_pt`.
+
+Usage[#](#usage "Permalink to this headline")
+---------------------------------------------
+
+Before you proceed to learn how to use the tool, consider the following important notes:
+
+1.  To get a list of all models/conversions that we support, use the following command:
+    
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    list
+```
+
+<Tip>
+ Important
+ 
+ Make sure you read the output notes of the list command before using the converter. This section explains the exact model classes that are being converted from/to. It also lists any caveats about the conversion process. For example, many NLP models offer `-headless` variants that are missing a language model head.
+</Tip>
+<Note>
+ Note
+
+ Checkpoints that do not require model changes bewteen Cerebras releases still need to be converted to the correct release. There are checkpoint metadata conversions needed as well as config changes.
+</Note>
+2.  To convert a config file only, use the following command:
+    
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert-config \
+    --model <model name> \
+    --src-fmt <format of input config> \
+    --tgt-fmt <format of output config> \
+    --output-dir <location to save output config> \
+    <config file path>
+```
+
+3.  To convert a checkpoint and its corresponding config, use the following command:
+    
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert \
+    --model <model name> \
+    --src-fmt <format of input checkpoint> \
+    --tgt-fmt <format of output checkpoint> \
+    --output-dir <location to save output checkpoint> \
+    <input checkpoint file path> \
+    --config <input config file path>
+```
+
+To learn more about usage and optional parameters about a particular subcommand, you can pass the `-h` flag. For example:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert -h
+
+```
+
+<Note>
+Note
+
+As of release 2.2.0, `--src-fmt` and `--tgt-fmt` can be automatically inferred for CS checkpoints. Use `--src-fmt cs-auto` to detect the Cerebras version from the checkpoint (works on 2.1+ checkpoints). Use `--tgt-fmt cs-current` to specify checkpoint conversion to the current release version.
+</Note>
+Examples[#](#examples "Permalink to this headline")
+---------------------------------------------------
+
+Refer to our following examples:
+
+|     |
+| --- |
+| [Convert an Eleuther AI GPT-J 6B checkpoint with a model card to Cerebras Model Zoo](#convert-eaic-to-mz) |
+| [Convert a Hugging Face model without a model card to Cerebras Model Zoo](#convert-hfwmc-to-mz) |
+| [Convert a Cerebras Model Zoo GPT-2 checkpoint to Hugging Face](#convert-mzgpt2cp-to-hf) |
+| [Convert a GPT2 muP checkpoint to Hugging Face](#convert-gpt2mupcp-to-hf) |
+| [Convert a GPT2 LoRA checkpoint to Hugging Face](#convert-gpt2loracs-to-hf) |
+
+### Convert an Eleuther AI GPT-J 6B checkpoint with a model card to Cerebras Model Zoo[#](#convert-an-eleuther-ai-gpt-j-6b-checkpoint-with-a-model-card-to-cerebras-model-zoo "Permalink to this headline")
+
+Eleuther’s final GPT-J checkpoint can be accessed on Hugging Face at [EleutherAI/gpt-j-6B](https://huggingface.co/EleutherAI/gpt-j-6B). Rather than manually entering the values from the model architecture table into a config file and writing a script to convert their checkpoint, we can auto-generate these with a single command.
+```
+First, we need to download the config and checkpoint files from the model card locally:
+
+mkdir opensource_checkpoints
+wget -P opensource_checkpoints https://huggingface.co/EleutherAI/gpt-j-6B/raw/main/config.json
+wget -P opensource\_checkpoints https://huggingface.co/EleutherAI/gpt-j-6B/resolve/main/pytorch\_model.bin
+
+```
+<Note>
+Note
+
+Use the appropriate https link when downloading files from Hugging Face model card pages. Use the path that contains …/raw/… for config files. Use the path that contains …/resolve/… for checkpoint files.
+</Note>
+Hugging Face configs contain the `architecture` property, which specifies the class with which the checkpoint was generated. According to `config.json`, the HF checkpoint is from the `GPTJForCausalLM` class. Using this information, we can use the checkpoint converter tool’s `list` command to find the appropriate converter. In this case, we want to use the `gptj` model, with a source format of `hf`, and a target format of `cs-2.0`.
+
+Now to convert the config & checkpoint, run the following command:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert \
+    --model gptj \
+    --src-fmt hf \
+    --tgt-fmt cs-2.0 \
+    --output-dir opensource_checkpoints/ \
+    opensource_checkpoints/pytorch_model.bin \
+    --config opensource_checkpoints/config.json
+
+```
+
+This produces two files:
+
+* `opensource_checkpoints/pytorch_model_to_cs-2.0.mdl`
+    
+* `opensource_checkpoints/config_to_cs-2.0.yaml`
+    
+
+The output YAML config file contains the auto-generated `model` parameters from the Eleuther implementation. Before you can train/eval the model on the Cerebras cluster, add the `train_input`, `eval_input`, `optimizer`, and `runconfig` parameters to the YAML. Examples for these parameters can be found in the `configs/` folder for each model within Model Zoo. In this case, we can copy the missing information from `modelzoo/models/nlp/gptj/configs/params_gptj_6B.yaml` into `opensource_checkpoints/config_to_cs-2.0.yaml`. Make sure you modify the dataset paths under `train_input` and `eval_input` if they are stored elsewhere.
+
+The following command demonstrates using the converted config and checkpoint for continuous pretraining:
+```
+python <modelzoo path>/modelzoo/models/nlp/gptj/run.py \
+    CSX \
+    --mode train \
+    --params opensource_checkpoints/config_to_cs-2.0.yaml \
+    --checkpoint_path opensource_checkpoints/pytorch_model_to_cs-2.0.mdl \
+    --model_dir gptj6b_continuous_pretraining \
+    --mount_dirs {paths to modelzoo and to data} \
+    --python_paths {paths to modelzoo and other python code if used}
+
+```
+<Note>
+Note
+
+First, navigate to the model’s directory (GPT-J in this case) before executing `run.py`. Additional details about the `run.py` command can be found on the [Launch your job](../../Fundamentals/cs-appliance.html#cs-appliance) page.
+</Note>
+### Convert a Hugging Face model without a model card to Cerebras Model Zoo[#](#convert-a-hugging-face-model-without-a-model-card-to-cerebras-model-zoo "Permalink to this headline")
+
+Not all pretrained checkpoints on Hugging Face have corresponding model card web pages. You can still download these checkpoints and configs to convert them into a Model Zoo compatible format.
+
+For example, Hugging Face has a [model card](https://huggingface.co/bert-base-uncased) for `BertForMaskedLM` accessible through the name `bert-base-uncased`. However, it doesn’t have a webpage for `BertForPreTraining`, which we’re interested in.
+
+We can manually get the config and checkpoint for this model as follows:
+```
+>>> from cerebras.modelzoo.models.nlp.bert.model import BertForPreTraining
+>>> model = BertForPreTraining.from_pretrained("bert-base-uncased")
+>>> model.save_pretrained("bert_checkpoint")
+
+```
+
+This saves two files: `bert_checkpoint/config.json` and `bert_checkpoint/pytorch_model.bin`
+
+Now that you have downloaded the required files, you can convert the checkpoints. Use the `--model bert` flag since the Hugging Face checkpoint is from the `BertForPreTraining` class. If you want to use another checkpoint from a different variant (such as a finetuning model), see the other `bert-` model converters.
+
+The final conversion command is:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert \
+    --model bert \
+    --src-fmt hf \
+    --tgt-fmt cs-2.0 \
+    bert_checkpoint/pytorch_model.bin \
+    --config bert_checkpoint/config.json
+ ...
+ Checkpoint saved to bert_checkpoint/pytorch_model_to_cs-2.0.mdl
+ Config saved to bert_checkpoint/config_to_cs-2.0.yaml
+
+```
+
+### Convert a Cerebras Model Zoo GPT-2 checkpoint to Hugging Face[#](#convert-a-cerebras-model-zoo-gpt-2-checkpoint-to-hugging-face "Permalink to this headline")
+
+Suppose you just finished training GPT-2 on CS and want to run the model within the Hugging Face ecosystem. In this example, the configuration file is saved at `model_dir/train/params_train.yaml` and the checkpoint (corresponding to step 10k) is at `model_dir/checkpoint_10000.mdl`
+
+To convert the Hugging Face, run the following command:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert \
+    --model gpt2 \
+    --src-fmt cs-2.0 \
+    --tgt-fmt hf \
+    model_dir/checkpoint_10000.mdl \
+    --config model_dir/train/params_train.yaml
+
+```
+
+Since the `--output-dir` flag is omitted, the two output files are saved to the same directories as the original files:
+
+* `model_dir/train/params_train_to_hf.json`
+    
+* `model_dir/checkpoint_10000_to_hf.bin`
+    
+
+### Convert a GPT2 muP checkpoint to Hugging Face[#](#convert-a-gpt2-mup-checkpoint-to-hugging-face "Permalink to this headline")
+
+Hugging Face does not support muP models. However, if you have a Cerebras GPT2/3 checkpoint that uses muP, it is possible to convert it to a Hugging Face model by folding the muP scalars into the model weights (i.e. producing a sP model).
+
+Starting release 2.1, the process of folding is now automatically handled by the checkpoint converter. Running the following command will convert a GPT2 muP model trained in Modelzoo into a sP HuggingFace-compatible model.
+```
+python convert_checkpoint.py convert /path/to/muP/output/checkpoint.mdl --config /path/to/muP/output/params.yaml  --model gpt2 --src-fmt cs-2.0 --tgt-fmt hf --output-dir /path/to/hf/sP/output/dir
+
+```
+
+### Convert a GPT2 LoRA checkpoint to Hugging Face[#](#convert-a-gpt2-lora-checkpoint-to-hugging-face "Permalink to this headline")
+
+Models trained with Low-Rank Adaptations (LoRA) contain learned “A” and “B” rank decomposition matrices. In order to convert these models to Hugging Face, the rank decomposition matrices need to first be folded into the original model weights.
+
+Proceed with the following steps to convert:
+
+**1.** Use the `modelzoo/tools/fold_lora_checkpoint.py` script to fold the low-rank decomposition matricies into the model weights. This script takes a path to a lora checkpoint and its associated config file and outputs a folded checkpoint and config. For example,
+
+The `--model` argument corresponds the type of LoRA model that was trained (same name as the directory that the `run.py` file sits in).
+
+**2.** Once you have folded the LoRA matrices into the weights of the model, use the checkpoint conversion script to convert.
+
+For example:
+```
+python convert_checkpoint.py convert /path/to/folded-lora/checkpoint.mdl --config /path/to/folded-lora/params.yaml --model gpt2 --src-fmt cs-2.2 --tgt-fmt hf --output-dir /path/to/hf/output/dir
+
+```
+
+YAML and model config updates[#](#yaml-and-model-config-updates "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+As our Model Zoo implementations evolve over time, the changes may sometimes break out-of-the-box compatibility when moving to a new release. To ensure that you can continue using your old checkpoints, we offer converters that allow you to “upgrade” configs and checkpoints when necessary. The section below covers conversions that are required when moving to a particular release. If a converter doesn’t exist, no explicit conversion is necessary.
+
+### Release 2.2.0[#](#release-2-2-0 "Permalink to this headline")
+
+In order to continue using your checkpoints & configs from release 2.1 in release 2.2.0, you’ll need to upgrade them. See the example from the Release 2.1.0 section for additional details.
+
+### Release 2.1.0[#](#release-2-1-0 "Permalink to this headline")
+
+We made many updates to our model implementations and runner API. In order to continue using your checkpoints & configs from release 2.0 in release 2.1.0, upgrade them using the following command:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert \
+    --model <model type> \
+    --src-fmt cs-2.0 \
+    --tgt-fmt cs-2.1 \
+    --config <config file path>
+    <checkpoint path>
+
+```
+
+In the command above, `--model` should be the name of the model that you were training (for example `gpt2`).
+
+### Release 2.0.2[#](#release-2-0-2 "Permalink to this headline")
+
+#### **Upgrading Checkpoints From Previous Versions**[#](#upgrading-checkpoints-from-previous-versions "Permalink to this headline")
+
+For checkpoints pre-2.0, dataloader state files need to be converted to the dataloader checkpoint format for the new map and iterable dataloaders in Model Zoo in releases 2.0+. This allows for deterministic restart of the dataloader for model training jobs that move from releases prior to 2.0 to release 2.0+.
+
+The dataloader state conversion will automatically be done during checkpoint conversion if this is set in the config:
+```
+cerebras:
+  save_iter_state_path: <path-to-directory-containing-dataloader-state-files>
+```
+
+`save_iter_state_path` is the path to the directory containing data step file `data_iter_checkpoint_state_file_global` and worker checkpoint files of the format `data_iter_state_file_worker_*_step_*.txt`.
+
+**Streaming Conversion**
+
+In prior releases, conversion required both the input & output checkpoints to be stored in memory during conversion. This meant that large models required a prohibitively large amount of memory in order to perform conversion. In release 2.0.0, we introduce streaming conversion, which significantly reduces the peak memory usage by performing conversion incrementally. This is done by loading/saving one shard at a time for pickled checkpoints and loading/saving one tensor at a time for Cerebras H5 checkpoints. **Streaming conversion is enabled by default; you don’t need to make any changes to the command line arguments.** Thanks to this feature, you will now be able to convert massive checkpoints (e.g.: LLaMA 70B) on a small machine (~10GB of RAM).
+
+**Upgrading LLaMA, Transformer, T5**
+
+To make it easier to control the type of normalization layer used by Model Zoo models, we have replaced the `use_rms_norm` and `use_biasless_norm` flags in the model configs to instead use `norm_type`. To continue using rel 1.9 checkpoints in rel 2.0, you’ll need to update the config to reflect this change. You can do this automatically using the config converter tool as follows:
+```
+python <modelzoo path>/modelzootools/convert_checkpoint.py \
+    convert-config \
+    --model <model type> \
+    --src-fmt cs-1.9 \
+    --tgt-fmt cs-2.0 \
+    <config file path>
+
+```
+
+In the command above, `--model` should be either `llama`, `t5`, or `transformer`, depending on which model you’re using (other models use the same configs as in 1.9, and as a result do not need to be upgraded). The config file path should point to the `train/params_train.yaml` file within your model directory.
+
+### Release 1.9.1[#](#release-1-9-1 "Permalink to this headline")
+
+All configs and checkpoints from release 1.8.0 can continue to be used in release 1.9.1 without any conversion.
+
+### Release 1.8.0[#](#release-1-8-0 "Permalink to this headline")
+
+**T5 / Vanilla Transformer**
+
+As described in the release notes, the behavior of the `use_pre_encoder_decoder_layer_norm` flag has been flipped. To continue using rel 1.7 checkpoints in rel 1.8, you’ll need to update the config to reflect this change. You can do this automatically using the config converter tool as follows:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert-config \
+    --model <model type> \
+    --src-fmt cs-1.7 \
+    --tgt-fmt cs-1.8 \
+    <config file path>
+
+```
+
+In the command above, `--model` should be either `t5` or `transformer` depending on which model you are using. The config file path should point to the `train/params_train.yaml` file within your model directory.
+
+**BERT**
+
+As described in the release notes, we expanded the BERT model configurations to expose two additional parameters: `pooler_nonlinearity` and `mlm_nonlinearity`. Due to a change in the default value of the `mlm_nonlinearity` parameter, you will need to update the config when using a rel 1.7 checkpoint in rel 1.8. You can do this automatically using the config converter tool as follows:
+```
+python <modelzoo path>/modelzoo/tools/convert_checkpoint.py \
+    convert-config \
+    --model bert \
+    --src-fmt cs-1.7 \
+    --tgt-fmt cs-1.8 \
+    <config file path>
+
+```
+
+The config file path should point to the `train/params_train.yaml` file within your model directory.
+
+FAQ [#](#faq "Permalink to this headline")
+-----------------------------------------
+
+| Question | Answer |
+| --- | --- |
+| Which models, formats, classes, etc., are supported? | See the `list` command under the usage section. |
+| Which frameworks are supported? | PyTorch only. |
+| Does the optimizer state get converted? | No. Hugging Face checkpoints contain model state information only; unlike CS, they do not contain optimizer state information. |
+| Sometimes, when I run the checkpoint converter tool, it runs for a while before saying `Killed`. What happened? | The program hit the memory limit. Unfortunately, PyTorch pickling works by storing _whole_ checkpoints in the same file, forcing everything to be read into memory at once. Ensure that the system you’re running on has at least as much RAM as the size of the checkpoint file. |
+| Conversion failed with a `ConfigConversionError`. Why did this happen? | Conversions are only sometimes possible as other repositories are less general than our Model Zoo implementations (e.g., many Hugging Face NLP model implementations support limited types of positional embeddings, while Model Zoo includes an expanded range). For this reason, we recommend that you run config conversion before training the model if you intend to convert a Model Zoo model to another repository at any time. This will allow you to determine if the configuration you are using within Model Zoo can be converted before you train the model. Additionally, you can use the information in the error message to modify the config file to generate a configuration that can be converted. |
+| Sometimes during config conversion, I see the following: `WARNING:root:Key not matched:` Should I be concerned? | No. Not all keys in one config format must be converted to another. This warning message is simply printing out the keys that will be ignored. For example, HF configs contain the `use_cache` parameter which isn’t relevant on CS. |
+| Model conversion failed with the following error: `AssertionError: Unable to match all keys. If you want to proceed by dropping keys that couldn't be matched, rerun with --drop-unmatched-keys` What should I do? | The checkpoint contains keys that weren’t expected and, therefore, couldn’t be converted. The converters are heavily tested, so this error message highlights an issue with the input checkpoint or the command being run, not the converter itself. Make sure that you are using the correct `--model` and `--src-fmt` flags corresponding to the checkpoint you are using. To double-check, look at the `notes` column displayed by the checkpoint converter tool’s `list` command. A misspecified `--model` or `--src-fmt` will lead to this error. All unexpected keys in the checkpoint are displayed with `WARNING:root:Key not matched:`. If these keys do not need to be converted, you can bypass the assertion using the `--drop-unmatched-keys` flag. You should never have to use this feature unless you’re using a custom checkpoint that deviates from the `--src-fmt` format. |
+| I am unable to use a converted checkpoint because I get the following errors: `Error(s) in loading state_dict for <model name>:` `Missing key(s) in state_dict:...` `Unexpected key(s) in state_dict:...` What should I do? | There is a discrepancy between the format of the converted checkpoint and the expected format that you’re loading the model into. This is caused by a misspecified `--model` or `--tgt-fmt` flag. To double-check that you’re using the correct flags, look at the `notes` column displayed by the checkpoint converter tool’s `list` command. |
+| I have a sharded checkpoint. How do I use the checkpoint converter tool? | Starting 1.9, the checkpoint & config converter tool supports sharded Hugging Face checkpoints. To convert from a sharded HF checkpoint, download all shards (PyTorch `.bin` files) and the weight index file (`pytorch_model.bin.index.json`), which contains the mapping between model layers and shard files. The only difference when using the checkpoint converter tool’s CLI with a sharded checkpoint is that the checkpoint path argument must point to the `.index.json` file rather than the singular `.bin` file as before. The tool can find all the corresponding shards, merge them, and convert the model. |
+| How do I know which converter to use? | The “Notes” section specifies the model classes that are being converted from and to. For example, the Llama converter’s notes state “hf LlamaForCausalLM `<->` cs-2.3 GPT2LMHeadModel (configured as Llama).” This means that any Hugging Face checkpoint of the “LlamaForCausalLM” can be loaded into the Model Zoo (llama base, llama v2, llama v3, llama instruct, etc). You can find out which model class a Hugging Face checkpoint corresponds to by looking at the architectures field in the `config.json`. |

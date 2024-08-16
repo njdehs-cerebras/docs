@@ -1,0 +1,719 @@
+---
+title: " Correspondance From Legacy To Trainer "
+description: "If you are already familiar with the Legacy YAML specification and just want to find out how to specify a specific parameter in the Trainer YAML specification, please refer to the tables below."
+---
+If you are already familiar with the Legacy YAML specification and just want to find out how to specify a specific parameter in the Trainer YAML specification, please refer to the tables below.
+
+`eval_input`
+---------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| `eval_input:`<br></br>  ... | `trainer:`<br></br>  fit:<br></br>  `val_dataloader:`<br></br>  ...<br></br><br></br>`trainer:`<br></br>  `validate:`<br></br>  `val_dataloader:`<br></br>  ...<br></br><br></br>`trainer:`<br></br>  `validate_all:`<br></br>  `val_dataloaders:`<br></br>  `...` |
+
+`eval_input.micro_batch_size`
+-------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| `eval_input:`<br></br>  `micro\_batch\_size:  ...` | `trainer:`<br></br>  `init:`<br></br>  `callbacks:`<br></br>  `-  ScopedValidateFlags:`<br></br>  `csx.performance.micro\_batch\_size:  ...` |
+
+`model`[
+-----------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| `model:`<br></br>  ... | `trainer:`<br></br>  `init:`<br></br>  `model:`<br></br>  ... |
+
+`model.fp16_type`
+-------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| `model:`<br></br>  `fp16_type:  ...` | `trainer:`<br></br>  `init:`<br></br>  `precision:`<br></br>  `fp16_type:  ...` |
+
+<Info>
+Note
+
+Some models expect this parameter and thus should be specified under `trainer.init.model` as well.
+</Info>
+
+`model.mixed_precision`
+-------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| `model:`<br></br>  `mixed_precision:  ..`. | `trainer:`<br></br>  `init:`<br></br>  `precision:`<br></br>  `enabled:  ...` |
+<Info>
+Note
+
+Some models expect this parameter and thus should be specified under `trainer.init.model` as well.
+</Info>
+`optimizer`
+-------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  ... | trainer:<br></br>  init:<br></br>  optimizer:<br></br>  ... |
+
+`optimizer.grad_accum_steps`[#](#optimizer-grad-accum-steps "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  grad\_accum\_steps:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  grad\_accum\_steps:  ... |
+
+`optimizer.initial_loss_scale`[#](#optimizer-initial-loss-scale "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  initial\_loss\_scale:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  initial\_loss\_scale:  ... |
+
+`optimizer.learning_rate`[#](#optimizer-learning-rate "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  learning_rate:<br></br>  ... | trainer:<br></br>  init:<br></br>  schedulers:<br></br>  ... |
+
+`optimizer.log_summaries`[#](#optimizer-log-summaries "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  log_summaries:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  ComputeNorm:  ...<br></br><br></br>trainer:<br></br>  init:<br></br>  precision:<br></br>  log\_loss\_scale:  ... |
+
+`optimizer.loss_scaling_factor`[#](#optimizer-loss-scaling-factor "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  loss\_scaling\_factor:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  loss\_scaling\_factor:  ... |
+
+`optimizer.max_gradient_norm`[#](#optimizer-max-gradient-norm "Permalink to this headline")
+-------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  max\_gradient\_norm:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  max\_gradient\_norm:  ... |
+
+`optimizer.max_gradient_value`[#](#optimizer-max-gradient-value "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  max\_gradient\_value:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  max\_gradient\_value:  ... |
+
+`optimizer.max_loss_scale`[#](#optimizer-max-loss-scale "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  max\_loss\_scale:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  max\_loss\_scale:  ... |
+
+`optimizer.min_loss_scale`[#](#optimizer-min-loss-scale "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  min\_loss\_scale:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  min\_loss\_scale:  ... |
+
+`optimizer.steps_per_increase`[#](#optimizer-steps-per-increase "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| optimizer:<br></br>  steps\_per\_increase:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  steps\_per\_increase:  ... |
+
+`runconfig.act_memory_gi`[#](#runconfig-act-memory-gi "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  act\_memory\_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.act\_memory\_gi:  ... |
+
+`runconfig.autoload_last_checkpoint`[#](#runconfig-autoload-last-checkpoint "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  autoload\_last\_checkpoint:  ... | trainer:<br></br>  init:<br></br>  checkpoint:<br></br>  autoload\_last\_checkpoint:  ... |
+
+`runconfig.check_loss_values`[#](#runconfig-check-loss-values "Permalink to this headline")
+-------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  check\_loss\_values:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  CheckLoss:  ... |
+
+`runconfig.checkpoint_path`[#](#runconfig-checkpoint-path "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  checkpoint_path:  ... | trainer:<br></br>  fit:<br></br>  ckpt_path:  ...<br></br><br></br>trainer:<br></br>  validate:<br></br>  ckpt_path:  ...<br></br><br></br>trainer:<br></br>  validate_all:<br></br>  ckpt_paths:  ... |
+
+`runconfig.checkpoint_steps`[#](#runconfig-checkpoint-steps "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  checkpoint_steps:  ... | trainer:<br></br>  init:<br></br>  checkpoint:<br></br>  steps:  ... |
+
+`runconfig.cmd_memory_gi`[#](#runconfig-cmd-memory-gi "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  cmd\_memory\_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.cmd\_memory\_gi:  ... |
+
+`runconfig.compile_crd_memory_gi`[#](#runconfig-compile-crd-memory-gi "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  compile\_crd\_memory_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.compile\_crd\_memory_gi:  ... |
+
+`runconfig.compile_dir`[#](#runconfig-compile-dir "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  compile_dir:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  compile_dir:  ... |
+
+`runconfig.compile_only`[#](#runconfig-compile-only "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  compile_only:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  compile_only:  ... |
+
+`runconfig.credentials_path`[#](#runconfig-credentials-path "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  credentials_path:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  credentials_path:  ... |
+
+`runconfig.debug_args`[#](#runconfig-debug-args "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  debug_args:<br></br>  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.debug_args:<br></br>  ... |
+
+`runconfig.debug_args_path`[#](#runconfig-debug-args-path "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  debug\_args\_path:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  DebugArgsPath:<br></br>  debug\_args\_path:  ... |
+
+`runconfig.disable_strict_checkpoint_loading`[#](#runconfig-disable-strict-checkpoint-loading "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  disable\_strict\_checkpoint_loading:  ... | trainer:<br></br>  init:<br></br>  checkpoint:<br></br>  disable\_strict\_checkpoint_loading:  ... |
+
+`runconfig.disable_version_check`[#](#runconfig-disable-version-check "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  disable\_version\_check:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  disable\_version\_check:  ... |
+
+`runconfig.dist_backend`[#](#runconfig-dist-backend "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  dist_backend:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  dist_backend:  ... |
+
+`runconfig.drop_data`[#](#runconfig-drop-data "Permalink to this headline")
+---------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  drop_data:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.drop_data:  ... |
+
+`runconfig.dump_activations`[#](#runconfig-dump-activations "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  dump_activations:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  DumpActivations:  ... |
+
+`runconfig.enable_act_frequency`[#](#runconfig-enable-act-frequency "Permalink to this headline")
+-------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  enable\_act\_frequency:  ... | trainer:<br></br>  init:<br></br>  logging:<br></br>  enable\_act\_frequency:  ... |
+
+`runconfig.enable_distributed`[#](#runconfig-enable-distributed "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  enable_distributed:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  enable_distributed:  ... |
+
+`runconfig.eval_frequency`[#](#runconfig-eval-frequency "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  eval_frequency:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  eval_frequency:  ... |
+
+`runconfig.eval_steps`[#](#runconfig-eval-steps "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  eval_steps:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  eval_steps:  ... |
+
+`runconfig.execute_crd_memory_gi`[#](#runconfig-execute-crd-memory-gi "Permalink to this headline")
+---------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  execute\_crd\_memory_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.execute\_crd\_memory_gi:  ... |
+
+`runconfig.experimental.listeners`[#](#runconfig-experimental-listeners "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  experimental:<br></br>  listeners:<br></br>  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  Listener:<br></br>  listeners:<br></br>  ... |
+
+`runconfig.init_method`[#](#runconfig-init-method "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  init_method:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  init_method:  ... |
+
+`runconfig.job_labels`[#](#runconfig-job-labels "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  job_labels:<br></br>  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  job_labels:<br></br>  ... |
+
+`runconfig.job_priority`[#](#runconfig-job-priority "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  job_priority:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  job_priority:  ... |
+
+`runconfig.job_time_sec`[#](#runconfig-job-time-sec "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  job\_time\_sec:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  job\_time\_sec:  ... |
+
+`runconfig.lazy_initialization`[#](#runconfig-lazy-initialization "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  lazy_initialization:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.lazy_initialization:  ... |
+
+`runconfig.load_checkpoint_states`[#](#runconfig-load-checkpoint-states "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  load\_checkpoint\_states:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  LoadCheckpointStates:<br></br>  load\_checkpoint\_states:  ... |
+
+`runconfig.log_initialization`[#](#runconfig-log-initialization "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  log_initialization:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.log_initialization:  ... |
+
+`runconfig.log_input_summaries`[#](#runconfig-log-input-summaries "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  log\_input\_summaries:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  LogInputSummaries:  ... |
+
+`runconfig.log_steps`[#](#runconfig-log-steps "Permalink to this headline")
+---------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  log_steps:  ... | trainer:<br></br>  init:<br></br>  logging:<br></br>  log_steps:  ... |
+
+`runconfig.logging`[#](#runconfig-logging "Permalink to this headline")
+-----------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  logging:  ... | trainer:<br></br>  init:<br></br>  logging:<br></br>  log_level:  ... |
+
+`runconfig.main_process_id`[#](#runconfig-main-process-id "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  main\_process\_id:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  main\_process\_id:  ... |
+
+`runconfig.max_checkpoints`[#](#runconfig-max-checkpoints "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  max_checkpoints:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  KeepNCheckpoints:<br></br>  n:  ... |
+
+`runconfig.max_steps`[#](#runconfig-max-steps "Permalink to this headline")
+---------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  max_steps:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  max_steps:  ... |
+
+`runconfig.mgmt_address`[#](#runconfig-mgmt-address "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  mgmt_address:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  mgmt_address:  ... |
+
+`runconfig.mgmt_namespace`[#](#runconfig-mgmt-namespace "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  mgmt_namespace:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  mgmt_namespace:  ... |
+
+`runconfig.model_dir`[#](#runconfig-model-dir "Permalink to this headline")
+---------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  model_dir:  ... | trainer:<br></br>  init:<br></br>  model_dir:  ... |
+
+`runconfig.mount_dirs`[#](#runconfig-mount-dirs "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  mount_dirs:<br></br>  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  mount_dirs:<br></br>  ... |
+
+`runconfig.num_act_servers`[#](#runconfig-num-act-servers "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num\_act\_servers:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  max\_act\_per_csx:  ... |
+
+`runconfig.num_csx`[#](#runconfig-num-csx "Permalink to this headline")
+-----------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num_csx:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  num_csx:  ... |
+
+`runconfig.num_epochs`[#](#runconfig-num-epochs "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num_epochs:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  num_epochs:  ... |
+
+`runconfig.num_steps`[#](#runconfig-num-steps "Permalink to this headline")
+---------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num_steps:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  num_steps:  ... |
+
+`runconfig.num_wgt_servers`[#](#runconfig-num-wgt-servers "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num\_wgt\_servers:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  max\_wgt\_servers:  ... |
+
+`runconfig.num_workers_per_csx`[#](#runconfig-num-workers-per-csx "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  num\_workers\_per_csx:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  num\_workers\_per_csx:  ... |
+
+`runconfig.op_profiler_config`[#](#runconfig-op-profiler-config "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  op\_profiler\_config:<br></br>  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  OpProfiler:<br></br>  ... |
+
+`runconfig.precision_opt_level`[#](#runconfig-precision-opt-level "Permalink to this headline")
+-----------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  precision\_opt\_level:  ... | trainer:<br></br>  init:<br></br>  precision:<br></br>  precision\_opt\_level:  ... |
+
+`runconfig.python_paths`[#](#runconfig-python-paths "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  python_paths:<br></br>  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  cluster_config:<br></br>  python_paths:<br></br>  ... |
+
+`runconfig.retrace_every_iteration`[#](#runconfig-retrace-every-iteration "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  retrace\_every\_iteration:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.retrace\_every\_iteration:  ... |
+
+`runconfig.save_initial_checkpoint`[#](#runconfig-save-initial-checkpoint "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  save\_initial\_checkpoint:  ... | trainer:<br></br>  init:<br></br>  checkpoint:<br></br>  save\_initial\_checkpoint:  ... |
+
+`runconfig.seed`[#](#runconfig-seed "Permalink to this headline")
+-----------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  seed:  ... | trainer:<br></br>  init:<br></br>  seed:  ... |
+
+`runconfig.steps_per_epoch`[#](#runconfig-steps-per-epoch "Permalink to this headline")
+---------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  steps\_per\_epoch:  ... | trainer:<br></br>  init:<br></br>  loop:<br></br>  steps\_per\_epoch:  ... |
+
+`runconfig.sync_batchnorm`[#](#runconfig-sync-batchnorm "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  sync_batchnorm:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  sync_batchnorm:  ... |
+
+`runconfig.target_device`[#](#runconfig-target-device "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  target_device:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  backend_type:  ... |
+
+`runconfig.transfer_processes`[#](#runconfig-transfer-processes "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  transfer_processes:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.performance.transfer_processes:  ... |
+
+`runconfig.validate_only`[#](#runconfig-validate-only "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  validate_only:  ... | trainer:<br></br>  init:<br></br>  backend:<br></br>  validate_only:  ... |
+
+`runconfig.wgt_memory_gi`[#](#runconfig-wgt-memory-gi "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  wgt\_memory\_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.wgt\_memory\_gi:  ... |
+
+`runconfig.wrk_memory_gi`[#](#runconfig-wrk-memory-gi "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  wrk\_memory\_gi:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  GlobalFlags:<br></br>  csx.debug.wrk\_memory\_gi:  ... |
+
+`runconfig.wsc_log_level`[#](#runconfig-wsc-log-level "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| runconfig:<br></br>  wsc\_log\_level:<br></br>  ... | trainer:<br></br>  init:<br></br>  logging:<br></br>  wsc\_log\_level:<br></br>  ... |
+
+`sparsity`[#](#sparsity "Permalink to this headline")
+-----------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| sparsity:  ... | trainer:<br></br>  init:<br></br>  sparsity:<br></br>  sparsity:  ... |
+
+`sparsity`[#](#id1 "Permalink to this headline")
+------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| sparsity:<br></br>  ... | trainer:<br></br>  init:<br></br>  sparsity:<br></br>  ... |
+
+`sparsity.add_summaries`[#](#sparsity-add-summaries "Permalink to this headline")
+---------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| sparsity:<br></br>  add_summaries:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  LogSparsity:  ... |
+
+`train_input`[#](#train-input "Permalink to this headline")
+-----------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| train_input:<br></br>  ... | trainer:<br></br>  fit:<br></br>  train_dataloader:<br></br>  ... |
+
+`train_input.micro_batch_size`[#](#train-input-micro-batch-size "Permalink to this headline")
+---------------------------------------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| train_input:<br></br>  micro\_batch\_size:  ... | trainer:<br></br>  init:<br></br>  callbacks:<br></br>  -  ScopedTrainFlags:<br></br>  csx.performance.micro\_batch\_size:  ... |
+
+`wandb.group`[#](#wandb-group "Permalink to this headline")
+-----------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  group:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  group:  ... |
+
+`wandb.job_type`[#](#wandb-job-type "Permalink to this headline")
+-----------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  job_type:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  job_type:  ... |
+
+`wandb.project`[#](#wandb-project "Permalink to this headline")
+---------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  project:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  project:  ... |
+
+`wandb.resume`[#](#wandb-resume "Permalink to this headline")
+-------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  resume:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  resume:  ... |
+
+`wandb.run_id`[#](#wandb-run-id "Permalink to this headline")
+-------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  run_id:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  run_id:  ... |
+
+`wandb.run_name`[#](#wandb-run-name "Permalink to this headline")
+-----------------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  run_name:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  run_name:  ... |
+
+`wandb.tags`[#](#wandb-tags "Permalink to this headline")
+---------------------------------------------------------
+
+|     |     |
+| --- | --- |
+| **Legacy Specification** | **Trainer Specification** |
+| wandb:<br></br>  tags:  ... | trainer:<br></br>  init:<br></br>  loggers:<br></br>  -  WandbLogger:<br></br>  tags:  ... |

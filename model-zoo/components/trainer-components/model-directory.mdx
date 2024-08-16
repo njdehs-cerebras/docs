@@ -1,0 +1,111 @@
+---
+title: "        Model Directory       "
+---
+  
+Model Directory[#](#model-directory "Permalink to this headline")
+=================================================================
+
+This page will cover the contents of what artifacts get outputted by the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in the model directory.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure to have read through [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models. In this document, you will be using the tools and configurations outlined in those pages.
+
+Configure the `model_dir`[#](#configure-the-model-dir "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+Configuring the model directory at which the trainer writes artifacts to is as simple as passing in the `model_dir` argument to the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s constructor.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    ...
+    model_dir: "./model_dir"
+
+```
+```Tab Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    model_dir="./model_dir",
+)
+
+```
+</CodeGroup>
+Model Directory Structure[#](#model-directory-structure "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+The following is an overview of the structure of the model directory.
+```
+model_dir/
+├── 20240618_074134
+│   ├── eleuther_0
+│   │   └── results
+│   │       ├── drop_10.json
+│   │       ├── drop_5.json
+│   │       ├── results_10.json
+│   │       ├── results_5.json
+│   │       ├── winogrande_10.json
+│   │       └── winogrande_5.json
+│   ├── events.out.csevents.1718721695.user.17833.0
+│   │   └── ...
+│   └── events.out.tfevents.1718721695.user.17833.0
+├── cerebras_logs
+│   ├── 20240618_074134
+│   │   ├── run.log
+│       └── ...
+├── checkpoint_10.mdl
+├── checkpoint_5.mdl
+└── latest_run.log -> cerebras_logs/20240618_074134/run.log
+
+```
+
+To start, the model directory will contain a subdirectory with the current datetime as its name. This is done so that multiple runs can use the same model directory without overwriting any previous logs/results.
+
+Inside this subdirectory are any results outputted from the run. In the above example, you can see the results from an Eleuther Eval Harness run (see [Downstream Validation using Eleuther Eval Harness](../../core_workflows/downstream_eeh.html#wsc-modelzoo-downstream-eeh) for more details).
+
+This run also employed the use of the [`TensorBoardLogger`](../../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.TensorBoardLogger "cerebras.modelzoo.trainer.loggers.TensorBoardLogger"). So, you can see the event files that were written by the TensorBoard writer.
+<Note>
+Note
+
+If you open tensorboard to the model directory, the runs will nicely by grouped together by run.
+```
+tensorboard --bind_all --logdir=./model_dir
+
+```
+
+</Note>
+In addition, inside the model directory, you will see a `cerebras_logs` directory in which various logs and artifacts from the compilation and execution are stored. These logs/artifacts are also divided up by datetime (the same datetime as the above mentioned subdirectory) so that you know which logs/artifacts belong to which run.
+
+Finally, you can see that checkpoints taken during the run are saved in the model directory. These are stored in the base model directory so that future runs with checkpoint autoloading enabled can easily pick them up (see [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint) for more details).
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That covers the various logs and artifacts that are outputted by the Trainer. Hopefully, you have a better understanding of what the model directory contains and how to find the logs and artifacts that you need to monitor your run.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

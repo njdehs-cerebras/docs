@@ -1,0 +1,36 @@
+---
+title: "Glossary"
+---
+
+**Activations, Batches, Deltas, Gradients, Weights** – the data in neural network training. A batch is a set of training examples presented to the network. Activations are data that flow from layer to layer in the network as it propagates a batch in the forward direction. Deltas are derivatives of the loss on the batch with respect to the activations; they flow from layer to layer in the reverse direction during back propagation. Gradients are the derivatives of the batch loss with respect to the model weights at each network layer, used by the learning method to update the weights after each batch.
+
+**Appliance** – a cluster of CS-2 nodes and supporting CPU servers that, together with Cerebras software, lets users interact with CS-2 system(s) and all supporting CPU nodes as they would with a single entity that functions as an appliance for model training.
+
+**Cerebras System, CS System** – a CS-System is a 15U high rack-mounted computing device that contains one Wafer-Scale Engine (WSE) processor; system provides power and delivers data to the WSE and keeps it comfortably cool.
+
+**CPU cluster** – each CS system is deployed together with a supporting CPU cluster. A CPU cluster runs Cerebras software and is responsible for interaction with one CS system or with a cluster of CS systems. ML users interact directly with one of the CPU nodes in the CPU cluster.
+
+**CS-2** – a second-generation CS system containing one WSE-2, a second-generation Cerebras Wafer-Scale Engine.
+
+**CS-3** - a third-generation CS system containing one WSE-3, a third-generation Cerebras Wafer-Scale Engine.
+
+**Input Pre-Processing Server** – a CPU server in the cluster that provides training data batches to compute nodes.
+
+**(Layer) Pipelined Execution** – an execution mode in which all the model weights are stored in on-chip memory for the whole duration of a job. This execution mode relies on model parallelism (within each layer and layer pipeline) to distribute a training job across all of the AI cores of a WSE. This mode is best for models which can fit into WSE on-chip SRAM. This mode doesn’t support distributed training across multiple CS-2 systems. This mode is only supported on Original Cerebras Installations or releases previous to R1.9 on Wafer-Scale Clusters.
+
+**MemoryX** – a large-capacity off-wafer memory service, used to store model weights, gradients, optimizer states, when using Weight Streaming execution on a Cerebras Wafer-Scale cluster.
+
+**Original Cerebras Installation** – this installation is designed for a single CS-2 deployment and can only support models below 1B parameters with Pipelined execution. Consists of a CS-2 system and a CPU cluster with CPU nodes playing roles of a coordinator and input workers.
+
+**Processing Element** – The PE is the replicated element on the WSE. In WSE-2 there are about 850,000 of them. They are interconnected as a two-dimensional mesh. Each PE has a compute engine, a memory, and a router. The router connects to the compute engine and to the routers of the four nearest neighboring PEs in the mesh.
+
+**SwarmX** – A broadcast/reduce fabric that connects the memory service (MemoryX) to each of the CS-2 systems in a Wafer-Scale cluster. Swarm-X coordinates the broadcast of model layer weights, giving each CS-2 a local copy, and it receives and aggregates (by addition) the independent weight gradients that each of the data parallel systems produces during back propagation communicating the aggregated gradient to MemoryX for learning (weight update) at the end of each input data batch.
+
+**Wafer-Scale Cluster** – this installation is designed to support large-scale models (up to and well beyond 1 billion parameters) and large-scale inputs. It can contain single or multiple CS-2 systems with ability to distribute jobs across all or a subset of CS-2 systems in the cluster. A supporting CPU cluster in this installation consists of MemoryX, SwarmX, management, and input worker nodes. Starting with release 1.9, Wafer-Scale Cluster only supports Weight Streaming execution.
+
+**Weight Streaming Execution** – Cerebras’s revolutionary processor, a single 200-mm-square silicon chip, the largest square that can be cut from a single wafer. It includes thousands of independent processors, called AI-cores, on the wafer. They each have a fast local memory and a connection to a network-on-wafer that interconnects the AI cores as a two-dimensional mesh. The memory and interconnect bandwidths are orders of magnitude greater per unit compute performance than a conventional compute node or a cluster of conventional nodes.
+
+**WSE, Wafer-Scale Engine** – Cerebras revolutionary processor
+
+**WSE-2** – a second-generation WSE.
+

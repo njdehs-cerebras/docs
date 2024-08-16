@@ -1,0 +1,25 @@
+---
+title: " Error Parsing Metadata "
+---
+## Observed Error[#](#observed-error "Permalink to this headline")
+
+When compiling or running models, users may see this error message intermittently:
+
+```bash
+Error parsing metadata: error=invalid value key=content-type value=text/html
+```
+
+## Explanation[#](#explanation "Permalink to this headline")
+
+This error message is a bug in [GRPC](https://grpc.io/) and should not affect the outcome of a run.
+
+## Work around[#](#work-around "Permalink to this headline")
+
+You can disable the error message by setting this environment variable:
+
+```bash
+$ export GRPC_VERBOSITY=NONE
+```
+
+This will hide all log messages from GRPC. This setting will remove ALL logs coming from GRPC and has not been thoroughly validated.
+

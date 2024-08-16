@@ -1,0 +1,108 @@
+---
+title: "Dynamic Loss Scaling"
+description: "Mixed-precision training offers substantial performance gains through FP16 computation; however, it introduces the challenge of gradient vanishing during backpropagation. As gradients transition from FP32 to FP16, their magnitude can shrink drastically, leading to stalled training progress."
+---
+## Overview
+
+Dynamic Loss Scaling (DLS) addresses this issue by dynamically adjusting the loss value before and after backpropagation. Here’s the breakdown:
+
+* Loss Scaling: The loss value is multiplied by a scaling factor before backpropagation. This artificially inflates the gradients, preventing them from shrinking to zero in FP16.
+
+* Backpropagation: Gradients are computed using the scaled loss value, ensuring their magnitude remains high during backpropagation.
+
+* Unscaling: After backpropagation, the weight updates are divided by the same scaling factor used in step 1. This reverses the artificial inflation, ensuring accurate updates to the network weights.
+
+
+DLS automates the scaling process, eliminating the need for manual tuning of the scaling factor. This simplifies mixed-precision training and improves its stability.
+
+Key benefits of DLS:
+
+* Prevents gradient vanishing: Maintains gradient information during backpropagation, leading to improved training progress.
+
+* Improves training stability: Reduces divergence and stalling, leading to smoother convergence.
+
+* Simplifies mixed-precision training: Eliminates the need for manual loss scale tuning.
+
+* Boosts performance: Can achieve faster training times with less memory usage compared to full FP32 training.
+
+
+## Supported precision
+Dynamic Loss Scaling should be used when the `fp16_type` is either `float16` or `cbfloat16`. It is not needed for `bfloat16`. For supported precision formats on Cerebras Wafer-Scale cluster, see [Control numerical precision level](../../how_to_guides/cs-1-data-formats.html#data-formats).
+
+## Enabling dynamic loss scaling from the Model Zoo
+
+Starting with Release 2.1.0, Dynamic Loss Scaling is available for training models with `cbfloat16` precision. This can improve training speed and stability.
+
+To activate the Dynamic Loss Scaling functionality, an optimizer parameter available within the Model Zoo, set the value of the `loss_scaling_factor` YAML hyperparameter to “dynamic”:
+```Bash
+optimizer:
+
+ loss_scaling_factor: "dynamic"
+```
+
+If you’re loading a model from an older checkpoint (created before Release 2.1.0) that used `bfloat16` training without loss scaling, you need to include the `--load_checkpoint_states` flag (or its equivalent in your run configuration) to make sure the parameters are loaded correctly from the `params.yaml` file.
+
+Once you’ve loaded your model and trained it with the new dynamic loss scaling, any checkpoints you save afterwards will automatically include this feature and won’t require the special flag anymore.
+
+## Enabling dynamic loss scaling with module
+
+Dynamic Loss Scaling offers flexible configuration through the `cstorch.amp.GradScaler` module. Supported parameters include:
+
+* `loss_scale`: Set to “dynamic” to activate dynamic scaling.
+
+* `initial_loss_scale`: Defines the starting scaling factor. Default value: `2e15`.
+
+* `steps_per_increase`: Controls the frequency of scaling factor increments. Default value: `2000`.
+
+* `min_loss_scale`: Sets the lower bound for the scaling factor. Default value: `2e-14`.
+
+* `max_loss_scale`: Sets the upper bound for the scaling factor. Default value: `2e15`.
+
+* `max_gradient_norm`: For dynamic loss scaling with global gradient clipping.
+
+
+To activate Dynamic Loss Scaling, directly configure the `amp.GradScaler` constructor during initialization by passing the appropriate arguments:
+
+```Bash
+import cerebras.pytorch as cstorch
+
+scaler = cstorch.amp.GradScaler(
+    loss_scale="dynamic"
+    # DLS optimizer (loss_scale=='dynamic')
+    initial_loss_scale=2e15,
+    steps_per_increase=2000,
+    min_loss_scale=2e-14,
+    max_loss_scale=2e15,
+    max_gradient_norm=...,
+)
+```
+
+To prevent exploding gradients during training, use `amp.GradScaler` to automatically adjust the loss value (scaling up or down) before feeding it to the optimizer. This helps maintain numerical stability and can improve training speed. See the code below:
+
+```Bash
+import cerebras.pytorch as cstorch
+
+...
+scaler = cstorch.amp.GradScaler(...)
+...
+
+for inputs in dataloader:
+    loss = model(inputs)
+    scaler(loss).backwards()
+```
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Dynamic Loss Scaling offers:
+
+* **Robust Training**: By intelligently scaling gradients, DLS prevents vanishing gradients, guaranteeing smooth training progress and avoiding divergence or stalling.
+
+* **Enhanced Stability**: DLS mitigates numerical instability issues inherent in mixed-precision training, leading to more reliable and predictable training runs.
+
+* **Simplified Workflows**: DLS automates the scaling process, eliminating the need for manual tuning, making mixed-precision training more accessible and user-friendly.
+
+* **Performance Boost**: For increased training speed and reduced memory footprint, mixed-precision training with DLS stability features offers a compelling alternative to full FP32 training.
+
+
+This how-to-guide taught you how to enable Dynamic Loss Scaling when training models in mixed-precision with the Cerebras Model Zoo YAML parameter or by using our `amp.GradScaler` constructor to build your own training pipeline. We encourage using DLS when training with cbfloat for increased throughput and faster training.
+

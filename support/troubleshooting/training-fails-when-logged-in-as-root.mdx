@@ -1,0 +1,17 @@
+---
+title: " Training Fails When Logged In As Root "
+---
+## Observed Error[#](#observed-error "Permalink to this headline")
+
+```
+2023-05-04 10:15:40,465 ERROR:   Uncaught exception:
+Traceback (most recent call last):
+...
+grpc._channel._InactiveRpcError: <_InactiveRpcError of RPC that terminated with:
+        status = StatusCode.PERMISSION_DENIED
+        details = "User{username='root',UID=0} is not allowed to execute this method /cluster.cluster_mgmt_pb.ClusterManagement/InitCompileJob. Please use a non-root user."
+```
+
+## Explanation[#](#explanation "Permalink to this headline")
+
+Running as root is considered a big security concern. Therefore, the root user is disallowed to run jobs in the Cerebras cluster.

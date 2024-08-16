@@ -1,0 +1,100 @@
+---
+title: " Job Priority "
+description: "Prior to Release 2.2.0, job scheduling operated on a First In, First Out (FIFO) basis. "
+---
+
+## Overview[#](#overview "Permalink to this headline")
+
+To prioritize a job, users had to manually coordinate job cancellations and resubmissions among themselves. The job priority feature introduced in Release 2.2.0 enhances user experience by allowing job ordering based on assigned priorities rather than submission times.
+
+## Job Priority Definition[#](#job-priority-definition "Permalink to this headline")
+
+
+Jobs are sorted into four priority buckets: P0 (highest priority) to P3 (lowest priority). Within each bucket, individual jobs are ranked based on numerical priority values; lower numbers signify higher priority. Scheduling prioritizes jobs based on these values within designated queues.
+
+## Detailed Workflow[#](#detailed-workflow "Permalink to this headline")
+
+### Submitting Jobs with Priority[#](#submitting-jobs-with-priority "Permalink to this headline")
+
+Users can specify a job priority at submission using `--job_priority` with `run.py`.
+
+Valid inputs are p1, p2, and p3, corresponding to default values of 199, 299, and 399, respectively. If unspecified, jobs default to P2 (299).
+
+### Updating Job Priority[#](#updating-job-priority "Permalink to this headline")
+
+Users can adjust a job’s priority post-submission using [Command-Line Interface for Job Monitoring(csctl)](csctl.html#csctl). There are two ways to implement this:
+
+* By Bucket Name: Update using P0, P1, P2, or P3.
+
+* By Priority Value: Directly assign a numerical value within the priority bucket ranges.
+
+
+The mapping between priority values and buckets is crucial for understanding the scheduling precedence.
+
+### Priority rules[#](#priority-rules "Permalink to this headline")
+
+* Rule #1: Only admin users and users with the same GID can modify a job’s priority.
+
+* Rule #2: Only admin users can access the P0 bucket (0 to 99).
+
+* Rule #3: Completed jobs cannot have their priorities updated.
+
+
+### Monitoring job priorities[#](#monitoring-job-priorities "Permalink to this headline")
+
+Use [csctl](csctl.html#csctl) to view the priorities of jobs, which aids in understanding the scheduling order and managing workflows effectively.
+
+When listing jobs, users will see both priority values and their corresponding buckets, providing clarity on job scheduling order.
+
+### Priority Continuity[#](#priority-continuity "Permalink to this headline")
+
+Jobs stemming from the same `run.py` invocation inherit the workflow’s priority. Updating a workflow’s priority affects all associated pending and subsequent jobs, ensuring consistent priority across a workflow.
+
+## Usage Enhancements[#](#usage-enhancements "Permalink to this headline")
+
+
+In addition to allowing users to specify and update job priorities, several other changes enhance the functionality and user experience:
+
+### Priority column in job listings[#](#priority-column-in-job-listings "Permalink to this headline")
+
+The `csctl` get job command now includes a priority column displaying “bucket-name (priority-value)” for clearer priority visualization.
+
+### Job sorting[#](#job-sorting "Permalink to this headline")
+
+Jobs are now sorted first by priority and then by age within the csctl get job listings. Higher priority jobs appear first, and among jobs with the same priority, newer jobs are listed before older ones.
+
+### Enhanced csctl commands[#](#enhanced-csctl-commands "Permalink to this headline")
+
+New `csctl` job commands have been introduced to improve job management. The aim is to consolidate all job-related commands under csctl job, enhancing the command structure and help menu.
+
+## Additional usage examples[#](#additional-usage-examples "Permalink to this headline")
+
+**1.** Submitting a job with specified priority:
+```Bash
+$ python run.py --job_priority p1 \[flags\]
+```
+This command submits a job with a priority set to P1.
+
+**2.** Updating a job’s priority to a different bucket:
+```Bash
+$ csctl job set-priority wsjob-xxxxxx p2
+```
+This updates the job’s priority to P2. Confirmation is displayed:
+```Bash
+job-operator/wsjob-jv58f5mb95kwpe5hwuujrk priority successfully updated.
+```
+**3.** Listing jobs with their priorities:
+```Bash
+$ csctl job list -a
+```
+Displays a list of jobs along with details such as type, priority, age, duration, phase, system, user, labels, and dashboard status. For example, it shows that:
+
+```Bash
+NAME                                       TYPE     PRIORITY  AGE    DURATION  PHASE      SYSTEMS  USER    LABELS            DASHBOARD
+job-operator/wsjob-jv58f5mb95kwpe5hwuujrk  execute  P2 (200)  3h56m  88s       SUCCEEDED  kapi-1   myuser  wsjob-label=test  grafana not deployed
+job-operator/wsjob-2ercynhxb44ajhg4qn9bem  compile  P1 (150)  3h58m  2m21s     FAILED              myuser  wsjob-label=test  grafana not deployed
+```
+
+## Conclusion[#](#conclusion "Permalink to this headline")
+
+This enhanced user guide offers a comprehensive understanding of the job priority feature, empowering users to optimize job scheduling and execution based on priority settings, thereby improving workflow efficiency and system utilization.

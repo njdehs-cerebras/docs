@@ -1,0 +1,1119 @@
+---
+title: "Trainer Configuration Overview"
+description: "The Cerebras Model Zoo comes packaged with a few useful utilities."
+---
+
+ Namely, It features a way to configure a [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class using a YAML configuration file.
+
+On this page you will learn how to write a YAML file to configure an instance of the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class. By the end, you should be comfortable enough with the YAML specification to write your own configuration files from scratch.
+
+## Prerequisites
+
+Please ensure that you have read through the [Trainer Overview](../trainer-overview.html#wsc-modelzoo-trainer) beforehand. The rest of this page assumes that you already have at least a cursory understanding of what the Cerebras Model Zoo Trainer is and how to use the python API.
+
+## Base Specification
+
+The YAML specification is intentionally designed to map almost exactly one-to-one with the Trainer’s python API.
+
+The Trainer’s constructor can be specified via a YAML configuration file as follows:
+
+<Tabs>
+  <Tab title="YML">
+  ```Yaml
+  trainer:
+    init:
+      device: "CSX"
+      model_dir: "./model_dir"
+      model:
+        # The remaining arguments to the model class
+        vocab_size: 1024
+        max_position_embeddings: 1024
+        ...
+      optimizer:
+        # Corresponds to cstorch.optim.SGD
+        SGD:
+          lr: 0.01
+          momentum: 0.9
+      loop:
+        num_steps: 1000
+        eval_steps: 100
+        eval_frequency: 100
+      checkpoint:
+        steps: 100
+    fit:
+      train_dataloader:
+        data_processor: GptHDF5MapDataProcessor
+        data_dir: "/path/to/train/data"
+        batch_size: 64
+        ...
+      val_dataloader:
+        data_processor: GptHDF5MapDataProcessor
+        data_dir: "/path/to/validation/data"
+        batch_size: 64
+        ...
+```
+  </Tab>
+  <Tab title="Python">
+  ```Python
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import Checkpoint, TrainingLoop
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model
+from cerebras.modelzoo.data.nlp.gpt.GptHDF5MapDataProcessor import GptHDF5MapDataProcessor
+
+trainer = Trainer(
+    device="CSX",  # The device to run on
+    model_dir="./model_dir",  # The directory at which to store artifacts
+    model=lambda: Gpt2Model(
+        vocab_size=1024,
+        max_position_embeddings=1024,
+        ...
+    ),
+    optimizer=lambda model: cstorch.optim.SGD(
+        model.parameters(), lr=0.01, momentum=0.9
+    ),
+    loop=TrainingLoop(num_steps=1000, eval_steps=100, eval_frequency=100),
+    checkpoint=Checkpoint(steps=100),
+)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(
+        GptHDF5MapDataProcessor,
+        data_dir="/path/to/train/data",
+        batch_size=64,
+        ...,
+    ),
+    val_dataloader=cstorch.utils.data.DataLoader(
+        GptHDF5MapDataProcessor,
+        data_dir="/path/to/validation/data",
+        batch_size=64,
+        ...,
+    ),
+)
+```
+
+  </Tab>
+</Tabs>
+
+
+If you open the Python tab above, you can see the equivalent Python code that the YAML configuration corresponds to. As can be seen, the YAML specification almost directly mirrors the python API. This was an intentional design choice to make it easy to use one if you are familiar with the other.
+
+## Breaking It Down
+
+The YAML specification starts with the top level `trainer` key.
+```Bash
+trainer:
+  ...
+```
+If this key is not present, then the configuration is not valid.
+
+The `trainer` accepts the following subkeys:
+
+* [`init`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")
+
+* [`fit`](../api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit")
+
+* [`validate`](../api/index.html#cerebras.modelzoo.Trainer.validate "cerebras.modelzoo.Trainer.validate")
+
+* [`validate_all`](../api/index.html#cerebras.modelzoo.Trainer.validate_all "cerebras.modelzoo.Trainer.validate_all")
+
+
+### init
+
+The [`init`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") key is used to specify the arguments to the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s constructor.
+
+The arguments are passed as key-value pairs, where the key is the argument name and the value is the argument value.
+
+Below are all of the accepted keys alongside YAML examples and their equivalent Python counterparts:
+
+#### device
+
+The device to train the model on. If provided, it must be one of `"CSX"`, `"CPU"`, or `"GPU"`.
+
+<Tabs>
+    <Tab title="YML">
+        ```yaml
+
+        trainer:
+          init:
+            device: "CSX"
+            ...
+          ...
+        ```
+    </Tab>
+    <Tab title="Python">
+        ```python
+        from cerebras.modelzoo import Trainer
+
+        trainer = Trainer(
+            device="CSX",
+            ...,
+        )
+        ...
+        ```
+    </Tab>
+</Tabs>
+
+
+#### backend
+
+Configures the backend used to train the model. If provided, it is expected to be a dictionary whose keys will be used to construct a [`cerebras.pytorch.backend`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance.
+
+<Tabs>
+  <Tab title="YML">
+    ```yaml
+      trainer:
+      init:
+        backend:
+          backend_type: "CSX"
+          cluster_config:
+            num_csx: 4
+            mount_dirs:
+            - /path/to/dir1
+            - /path/to/dir2
+            ...
+          ...
+        ...
+      ...
+    ```
+  </Tab>
+  <Tab title="Python">
+  ```python
+    import cerebras.pytorch as cstorch
+    from cerebras.modelzoo import Trainer
+
+    trainer = Trainer(
+        backend=cstorch.backend(
+            backend_type="CSX",
+            cluster_config=cstorch.distributed.ClusterConfig(
+                num_csx=4,
+                mount_dirs=["/path/to/dir1", "/path/to/dir2"],
+                ...,
+            ),
+            ...,
+        )
+        ...
+    )
+    ...
+    ```
+
+  </Tab>
+</Tabs>
+
+<Info>
+  Note
+
+  The `backend` argument is mutually exclusive with `device`. The functionality it provides is a strict superset of the functionality provided by `device`. To use a certain backend with all default parameters, you may specify `device`. To configure anything about the backend, you must specify those parameters via the `backend` key.
+
+  To learn more about the backend argument, you can check out [Trainer Backend](../Components/trainer/backend_device.html#wsc-modelzoo-trainer-backend-device).
+</Info>
+#### model_dir
+
+The directory where the model artifacts are saved. Some of the artifacts that may be dumped into the `model_dir` include (but are not limited to):
+
+* Client-side logs
+
+* Checkpoints
+
+* TensorBoard event files
+
+* Tensor summaries
+
+* Validation results
+
+<Tabs>
+  <Tab title="YML">
+  ```yaml
+
+  trainer:
+  init:
+    ...
+    model_dir: "./model_dir"
+    ...
+  ...
+  ```
+  </Tab>
+  <Tab title="Python">
+  ```python
+    from cerebras.modelzoo import Trainer
+
+    trainer = Trainer(
+        ...,
+        model_dir="./model_dir",
+        ...,
+    )
+    ...
+  ```
+  </Tab>
+</Tabs>
+
+#### model
+
+Configures the [`Module`](https://pytorch.org/docs/stable/generated/torch.nn.Module.html#torch.nn.Module "(in PyTorch v2.4)") to train/validate using the constructed Trainer. All subkeys are passed as arguments to the model class.
+
+<Tabs>
+  <Tab title="YML">
+    ```yaml
+  trainer:
+  init:
+    ...
+    model:
+      vocab_size: 1024
+      max_position_embeddings: 1024
+      ...
+    ...
+  ...
+  ```
+  </Tab>
+  <Tab title="Python">
+```python
+  from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.models.nlp.gpt2.model import Gpt2Model
+
+trainer = Trainer(
+    ...,
+    model=lambda: Gpt2Model(
+        vocab_size=1024,
+        max_position_embeddings=1024,
+        ...,
+    ),
+    ...,
+)
+...
+  ```
+  </Tab>
+</Tabs>
+
+To learn more about the model argument, you can check out [Trainer Model](../Components/trainer/model.html#wsc-modelzoo-trainer-model).
+
+#### optimizer
+
+Configures the [`Optimizer`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") to use to optimize the model’s weights during training.
+
+The value at this key is expected to be a dictionary. This dictionary is expected to contain a single key that specifies the name of the Cerebras optimizer to construct. That is to say, it must be the name of a subclass of [`Optimizer`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") (see [optim](../../api/cerebras_pytorch/optim.html#cerebras-pytorch-optim) for the full list of [`Optimizer`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.Optimizer "cerebras.pytorch.optim.Optimizer") subclasses that come packaged in `cerebras.pytorch`)
+
+The value of the Optimizer name key is expected to be dictionary of key-value pairs that correspond to the arguments of the optimizer subclass.
+
+<Tabs>
+  <Tab title="YML">
+   ````yaml
+  trainer:
+  init:
+    ...
+    optimizer:
+      # Corresponds to cstorch.optim.SGD
+      SGD:
+        lr: 0.01
+        momentum: 0.9
+    ...
+  ...
+ ````
+ <Info>
+  Note
+
+  The `params` argument to the optimizer is automatically passed in and thus is not required.
+</Info>
+  </Tab>
+  <Tab title="Python">
+   ```python
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    optimizer=lambda model: cstorch.optim.SGD(
+        model.parameters(),
+        lr=0.01,
+        momentum=0.9,
+    ),
+    ...,
+)
+...
+  ```
+  </Tab>
+</Tabs>
+
+To learn more about the optimizer argument, you can check out [Trainer Optimizer](../Components/trainer/optimizer.html#wsc-modelzoo-optimizer).
+
+#### schedulers
+
+Configures the [`Scheduler`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") instances to use during the training run.
+
+The value at this key is expected to be a dictionary or a list of dictionaries. Each dictionary is expected to have a single key specifying the name of the [`Scheduler`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler"). That is to say, it must be the name of a subclass of [`Scheduler`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") (see [cerebras.pytorch.optim](../../api/cerebras_pytorch/optim.html#cerebras-pytorch-optim) for the full list of [`Scheduler`](../../api/cerebras_pytorch/optim.html#cerebras.pytorch.optim.scheduler.Scheduler "cerebras.pytorch.optim.scheduler.Scheduler") subclasses that come packaged in `cerebras.pytorch`)
+
+The corresponding value of the Scheduler name key is expected to be mapping of key-value pairs that are passed as keyword arguments to the Scheduler.
+
+<Tabs>
+  <Tab title="YML">
+  ```yaml
+trainer:
+  init:
+    ...
+    schedulers:
+    - LinearLR:
+        initial_learning_rate: 0.01
+        end_learning_rate: 0.001
+        total_iters: 100
+    ...
+  ...
+  ```
+  <Info>
+  Note
+  The optimizer argument to the Scheduler is automatically passed in and thus is not required.
+  </Info>
+  </Tab>
+  <Tab title="Python">
+  ```python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    schedulers=[
+        lambda optimizer: cstorch.optim.lr_scheduler.LinearLR(
+            optimizer,
+            initial_learning_rate=0.01,
+            end_learning_rate=0.001,
+            total_iters=100,
+        ),
+        ...
+    ],
+    ...,
+)
+...
+...
+  ```
+  </Tab>
+</Tabs>
+To learn more about the schedulers argument, you can check out [Trainer Schedulers](../Components/trainer/optimizer.html#wsc-modelzoo-optimizer).
+
+#### precision
+
+Configures the [`Precision`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Precision "cerebras.modelzoo.trainer.callbacks.Precision") instance to use.
+
+Today, the only supported [`Precision`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Precision "cerebras.modelzoo.trainer.callbacks.Precision") type is [`MixedPrecision`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision").
+
+So, the value of the `precision` key is expected to be a dictionary corresponding to the arguments of [`MixedPrecision`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.MixedPrecision "cerebras.modelzoo.trainer.callbacks.MixedPrecision")
+
+<Tabs>
+  <Tab title="YML">
+   ```yaml
+  trainer:
+  init:
+    ...
+    precision:
+      fp16_type: float16
+      precision_opt_level: 1
+      loss_scaling_factor: dynamic
+      max_gradient_norm: 1.0
+      ...
+    ...
+  ...
+```
+  </Tab>
+  <Tab title="Python">
+  ```python
+
+  from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import MixedPrecision
+
+trainer = Trainer(
+    ...,
+    precision=MixedPrecision(
+        fp16_type="float16",
+        precision_opt_level=1,
+        loss_scaling_factor="dynamic",
+        max_gradient_norm=1.0,
+        ...,
+    ),
+    ...,
+)
+...
+  ```
+  </Tab>
+</Tabs>
+
+
+To learn more about the precision argument, you can check out [Trainer Precision](../Components/trainer/precision.html#wsc-modelzoo-trainer-amp).
+
+#### sparsity
+
+Configures the [`SparsityAlgorithm`](../../api/cerebras_pytorch/sparse.html#cerebras.pytorch.sparse.SparsityAlgorithm "cerebras.pytorch.sparse.SparsityAlgorithm") to use to sparsity the model’s weights and optimizer state.
+
+The value at this key is expected to be a dictionary. At a minimum, this dictionary is expected to contain an `algorithm` key that specifies the name of the sparsity algorithm to apply as well as a `sparsity` that specifies the level of sparsity to apply.\
+
+<Tabs>
+  <Tab title="YML">
+   ```YAML
+trainer:
+  init:
+    ...
+    sparsity:
+      algorithm: Static
+      sparsity: 0.5
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+    ```python
+    import cerebras.pytorch as cstorch
+    from cerebras.modelzoo import Trainer
+
+    trainer = Trainer(
+        ...,
+        sparsity=cstorch.sparse.Static(
+            sparsity=0.5,
+        ),
+        ...,
+    )
+    ...
+    ```
+  </Tab>
+</Tabs>
+
+To learn more about how sparsity can be configured, see [Train a model with weight sparsity](../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity).
+
+#### loop
+
+Configures a [`TrainingLoop`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.TrainingLoop "cerebras.modelzoo.trainer.callbacks.TrainingLoop") instance that specifies how many steps to train and validate for.
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    loop:
+      num_steps: 1000
+      eval_steps: 100
+      eval_frequency: 100
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+  from cerebras.modelzoo import Trainer
+  from cerebras.modelzoo.trainer.callbacks import TrainingLoop
+
+  trainer = Trainer(
+      ...,
+      loop=TrainingLoop(
+          num_steps=1000,
+          eval_steps=100,
+          eval_frequency=100,
+      ),
+      ...,
+  )
+  ...
+  ```
+  </Tab>
+</Tabs>
+To learn more about the loop argument, you can check out [Training Loop](../Components/trainer/loop.html#wsc-modelzoo-trainer-loop).
+
+#### checkpoint
+
+Configures a [`Checkpoint`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Checkpoint "cerebras.modelzoo.trainer.callbacks.Checkpoint") instance that specifies how frequently the trainer should save checkpoints during training.
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    checkpoint:
+      steps: 100
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+    from cerebras.modelzoo import Trainer
+    from cerebras.modelzoo.trainer.callbacks import Checkpoint
+
+    trainer = Trainer(
+        ...,
+        loop=Checkpoint(
+            steps=1000,
+        ),
+        ...,
+    )
+...
+  ```
+  </Tab>
+</Tabs>
+To learn more about the checkpoint argument, you can check out [Checkpointing](../Components/trainer/checkpoint.html#wsc-modelzoo-checkpoint).
+
+#### logging
+
+Configures a [`Logging`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Logging "cerebras.modelzoo.trainer.callbacks.Logging") instance that configures the Python logger as well as specify how frequently the trainer should be writing logs.
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    logging:
+      log_steps: 10
+      log_level: INFO
+    ...
+  ...
+  ```
+  </Tab>
+  <Tab title="Python">
+	```python
+  from cerebras.modelzoo import Trainer
+  from cerebras.modelzoo.trainer.callbacks import Logging
+
+  trainer = Trainer(
+      ...,
+      logging=Logging(
+          log_steps=10,
+          log_level="INFO",
+      ),
+      ...,
+  )
+...
+  ```
+  </Tab>
+</Tabs>
+
+In the above example, the Python logger is configured to allow info logs to be printed and to print logs at every 10 steps.
+
+To learn more about the logging argument, you can check out [Trainer Logging](../Components/trainer/loggers.html#wsc-modelzoo-trainer-loggers).
+
+#### callbacks
+
+This key accepts a list of dictionaries, each of which specifies the configuration for some [`Callback`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback") class.
+
+Each dictionary is expected to have a single key specifying the name of the [`Callback`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback") subclass (see callbacks for the full list of [`Callback`](../api/generated/cerebras.modelzoo.trainer.callbacks.html#cerebras.modelzoo.trainer.callbacks.Callback "cerebras.modelzoo.trainer.callbacks.Callback") subclasses that come packaged in `cerebras.modelzoo`).
+
+The value at this key are passed in as keyword arguments to the subclass’s constructor.
+
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    callbacks:
+    - CheckLoss: {}
+    - ComputeNorm: {}
+    - RateProfiler: {}
+    - LogOptimizerParamGroup:
+        keys:
+        - lr
+    ...
+  ...
+  ```
+  </Tab>
+  <Tab title="Python">
+	```python
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.callbacks import (
+    CheckLoss,
+    ComputeNorm,
+    RateProfiler,
+    LogOptimizerParamGroup,
+)
+
+trainer = Trainer(
+    ...,
+    callbacks=[
+        CheckLoss(),
+        ComputeNorm(),
+        RateProfiler(),
+        LogOptimizerParamGroup(keys=["lr"])
+    ],
+    ...,
+)
+...
+  ```
+  </Tab>
+</Tabs>
+
+
+You can even include your own custom callbacks here. To learn more, you can read [Customizing the Trainer with Callbacks](../Components/trainer/callbacks.html#wsc-modelzoo-trainer-callbacks)
+
+#### loggers[#](#loggers "Permalink to this headline")
+
+This key accepts a list of dictionaries, each of which specifies the configuration for some [`Logger`](../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") class.
+
+Each dictionary is expected to have a single key specifying the name of the [`Logger`](../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") subclass (see loggers for the full list of [`Logger`](../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.Logger "cerebras.modelzoo.trainer.loggers.Logger") subclasses that come packaged in `cerebras.modelzoo`).
+
+The value at this key are passed in as keyword arguments to the subclass’s constructor.
+
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    logger:
+    - ProgressLogger: {}
+    - TensorboardLogger: {}
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+  from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.loggers import (
+    ProgressLogger,
+    TensorboardLogger,
+)
+
+trainer = Trainer(
+    ...,
+    loggers=[
+        ProgressLogger(),
+        Tensorboardlogger(),
+    ],
+    ...,
+)
+...
+```
+  </Tab>
+</Tabs>
+
+You can even include your own custom loggers here. To learn more, you can read [Loggers](../Components/trainer/loggers.html#wsc-modelzoo-trainer-loggers)
+
+#### seed
+
+This key accepts a single integer value to seed the random number generator.
+
+Setting this parameter will seed the PyTorch generator via a call to [`torch.manual_seed`](https://pytorch.org/docs/stable/generated/torch.manual_seed.html#torch.manual_seed "(in PyTorch v2.4)").
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+    seed: 2024
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    ...,
+    seed=2024,
+)
+...
+  ```
+  </Tab>
+</Tabs>
+
+### fit[#](#fit "Permalink to this headline")
+
+The [`fit`](../api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit") key is used to specify the arguments to the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s [`fit`](../api/index.html#cerebras.modelzoo.Trainer.fit "cerebras.modelzoo.Trainer.fit") method.
+
+The arguments are passed as key-value pairs, where the key is the argument name and the value is the argument value.
+
+Below are all of the accepted keys alongside YAML examples and their equivalent Python counterparts:
+
+#### train_dataloader[#](#train-dataloader "Permalink to this headline")
+
+This key is used to configure the training dataloader used to train the model.
+
+This value at this key is expected to be a dictionary containing at a minimum the `data_processor` key which specifies the name of the data processors to use.
+
+All other key-values in the dictionary are passed as argument to [`cerebras.pytorch.utils.data.DataLoader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader").
+<Tabs>
+  <Tab title="YML">
+	```YAML
+
+  trainer:
+  init:
+    ...
+  fit:
+    train_dataloader:
+      data_processor: GptHDF5MapDataProcessor
+      data_dir: "/path/to/train/data"
+      batch_size: 64
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+
+  import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.data.nlp.gpt.GptHDF5MapDataProcessor import GptHDF5MapDataProcessor
+
+trainer = Trainer(...)
+trainer.fit(
+    train_dataloader=cstorch.utils.data.DataLoader(
+        GptHDF5MapDataProcessor,
+        data_dir="/path/to/train/data",
+        batch_size=64,
+        ...,
+    ),
+    ...
+)
+  ```
+  </Tab>
+</Tabs>
+
+#### val_dataloader[#](#val-dataloader "Permalink to this headline")
+
+This key is used to configure the validation dataloader(s) used to validate the model.
+
+The dataloader configured here gets run for `eval_steps` every `eval_frequency` training steps.
+
+This value at this key is expected to be a dictionary or a list of dictionaries. Each dictionary is expected to contain at a minimum the `data_processor` key which specifies the name of the data processors to use.
+
+All other key-values in the dictionary are passed as argument to [`cerebras.pytorch.utils.data.DataLoader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader").
+
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+  fit:
+    ...
+    val_dataloader:
+    - data_processor: GptHDF5MapDataProcessor
+      data_dir: "/path/to/validation/data"
+      batch_size: 64
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.data.nlp.gpt.GptHDF5MapDataProcessor import GptHDF5MapDataProcessor
+
+trainer = Trainer(...)
+trainer.fit(
+    ...,
+    val_dataloader=[
+        cstorch.utils.data.DataLoader(
+            GptHDF5MapDataProcessor,
+            data_dir="/path/to/validation/data",
+            batch_size=64,
+            ...,
+        ),
+    ]
+    ...
+)
+  ```
+  </Tab>
+</Tabs>
+
+#### ckpt_path
+
+Specifies the path to the checkpoint to load.
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+  fit:
+    ...
+    ckpt_path: /path/to/checkpoint
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(...)
+trainer.fit(
+    ...,
+    ckpt_path="/path/to/checkpoint",
+)
+  ```
+  </Tab>
+</Tabs>
+### validate
+
+The [`validate`](../api/index.html#cerebras.modelzoo.Trainer.validate "cerebras.modelzoo.Trainer.validate") key is used to specify the arguments to the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s [`validate`](../api/index.html#cerebras.modelzoo.Trainer.validate "cerebras.modelzoo.Trainer.validate") method.
+
+The arguments are passed as key-value pairs, where the key is the argument name and the value is the argument value.
+
+Below are all of the accepted keys alongside YAML examples and their equivalent Python counterparts:
+
+#### val_dataloader
+
+This key is used to configure the validation dataloader used to validate the model.
+
+This value at this key is expected to be a dictionary that contains at a minimum the `data_processor` key which specifies the name of the data processors to use.
+
+All other key-values in the dictionary are passed as argument to [`cerebras.pytorch.utils.data.DataLoader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader").
+
+<Tabs>
+  <Tab title="YML">
+	```YAML
+
+  trainer:
+  init:
+    ...
+  validate:
+    val_dataloader:
+      data_processor: GptHDF5MapDataProcessor
+      data_dir: "/path/to/validation/data"
+      batch_size: 64
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.data.nlp.gpt.GptHDF5MapDataProcessor import GptHDF5MapDataProcessor
+
+trainer = Trainer(...)
+trainer.validate(
+    val_dataloader=cstorch.utils.data.DataLoader(
+        GptHDF5MapDataProcessor,
+        data_dir="/path/to/validation/data",
+        batch_size=64,
+        ...,
+    ),
+    ...
+)
+  ```
+  </Tab>
+</Tabs>
+
+The validation dataloader is intended to be used alongside the validation metrics classes. See [eval metrics](../../../original/port/porting-pytorch-to-cs/cbtorch-limitations.html#eval-metrics) to learn more.
+
+#### ckpt_path
+
+Specifies the path to the checkpoint to load.
+
+<Tabs>
+  <Tab title="YML">
+	```YAML
+
+  trainer:
+  init:
+    ...
+  validate:
+    ...
+    ckpt_path: /path/to/checkpoint
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(...)
+trainer.validate(
+    ...,
+    ckpt_path="/path/to/checkpoint",
+)
+  ```
+  </Tab>
+</Tabs>
+
+
+### validate_all
+
+The [`validate_all`](../api/index.html#cerebras.modelzoo.Trainer.validate_all "cerebras.modelzoo.Trainer.validate_all") key is used to specify the arguments to the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer")’s [`validate_all`](../api/index.html#cerebras.modelzoo.Trainer.validate_all "cerebras.modelzoo.Trainer.validate_all") method.
+
+The arguments are passed as key-value pairs, where the key is the argument name and the value is the argument value.
+
+Below are all of the accepted keys alongside YAML examples and their equivalent Python counterparts:
+
+#### val_dataloaders
+
+This key is used to configure the validation dataloader(s) used to validate the model.
+
+This value at this key is expected to be a dictionary or a list of dictionaries. Each dictionary is expected to contain at a minimum the `data_processor` key which specifies the name of the data processors to use.
+
+All other key-values in the dictionary are passed as argument to [`cerebras.pytorch.utils.data.DataLoader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.data.DataLoader "cerebras.pytorch.utils.data.DataLoader").
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+  validate_all:
+    val_dataloaders:
+    - data_processor: GptHDF5MapDataProcessor
+      data_dir: "/path/to/validation/data1"
+      batch_size: 64
+      ...
+    - data_processor: GptHDF5MapDataProcessor
+      data_dir: "/path/to/validation/data2"
+      batch_size: 64
+      ...
+    ...
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+  Python Python
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.data.nlp.gpt.GptHDF5MapDataProcessor import GptHDF5MapDataProcessor
+
+trainer = Trainer(...)
+trainer.validate_all(
+    val_dataloaders=[
+        cstorch.utils.data.DataLoader(
+            GptHDF5MapDataProcessor,
+            data_dir="/path/to/validation/data1",
+            batch_size=64,
+            ...,
+        ),
+        cstorch.utils.data.DataLoader(
+            GptHDF5MapDataProcessor,
+            data_dir="/path/to/validation/data2",
+            batch_size=64,
+            ...,
+        ),
+    ]
+    ...
+)
+  ```
+  </Tab>
+</Tabs>
+
+
+#### ckpt_paths
+
+Specifies the paths to the checkpoints to load.
+<Tabs>
+  <Tab title="YML">
+	```YAML
+  trainer:
+  init:
+    ...
+  validate_all:
+    ...
+    ckpt_paths:
+    - /path/to/checkpoint1
+    - /glob/path/to/checkpoint*
+  ...
+  ```
+
+  </Tab>
+  <Tab title="Python">
+	```python
+    from cerebras.modelzoo import Trainer
+
+    trainer = Trainer(...)
+    trainer.validate(
+      ...,
+      ckpt_paths=[
+          "/path/to/checkpoint1",
+          "/glob/path/to/checkpoint*",
+      ]
+    )
+  ```
+  </Tab>
+</Tabs>
+
+<Info>
+Note
+
+Globs are accepted as well.
+</Info>
+All validation dataloaders are used to run validation for every checkpoint. So, effectively, [`validate_all`](../api/index.html#cerebras.modelzoo.Trainer.validate_all "cerebras.modelzoo.Trainer.validate_all") is doing
+
+```Bash
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(...)
+for ckpt_path in ckpt_paths:
+    trainer.load_checkpoint(ckpt_path)
+    for val_dataloader in val_dataloaders:
+        trainer.validate(val_dataloader)
+```
+## Legacy Specification
+
+In releases 2.2 and below the YAML specification was different. It used to be of the form:
+
+```Bash
+model:
+  ...
+optimizer:
+  ...
+train_input:
+  ...
+eval_input:
+  ...
+runconfig:
+  ...
+```
+
+The reason we changed it to the way it is today is that the older specification was not general or flexible enough to make full use of the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class.
+
+If you have a legacy YAML configuration lying around, you can still use it. There is a converter available that can be used to convert any legacy YAML configurations into the new trainer YAML configuration:
+
+```Bash
+
+import yaml
+
+from cerebras.modelzoo.trainer.utils import (
+    convert_legacy_params_to_trainer_params
+)
+
+
+with open("/path/to/legacy/params.yaml") as f:
+    legacy_params = yaml.load(f)
+
+trainer_params = convert_legacy_params_to_trainer_params(
+    legacy_params
+)
+
+with open("/path/to/trainer/params.yaml", "w") as f:
+    yaml.dump(f)
+```
+
+The training scripts provided in the Cerebras ModelZoo are capable of detecting if you passed in a legacy configuration and will automatically invoke this converter before proceeding to constructing and using the Trainer.
+
+If you are already familiar with the Legacy YAML specification and just want to find out how to specify a specific parameter in the Trainer YAML specification, please refer to the table in [Correspondance from Legacy to Trainer](table.html#correspondance-from-legacy-to-trainer).
+
+## Conclusion
+
+By this point, whether you are writing it from scratch or starting from an existing legacy configuration, you should have an understanding of how to configure a Trainer using a YAML configuration file.
+
+## What’s next?
+
+To learn more about how you can use the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../core_workflows/pretrain.html#wsc-modelzoo-pretrain-upstream-validation)
+
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](../Components/trainer/weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+
+* [Numeric Precision](../Components/trainer/precision.html#wsc-modelzoo-trainer-amp)
+
+* [Train a model with weight sparsity](../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+
+* [Checkpointing](../Components/trainer/checkpoint.html#wsc-modelzoo-checkpoint)
+
+* [Customizing the Trainer with Callbacks](../Components/trainer/callbacks.html#wsc-modelzoo-trainer-callbacks)
+
+* [Logging](../Components/trainer/loggers.html#wsc-modelzoo-trainer-loggers)

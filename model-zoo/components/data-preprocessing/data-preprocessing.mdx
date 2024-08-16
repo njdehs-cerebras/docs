@@ -1,0 +1,334 @@
+---
+title: "      Data Preprocessing     "
+---
+  
+
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Data preprocessing is a critical step in machine learning workflows, especially when dealing with large-scale data on the Cerebras platform. This document outlines the essential components and configurations required to preprocess data effectively for various tasks, including pretraining, finetuning, and custom processing modes. The key components include setting up the data configuration YAMLs, handling input data, configuring processing parameters, and initializing tokenizers.
+
+Data Configuration[#](#data-configuration "Permalink to this headline")
+-----------------------------------------------------------------------
+
+You can refer to some configuration files [here](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/data_preparation/data_preprocessing/configs).
+
+For detailed explanatation of each of the sections in the config file, refer to the sections below.
+
+### Setting Up the Environment[#](#setting-up-the-environment "Permalink to this headline")
+
+The setup section configures the environment and parameters required for processing tasks. It includes setting up the output directory, handling input files, and determining the number of processes and the preprocessing mode.
+
+### Output Directory[#](#output-directory "Permalink to this headline")
+
+`output_dir`: Determines the directory path where output files will be saved. Defaults to `./output/` if not specified. Essential for storing all output files generated.
+
+### Handling Input Data[#](#handling-input-data "Permalink to this headline")
+
+`data`: This section contains input data configuration details. The parameters it takes are:
+
+> * `type`: Specifies the type of data source, either `huggingface` or `local`. Determines how the input directory is set up:
+>     
+>     > * For `huggingface`, the dataset is loaded using the provided configuration.
+>     >     
+>     > * For `local`, the directory containing the input data files must be specified in the `source` parameter.
+>     >     
+>     
+> * `source`: When using local data, this parameter specifies the directory path where input data files are located. It is mandatory for local data sources and ensures the system knows where to find the input files. When using HuggingFace dataset, it would be the dataset name in HuggingFace hub.
+>     
+> * `split`: This argument needs to be set when processing hugging face datasets.
+>     
+> * `kwargs`: Parameters to be passed to `load_dataset` when using HuggingFace dataset.
+>     
+
+### Input Files Format[#](#input-files-format "Permalink to this headline")
+
+The preprocessing pipeline supports input data in various formats; namely - `.jsonl`, `.json.gz`, `.jsonl.zst`, `.jsonl.zst.tar`, `.parquet`, `.txt` and `.fasta`. For more details on how to structure these files, refer to the section on read hooks in the _read-hooks-section.
+
+<Note>
+Note
+
+To optimally process the files, it is recommended that all files other than `.txt` contain enough text in a single file. Recommended size for each file is in the order of GBs.
+
+If processiing smaller files with `.txt` format, please input a `metadata` file containing a list of paths for these files to better leverage multiprocessing.
+</Note>
+### Processing setup parameters[#](#processing-setup-parameters "Permalink to this headline")
+
+* `processes`: Defines the number of processes to be used for the task. Defaults to the number of CPU cores available on the system if set to 0, ensuring optimal utilization of system resources.
+    
+* `mode`: Specifies the operational mode. If set to `custom`, it initializes a custom processing mode. This mode allows for specific configurations and customizations as per user requirements. Other modes are described in the [Modes and Dataset Parameters](../../../port/prepare-data/data_preprocessing.html#modes-section).
+    
+* `token_generator`: Used in custom mode to specify the token generator. This parameter is split to extract the token generator’s name, enabling the system to initialize and use the specified token generator during processing.
+    
+
+Modes and dataset parameters[#](#modes-and-dataset-parameters "Permalink to this headline")
+-------------------------------------------------------------------------------------------
+
+### Mode-specific configurations[#](#mode-specific-configurations "Permalink to this headline")
+
+The mode parameter determines dataset handling and token generator (refer to _token-generator).
+
+The `setup params` section in the configuration file specifies different modes for processing the dataset. The mode determines how the dataset parameters are handled and which token generator is initialized. Below are the detailed explanations of each mode:
+
+#### Pretraining mode[#](#pretraining-mode "Permalink to this headline")
+
+* `pretraining`: This mode is used for pretraining tasks. Depending on the dataset configuration, different token generators are initialized:
+    
+    * If the dataset uses `is_multimodal` configuration parameter, it initializes the `MultiModalPretrainingTokenGenerator`.
+        
+    * If the training objective is “Fill In the Middle” (FIM), it initializes the `FIMTokenGenerator`.
+        
+    * If the `use_vsl` parameter is set to `True`, it initializes the `VSLPretrainingTokenGenerator`. Otherwise, it initializes the `PretrainingTokenGenerator`.
+        
+
+#### Fine-tuning mode[#](#fine-tuning-mode "Permalink to this headline")
+
+* `finetuning`: This mode is used for finetuning tasks. Depending on the dataset configuration, different token generators are initialized:
+    
+    * If the dataset is multimodal, it initializes the `MultiModalFinetuningTokenGenerator`.
+        
+    * If the `use_vsl` parameter is set to `True`, it initializes the `VSLFinetuningTokenGenerator`. Otherwise, it initializes the `FinetuningTokenGenerator`.
+        
+
+#### Other modes[#](#other-modes "Permalink to this headline")
+
+* `dpo`: This mode initializes the `DPOTokenGenerator`. It is used for tasks that require specific processing under the `dpo` mode.
+    
+* `nlg`: This mode initializes the `NLGTokenGenerator`. It is used for natural language generation tasks.
+    
+* `custom`: This mode allows for user-defined processing.
+    
+
+### Dataset parameters[#](#dataset-parameters "Permalink to this headline")
+
+In addition to the mode-specific token generators, the following dataset parameters are also processed:
+
+* `use_vsl`: A boolean parameter indicating whether to use VSL (variable sequence length) mode.
+    
+* `is_multimodal`: A boolean parameter indicating whether the dataset is multimodal.
+    
+* `training_objective`: Specifies the training objective which can either be `fim` or `mlm`. `mlm` is for masked language modeling which is a part of pretraining token generator.
+    
+* `image_dir`: If the dataset is multimodal, then this parameter must be specified. It indicates
+    
+
+the directory path where images are stored. An error is raised if the `image_dir` is not provided in the dataset section of the config file.
+<Note>
+Note
+
+Note that the modes are setup parameters whereas `use_vsl`, `is_multimodal`, `training_objective` are dataset parameters.
+
+`use_vsl` is not supported for multimodal tasks.
+</Note>
+Processing parameters[#](#processing-parameters "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+### Initialization of parameters[#](#initialization-of-parameters "Permalink to this headline")
+
+This section initializes parameters for preprocessing tasks, setting up class attributes based on the provided configuration. Below are detailed explanations of each parameter and its role:
+
+* `resume_from_checkpoint`: Boolean flag indicating whether to resume processing from a checkpoint. Defaults to `False`.
+    
+* `max_seq_length`: Specifies the maximum sequence length for processing. Defaults to 2048.
+    
+* `read_chunk_size`: The size of chunks to read from the input data, specified in KB. Defaults to 1024 KB (1 MB).
+    
+* `write_chunk_size`: The size of chunks to write to the output data, specified in KB. Defaults to 1024 KB (1 MB).
+    
+* `write_in_batch`: Boolean flag indicating whether to write data in batches. Defaults to `False`.
+    
+* `read_hook`: The path to the read hook function used for reading data. Defaults to `None`. User must provide the `read_hook` for every preprocessing run.
+    
+* `read_hook_kwargs`: A dictionary of keyword arguments for the read hook function. Must include `data_keys`, which specifies the keys to be used for data processing.
+    
+* `data_keys`: Keys required for data processing, obtained from `read_hook_kwargs`.
+    
+* `shuffle`: Boolean flag indicating whether to shuffle the data. Defaults to `False`. If `True`, the shuffle seed is also set.
+    
+* `shuffle_seed`: The seed for shuffling data. Defaults to 0 if not specified.
+    
+* `fraction_of_RAM_alloted`: Upper limit on fraction of RAM allocated for processing. Defaults to 0.7 (70% of available RAM).
+    
+<Note>
+Note
+
+The `max_seq_length` specified in the processing section of the data config should match `max_position_embeddings` in the `model` section in the model’s config. Also make sure the `vocab_size` in the `model` section in the model’s config matches the vocab size of the tokenizer used for data preprocessing.
+</Note>
+Read Hook function[#](#read-hook-function "Permalink to this headline")
+-----------------------------------------------------------------------
+
+A read hook function is a user-defined function that customizes the way data is processed. This function can be specified through a configuration parameter under `processing` section in the config and is crucial for preprocessing datasets. The parameter fields it takes are `read_hook` and `read_hook_kwargs`.
+
+### Important considerations[#](#important-considerations "Permalink to this headline")
+
+* Always ensure that a read hook function is provided for datasets to handle the data types appropriately.
+    
+* Specify the read hook path in the configuration in the format `module_name:func_name` to ensure the correct function is loaded and utilized.
+    
+
+### Example Configuration[#](#example-configuration "Permalink to this headline")
+
+Here is how to specify a format hook function in the configuration:
+```
+processing:
+  read_hook: "my_module.my_submodule:my_custom_hook"
+  read_hook_kwargs:
+    data_keys:
+     key1: "<key1_name>"
+     key1: "<key2_name>"
+    param1: value1
+    param2: value2
+
+```
+
+This configuration will load “my\_custom\_hook” from “my\_module.my\_submodule” and bind `data_keys`, `param1` and `param2` with the respective values.
+
+Tokenizer initialization[#](#tokenizer-initialization "Permalink to this headline")
+-----------------------------------------------------------------------------------
+
+### Tokenizer types and initialization[#](#tokenizer-types-and-initialization "Permalink to this headline")
+
+This section describes how the tokenizer is initialized based on the provided processing parameters. The initialization process handles different types of tokenizers, including HuggingFace tokenizer, GPT-2, NeoX, and custom tokenizers.
+
+### Configuration parameters[#](#configuration-parameters "Permalink to this headline")
+
+* `huggingface_tokenizer`: Specifies the HuggingFace tokenizer to use.
+    
+* `custom_tokenizer`: Specifies the custom tokenizer to use. The way to specify custom tokenizer is same as any other custom module - you can use `module_name:tokenizer_name`. `gpt2tokenizer` and `neoxtokenizer` are provided as special case, custom tokenizers for legacy reasons. For more details about custom tokenizers, refer to - _custom-tokenizer-section.
+    
+* `tokenizer_params`: A dictionary of additional parameters for the tokenizer. These parameters are passed to the tokenizer during initialization.
+    
+* `eos_id`: Optional. Specifies the end-of-sequence token ID. Used if the tokenizer does not have an `eos_id`.
+    
+* `pad_id`: Optional. Specifies the padding token ID. Used if the tokenizer does not have a `pad_id`.
+    
+
+### Initialization process[#](#initialization-process "Permalink to this headline")
+
+1.  **Handling Tokenizer Types**:
+    
+    * **HuggingFace Tokenizer**: Initialized using AutoTokenizer from HuggingFace.
+        
+    * **Custom Tokenizer**: For custom tokenizers, initialized from the user-provided module and class.
+        
+2.  **GPT-2 and NeoX Tokenizers**:
+    
+    * Kept as custom tokenizers because they require custom `vocab` and `encoder` files for initialization which are located in ModelZoo. Note that you can still use HuggingFace tokenizers for GPT2 and NeoX. But, these tokenizers exist for legacy reasons.
+        
+3.  **Override IDs**:
+    
+    * Override the `eos_id` and `pad_id` if specified in the processing parameters. Ensure that the `eos_id` and `pad_id` provided in the configuration match the tokenizer’s `eos_id` and `pad_id`, if available.
+        
+    
+    For GPT-2 tokenizers, make sure the `pad_id` is set to the same value as the `eos_id`.
+    
+
+### Example configurations[#](#example-configurations "Permalink to this headline")
+
+#### HuggingFace tokenizer[#](#huggingface-tokenizer "Permalink to this headline")
+```
+processing:
+  huggingface_tokenizer: "bert-base-uncased"
+  tokenizer_params:
+    param1: value1
+    param2: value2
+
+```
+
+This configuration will initialize the specified HuggingFace tokenizer with specific parameters.
+
+#### GPT-2 tokenizer[#](#gpt-2-tokenizer "Permalink to this headline")
+
+GPT-2 and NeoX tokenizers are treated as custom tokenizers because they require specific `vocab` and `encoder` files for initialization. These files must be provided through the `tokenizer_params`.
+```
+processing:
+  custom_tokenizer: "gpt2tokenizer"
+  tokenizer_params:
+    vocab_file: "path/to/vocab.json"
+    encoder_file: "path/to/merges.txt"
+
+```
+
+#### NeoX tokenizer[#](#neox-tokenizer "Permalink to this headline")
+```
+processing:
+  custom_tokenizer: "neoxtokenizer"
+  tokenizer_params:
+    encoder_file: "path/to/encoder.json"
+
+```
+
+#### Custom tokenizer[#](#custom-tokenizer "Permalink to this headline")
+```
+processing:
+  custom_tokenizer: "path.to.module:tokenizer_class"
+  tokenizer_params:
+    param1: "param1"
+    param2: "param2"
+
+```
+
+Output files structure[#](#output-files-structure "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+The output directory will contain a bunch of `.h5` files as shown below:
+```
+<path/to/output_dir>
+├── checkpoint_process_0.txt
+├── checkpoint_process_1.txt
+├── data_params.json
+├── output_chunk_0_0_0_0.h5
+├── output_chunk_1_0_0_0.h5
+├── output_chunk_1_0_16_1.h5
+├── output_chunk_0_0_28_1.h5
+├── output_chunk_0_0_51_2.h5
+├── output_chunk_1_0_22_2.h5
+├── output_chunk_0_1_0_3.h5
+├── ...
+```
+
+* `data_params.json` is the file which stores the parameters used for generating this set of files.
+    
+* `checkpoint_*.txt` can be used for resuming the processing in case the run script gets killed for some reason. To use this file, simply set the `resume_from_checkpoint` flag to `True` in the processing section inside the configuration file.
+    
+
+Statistics generated after preprocessing[#](#statistics-generated-after-preprocessing "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------------
+
+After preprocessing has been completed, a bunch of statistics are generated in `data_params.json`. These are:
+
+Table 7 Attributes and Descriptions[#](#id2 "Permalink to this table") 
+| Attribute | Description |
+| --- | --- |
+| `average_bytes_per_sequence` | The average number of bytes per sequence after processing |
+| `average_chars_per_sequence` | The average number of characters per sequence after processing |
+| `discarded_files` | The number of files discarded during processing because the resulting number of token IDs were either greater than the MSL or less than the min\_sequence\_len |
+| `eos_id` | The token ID used to signify the end of a sequence |
+| `loss_valid_tokens` | Number of tokens on which loss is computed |
+| `n_examples` | The total number of examples (sequences) that were processed |
+| `non_pad_tokens` | Non pad tokens |
+| `normalized_bytes_count` | The total number of bytes after normalization (e.g., UTF-8 encoding) |
+| `normalized_chars_count` | The total number of characters after normalization (e.g., lowercasing, removing special characters) |
+| `num_masked_tokens` | The total number of tokens that were masked (used in tasks like masked language modeling) |
+| `num_pad_tokens` | The total number of padding tokens used to equalize the length of the sequences |
+| `num_tokens` | Total number of tokens |
+| `pad_id` | The token ID used as padding |
+| `processed_files` | The number of files successfully processed after tokenizing |
+| `raw_bytes_count` | The total number of bytes before any processing |
+| `raw_chars_count` | The total number of characters before any processing |
+| `successful_files` | The number of files that were successfully processed without any issues |
+| `total_raw_docs` | The total number of raw docs present in the input data |
+| `raw_docs_skipped` | The number of raw docs that were skipped due to missing sections in the data |
+| `vocab_size` | The size of the vocabulary used in the tokenizer |
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+By understanding and correctly implementing these components, users can optimize their preprocessing workflows, leading to more efficient and effective model training and evaluation on the Cerebras platform.
+
+What’s Next?[#](#what-s-next "Permalink to this headline")
+----------------------------------------------------------
+
+Now that you’ve mastered the essentials of data preprocessing on Cerebras Systems, dive deeper into configuring your input data with our detailed guide on Input Data Configuration on Cerebras Systems. This guide will help you set up and manage local and HuggingFace data sources effectively, ensuring seamless integration into your preprocessing workflow.
+
+Additionally, explore the various read hooks available for data processing. These read hooks are tailored to handle different types of input data, preparing it for specific machine learning tasks. Understanding and utilizing these read hooks will further enhance your data preprocessing capabilities, leading to better model performance and more accurate results.

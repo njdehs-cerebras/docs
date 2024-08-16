@@ -1,0 +1,243 @@
+---
+title: "        Backend       "
+---
+  
+
+This page will cover how to set up a backend or device for the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class. The [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") is simply the configuration of the device and other settings used during a run. The `device` is simply what hardware the workflow will run on.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Make sure to have read through [Trainer Overview](../../trainer-overview.html#wsc-modelzoo-trainer) and [Trainer Configuration Overview](../../yaml/index.html#wsc-modelzoo-yaml) which provide the basic overview of how to run Model Zoo models. In this document, you will be using the tools and configurations outlined in those pages.
+
+Configure the `device`[#](#configure-the-device "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+Configuring the device used by the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") can be done by simply specifying one of `"CSX"`, `"CPU"`, or `"GPU"`.
+<CodeGroup>
+```YAML
+
+trainer:
+  init:
+    device: "CSX"
+    ...
+  ...
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    device="CSX",
+    ...,
+)
+...
+
+```
+</CodeGroup>
+
+<Note>
+Note
+
+Setting `device` still creates a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance just with default settings. To configure anything about the backend, you must specify those parameters via the `backend` key instead.
+</Note>
+
+### Limitations[#](#limitations "Permalink to this headline")
+
+Once a device is set, any other [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instances must also use the same device type as well. You cannot mix device types. For example, a configuration like this:
+<CodeGroup>
+```Tab YAML
+
+# THIS CONFIGURATION IS INVALID
+trainer:
+- trainer:
+    init:
+      device: "CSX"
+      ...
+    ...
+- trainer:
+    init:
+      device: "CPU"
+      ...
+    ...
+
+```
+```Tab Python
+from cerebras.modelzoo import Trainer
+
+# THIS CONFIGURATION IS INVALID
+trainer1 = Trainer(
+    device="CSX",
+    ...,
+)
+
+trainer2 = Trainer(
+    device="CPU",
+    ...,
+)
+...
+
+```
+</CodeGroup>
+
+will result in the following error:
+```
+RuntimeError: Cannot instantiate multiple backends. A backend with type CSX has already been instantiated.
+
+```
+
+Configure the `backend`[#](#configure-the-backend "Permalink to this headline")
+-------------------------------------------------------------------------------
+
+Configuring the backend used by the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") can be done by creating a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance.
+<CodeGroup>
+```Tab YAML
+
+The configuration is expected to be a dictionary whose keys will be used to construct a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance.
+
+trainer:
+  init:
+    backend:
+      backend_type: "CSX"
+      cluster_config:
+        num_csx: 4
+        mount_dirs:
+        - /path/to/dir1
+        - /path/to/dir2
+        ...
+      ...
+    ...
+  ...
+
+```
+```Tab Python
+Construct a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance and pass it to the `backend` argument.
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+trainer = Trainer(
+    backend=cstorch.backend(
+        backend_type="CSX",
+        cluster_config=cstorch.distributed.ClusterConfig(
+            num_csx=4,
+            mount_dirs=["/path/to/dir1", "/path/to/dir2"],
+            ...,
+        ),
+        ...,
+    )
+    ...
+)
+...
+
+```
+</CodeGroup>
+### Limitations[#](#id1 "Permalink to this headline")
+
+Multiple backend instantiations with different devices is not supported. You will see this error:
+```
+RuntimeError: Cannot instantiate multiple backends. A backend with type CSX has already been instantiated.
+
+```
+
+That means that when you construct one or more [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instances, you must ensure you only instantiate backends of a single device type. However you can change other backend parameters between [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") instances. For example:
+<CodeGroup>
+```Tab YAML
+
+The configuration is expected to be a dictionary whose keys will be used to construct a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance.
+
+trainer:
+- trainer:
+    init:
+      backend:
+        backend_type: "CSX"
+        cluster_config:
+          num_csx: 4
+          mount_dirs:
+          - /path/to/dir1
+          - /path/to/dir2
+          ...
+        ...
+      ...
+    ...
+- trainer:
+    init:
+      backend:
+        backend_type: "CSX"
+        cluster_config:
+          num_csx: 2
+          num_workers_per_csx: 1
+          mount_dirs:
+          - /path/to/dir1
+          - /path/to/dir2
+          ...
+        ...
+      ...
+    ...
+
+```
+```Tab Python
+Construct a [`cerebras.pytorch.backend`](../../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.backend "cerebras.pytorch.backend") instance and pass it to the `backend` argument.
+
+import cerebras.pytorch as cstorch
+from cerebras.modelzoo import Trainer
+
+backend = cstorch.backend(
+    "CSX",
+    cluster_config=cstorch.distributed.ClusterConfig(
+        num_csx=4,
+        mount_dirs=["/path/to/dir1", "/path/to/dir2"],
+        ...,
+    ),
+)
+
+trainer1 = Trainer(
+    backend=backend,
+    ...
+)
+
+backend.cluster_config.num_csx = 2
+backend.cluster_config.num_workers_per_csx = 1
+
+trainer2 = Trainer(
+    backend=backend,
+    ...
+)
+```
+</CodeGroup>
+
+Mutual Exclusivity[#](#mutual-exclusivity "Permalink to this headline")
+-----------------------------------------------------------------------
+
+The `device` and `backend` arguments are mutually exclusive. It is expected when initializing a [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") to set one of them but not both. If both are set, you will see an error that looks like this:
+```
+ValueError: backend and device are mutually exclusive arguments of Trainer. Please only provide one or the other
+
+```
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+That is all you need to know for configuring the `device` or `backend` for the Trainer. You should now have a better understanding of how to configure the Trainer with a `device` or `backend` and common errors you may run into.
+
+Further Reading[#](#further-reading "Permalink to this headline")
+-----------------------------------------------------------------
+
+To learn more about how you can use the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") in some core workflows, you can check out:
+
+* [Pretraining with Upstream Validation](../../core_workflows/pretrain.html#pretraining-with-upstream-validation)
+    
+
+To learn more about how you can extend the capabilities of the [`Trainer`](../../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") class, you can check out:
+
+* [Defer Weight Initialization](weight_init.html#wsc-modelzoo-trainer-defer-weight-init)
+    
+* [Numeric Precision](precision.html#wsc-modelzoo-trainer-amp)
+    
+* [Train a model with weight sparsity](../../tutorials/sparsity.html#wsc-modelzoo-tutorials-sparsity)
+    
+* [Checkpointing](checkpoint.html#wsc-modelzoo-checkpoint)
+    
+* [Customizing the Trainer with Callbacks](callbacks.html#wsc-modelzoo-trainer-callbacks)
+    
+* [Logging](loggers.html#wsc-modelzoo-trainer-loggers)

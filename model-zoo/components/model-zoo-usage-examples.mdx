@@ -1,0 +1,264 @@
+---
+title: "      Model Zoo Usage Examples     "
+---
+  
+
+Set up the Cerebras environment[#](#set-up-the-cerebras-environment "Permalink to this headline")
+-------------------------------------------------------------------------------------------------
+
+To set up your Cerebras environment for the [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo), follow the instructions provided in the ../Getting-started/Setup-installation page.
+
+Running an existing model[#](#running-an-existing-model "Permalink to this headline")
+-------------------------------------------------------------------------------------
+
+To execute an existing model from the Cerebras Model Zoo, follow these steps:
+
+**1.** List supported models
+
+Use the CLI to query the registry and display the supported models:
+```
+python <modelzoo path>/modelzoo/common/registry_cli.py --list_models
+
+```
+
+**2.** Locate the run.py file
+
+Find the `run.py` file for your chosen model using the registry’s model argument. For example, to locate the `run.py` file for GPT-2:
+```
+python <modelzoo path>/modelzoo/common/registry_cli.py --model gpt2
+
+```
+**Example**
+```
+python registry_cli.py --model gpt2
+
+Model: gpt2
+      class: <class 'cerebras.modelzoo.models.nlp.gpt2.model.Gpt2Model'>
+      dataset: []
+      dataset processor: ['GptHDF5DataProcessor', 'HuggingFaceDataProcessorEli5', 'HuggingFaceIterableDataProcessorEli5', 'DummyDataProcessor', 'DummyIterableDataProcessor']
+      ...
+      ...
+```
+
+**3.** Identify the YAML configuration file
+
+Determine which YAML file to use for the model’s parameters. The YAML configurations are located in the `configs/` directory within the model’s folder. For instance, GPT-2’s YAML files can be found at:
+```
+<modelzoo path>/modelzoo/models/nlp/gpt2/configs/
+
+```
+
+**4.** Run the model
+
+Execute the `run.py` script, supplying the appropriate YAML file as an argument. Refer to the ../Fundamentals/cs-appliance section in the Cerebras Developer Documentation for the specific command.
+
+### Editing configurations[#](#editing-configurations "Permalink to this headline")
+
+If you need to modify existing configurations, ensure you have cloned the Model Zoo repository for write access to the YAML files. If you want to modify how a run is configured for a specific Model Zoo model, make sure you have first cloned the Model Zoo repository for write access to the YAML files. All reference configuration files in Model Zoo are located in the `configs/` directory.
+
+### Querying additional components[#](#querying-additional-components "Permalink to this headline")
+
+To see which losses and dataloaders are provided in the reference examples, you can query the registry using:
+```
+python <modelzoo path>/modelzoo/common/registry_cli.py --list_losses
+python <modelzoo path>/modelzoo/common/registry_cli.py --list_datasetprocessor
+
+```
+
+Using Config Classes with an existing Model Zoo model[#](#using-config-classes-with-an-existing-model-zoo-model "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Every model within the Model Zoo is equipped with a corresponding Config class. When a Config class is associated with a model, the configuration is automatically validated in the backend, necessitating no additional actions from the user. For a deeper understanding of Config classes, you can explore further details here: [Model Zoo config classes](model_zoo_config_classes.html).
+
+Adding constraints to parameters using Config classes[#](#adding-constraints-to-parameters-using-config-classes "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------------------------------
+
+Config classes in the Model Zoo facilitate the addition of constraints to parameters defined in YAML files. These constraints ensure that the parameters adhere to specific conditions, enhancing the robustness and reliability of your model’s configuration. For detailed guidance on how to implement custom constraints to a parameter within your YAML configuration using Config classes, refer to the section [Adding custom constraint logic](model_zoo_config_classes.html#adding-custom-constraint-logic) in the Modelzoo Config Classes documentation.
+
+Integrating a new parameter type into the config[#](#integrating-a-new-parameter-type-into-the-config "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------------------------------------
+
+If you want to add a new parameter to your YAML config file, you also need to make sure to update the corresponding `config.py` file associated with the relative Config class.
+
+For a comprehensive guide on how to add a new parameter type to your config, consult the [Adding a New Parameter Type to the Config](model_zoo_config_classes.html#adding-new-parameter-type) section found in the Model Zoo Config classes documentation. This resource will provide you with step-by-step instructions to seamlessly integrate new parameters into your configuration setup.
+
+Creating and registering a new dataloader[#](#creating-and-registering-a-new-dataloader "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------
+
+To create a new dataloader, follow the instructions on the prepare-data/custom_dataloaders page in the Cerebras Developer Documentation. This will help you ensure compatibility with the Cerebras system. Next, we’ll cover how to register your new dataloader.
+
+### Registering Your New dataloader[#](#registering-your-new-dataloader "Permalink to this headline")
+
+For the system to recognize and utilize your new dataloader, you need to register it within the Model Zoo’s registry framework. Follow these steps to register your dataloader:
+
+**1.** Create an \_\_init\_\_.py file
+
+Ensure that there is an `__init__.py` file in the directory where your dataloader’s code resides. This file makes the directory a Python package, allowing its contents to be imported elsewhere.
+
+**2.** Add registration code to \_\_init\_\_.py
+
+Within the `__init__.py` file, include the following code to register your dataloader:
+```
+import os
+from cerebras.modelzoo.common.registry import registry
+
+# Obtain the current directory path where __init__.py is located.
+current_path = os.path.dirname(os.path.realpath(__file__))
+
+# Register the current path as a dataloader path.
+registry.register_paths("dataloader_path", current_path)
+
+```
+
+This code snippet accomplishes the following:
+
+* It imports the necessary modules, including the registry from the Model Zoo’s common utilities.
+    
+* It determines the path of the current directory (current_path) where the dataloader is located.
+    
+* It registers this path with the registry under the “dataloader_path” category, allowing the system to detect and utilize your new dataloader.
+    
+
+By following these steps, you ensure that your new dataloader is properly integrated into the Model Zoo’s infrastructure, ready to be used in your machine learning workflows.
+
+Adding and registering a new loss function[#](#adding-and-registering-a-new-loss-function "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------------------------
+
+To enhance the Model Zoo with your custom loss function, follow these steps to integrate and register it within the framework:
+
+**1.** Implementation
+
+Implement your new loss function and place the code in the `<modelzoo path>/modelzoo/losses` directory. This location is where the Model Zoo looks for loss function implementations.
+
+**2.** Registering the loss function
+
+To make your new loss function recognizable and usable within the Model Zoo, you need to register it:
+
+* Create or modify an \_\_init\_\_.py file
+    
+
+Ensure that an `__init__.py` file exists in the directory where your loss function code is located. If it doesn’t exist, create one. If it does, you’ll be editing it.
+
+* Add registration code
+    
+
+In the `__init__.py` file, include the following code to register your loss function:
+```
+import os
+from cerebras.modelzoo.common.registry import registry
+
+# Obtain the current directory path where __init__.py is located.
+current_path = os.path.dirname(os.path.realpath(__file__))
+
+# Register the current path as a loss function path.
+registry.register_paths("loss_path", current_path)
+
+```
+
+This code accomplishes the following tasks:
+
+* It imports the necessary modules, including the registry from the Model Zoo’s common utilities.
+    
+* It determines the path of the current directory (current_path) where the loss function is located.
+    
+* It registers this path with the registry under the “loss_path” category, enabling the system to detect and use your new loss function.
+    
+
+By following these instructions, your custom loss function becomes an integrated part of the Model Zoo, ready to be utilized in various training workflows.
+
+Creating and registering a new model[#](#creating-and-registering-a-new-model "Permalink to this headline")
+-----------------------------------------------------------------------------------------------------------
+
+To develop and integrate a new model with the Cerebras Model Zoo, consult the porting-pytorch-to-cs/index” page in the Cerebras Developer Documentation.
+
+### Registering your new model[#](#registering-your-new-model "Permalink to this headline")
+
+To ensure the Model Zoo recognizes your new model:
+
+**1.** Create or update an \_\_init\_\_.py file
+
+Ensure there’s an `__init__.py` file in the directory where your model.py is located. If the file isn’t there, create one.
+
+**2.** Add registration code
+
+In the `__init__.py` file, insert the following code to register your model:
+```
+import os
+from cerebras.modelzoo.common.registry import registry
+
+# Get the current directory path where __init__.py is located.
+current_path = os.path.dirname(os.path.realpath(__file__))
+
+# Register this path as a model path.
+registry.register_paths("model_path", current_path)
+
+```
+<Tip>
+Important
+
+Ensure the model’s name matches the directory name containing `model.py`. For example, if your model is named “tinybert”, its code should reside in a directory named “tinybert/”.
+</Tip>
+### Creating a Config class for your model[#](#creating-a-config-class-for-your-model "Permalink to this headline")
+
+To define a Config class for your new model, which facilitates parameter management and validation, follow the guidelines provided in the Model Zoo Config classes documentation, particularly under the section [Creating a variant of a supported model](model_zoo_config_classes.html#creating-variant-of-model) if your model is a variant of an existing one.
+
+By adhering to these steps, you ensure that your new model is seamlessly integrated into the Cerebras Model Zoo, benefiting from its robust infrastructure and features.
+
+Evaluating your model[#](#evaluating-your-model "Permalink to this headline")
+-----------------------------------------------------------------------------
+
+To effectively evaluate your model during and after training, follow these guides:
+
+### Evaluating during training[#](#evaluating-during-training "Permalink to this headline")
+
+For insights on assessing your model’s performance throughout the training process, visit the run-model/eval guide in the Cerebras Developer Documentation. This resource provides comprehensive information on the steps and settings required to evaluate your model during training on the Wafer-Scale Cluster (WSC).
+
+### Using EleutherAI’s Evaluation Harness[#](#using-eleutherais-evaluation-harness "Permalink to this headline")
+
+If you’re working with Large Language Models (LLMs) within the Model Zoo, you might want to leverage EleutherAI’s Evaluation Harness (EEH) for a more in-depth evaluation. The ../general/eval_harness guide offers detailed instructions on how to prepare your data and set up the EEH for evaluating LLMs. This tool provides a structured approach to assessing model performance across various benchmarks and tasks, facilitating a comprehensive evaluation of your LLM.
+
+By following these guidelines, you can gain valuable insights into your model’s effectiveness, helping you make informed decisions for further model refinement and deployment.
+
+Adding a new dataset[#](#adding-a-new-dataset "Permalink to this headline")
+---------------------------------------------------------------------------
+
+To incorporate a new dataset for your model within the Cerebras Model Zoo, you’ll need to ensure it’s specified correctly in the model’s configuration and, for certain models like language models, converted into the appropriate format.
+
+### Specifying the dataset in the YAML configuration[#](#specifying-the-dataset-in-the-yaml-configuration "Permalink to this headline")
+
+**1.** Locate the YAML file
+
+Identify the YAML configuration file associated with your model.
+
+**2.** Update data_dir
+
+Within the YAML file, under `train_input` or `eval_input` sections (depending on whether the dataset is for training or evaluation), specify the path to your dataset using the `data_dir` entry.
+
+### Preparing datasets for language models[#](#preparing-datasets-for-language-models "Permalink to this headline")
+
+Language models within the Cerebras ecosystem often require datasets in HDF5 format. If your dataset isn’t already in this format, follow these conversion steps:
+
+**1.** PyTorch dataset to HDF5
+
+If your dataset is in a PyTorch format, convert it to HDF5 by following the guidelines provided in prepare-data/hdf5_preprocessing guide. This documentation offers a step-by-step process for the conversion.
+
+**2.** Raw data to HDF5
+
+For raw data conversion to HDF5, particularly for GPT-style models, refer to the Chunk preprocessing guide. This resource outlines the necessary steps to preprocess and convert your data, ensuring it’s in the right format for model consumption.
+
+By following these procedures, you can successfully add and utilize new datasets with your models in the Cerebras Model Zoo, enhancing the versatility and applicability of your machine learning projects.
+
+Utilizing checkpoints in Cerebras Model Zoo[#](#utilizing-checkpoints-in-cerebras-model-zoo "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------------------
+
+The Cerebras Model Zoo includes a “Checkpoint and Config Converter” tool, designed to facilitate the conversion of model implementations between the Model Zoo and other frameworks or repositories. This tool is particularly useful for migrating models into the Model Zoo environment or exporting them for use in different settings. It also allows you to convert checkpoints created through running on previous Cerebras software releases to checkpoints compatible with new software releases.
+
+### Checkpoint conversion: Cerebras and HuggingFace, software version updates[#](#checkpoint-conversion-cerebras-and-huggingface-software-version-updates "Permalink to this headline")
+
+To learn more about how to use this tool for converting checkpoints and model configurations, visit the porting-checkpoints section in the Cerebras Developer Documentation. This resource provides detailed instructions on using the converter, ensuring a smooth transition between different coding environments.
+
+### Saving and loading checkpoints[#](#saving-and-loading-checkpoints "Permalink to this headline")
+
+Proper checkpoint management is crucial for efficiently training and evaluating models. For guidelines on saving and loading checkpoints within the Cerebras environment, consult the ../tutorials/checkpointing documentation. This section offers comprehensive insights into checkpoint handling, including saving states during training and loading them for resuming training or evaluation.
+
+By leveraging these resources, you can effectively manage model checkpoints in the Cerebras ModelZoo, enhancing your model development and experimentation workflows.

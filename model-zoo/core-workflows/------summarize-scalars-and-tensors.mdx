@@ -1,0 +1,126 @@
+---
+title: "Summarize Scalars And Tensors"
+---
+
+On this page, you’ll learn how to track various values of interest during a run. More specifically, you will learn how to summarize various tensors in a PyTorch model and inspect them during or after a run.
+
+By the end, you should be comfortable visualizing tensors and scalars in a run for the model of your choice.
+
+## Prerequisites
+
+* You must have installed the Cerebras Model Zoo (click [here](../../Getting-started/Setup-installation.html) if you haven’t).
+    
+* You must be familiar with the [Trainer](../trainer-overview.html#trainer-overview) and [YAML format](../yaml/index.html#wsc-modelzoo-yaml)
+    
+
+## Configuring the Trainer
+
+To enable summaries, a [`TensorBoardLogger`](../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.TensorBoardLogger "cerebras.modelzoo.trainer.loggers.TensorBoardLogger") callback is required. This callback creates a [`SummaryWriter`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.tensorboard.SummaryWriter "cerebras.pytorch.utils.tensorboard.SummaryWriter") which is required for summaries to be written.
+<CodeGroup>
+```Tab YAML
+
+trainer:
+  init:
+    loggers:
+      - TensorBoardLogger
+```
+```Tab Python
+
+from cerebras.modelzoo import Trainer
+from cerebras.modelzoo.trainer.loggers import TensorBoardLogger
+
+trainer = Trainer(
+    ...,
+    loggers=[TensorBoardLogger()],
+)
+```
+</CodeGroup>
+
+## Scalar Summaries
+-------------------------------------------------------------------
+
+### Motivation[#]
+
+It is often useful to visualize various scalar values during training. This may include scalar values such as learning rate, gradient norms, etc. For this, we provide the `summarize_scalar` API which allows to summarize scalar model tensors. These summaries are written to Tensorboard events files and can be visualized using Tensorboard.
+
+### How to use scalar summaries
+
+The scalar summary API is available as part of the `cerebras.modelzoo.trainer` package. To summarize a scalar tensor `S`, add the following statement to the model definition code:
+```
+from cerebras.modelzoo.trainer import summarize_scalar
+summarize_scalar("my_scalar_tensor", S)
+```
+
+During training, the value of `S` will be periodically written to the Tensorboard events file and can be visualized in TensorBoard.
+
+
+## Important considerations
+
+* If the [`Trainer`](../api/index.html#cerebras.modelzoo.Trainer "cerebras.modelzoo.Trainer") is not configured with a [`TensorBoardLogger`](../api/generated/cerebras.modelzoo.trainer.loggers.html#cerebras.modelzoo.trainer.loggers.TensorBoardLogger "cerebras.modelzoo.trainer.loggers.TensorBoardLogger") callback, this method is a no-op and no summaries will be written.
+    
+
+## Tensor Summaries
+
+### Motivation
+
+In the section above, we described how to summarize scalar values, which can be visualized in TensorBoard. However, there are cases where it is desirable to summarize arbitrary tensor shapes. Since TensorBoard only supports visualizing scalar summaries, we provide a separate API, which is very similar to `summarize_scalar` API, but for summarizing tensors of arbitrary shapes.
+
+### How to use tensor summaries
+
+The tensor summary API is available as part of the `cerebras.modelzoo.trainer` package. To summarize a tensor `T`, add the following statement to the model definition code:
+```
+from cerebras.modelzoo.trainer import summarize_tensor
+summarize_tensor("my_tensor", T)
+
+```
+
+Under the hood, we mark the provided tensor as an output of the graph and fetch its value at every log step (similar to losses and other scalar summaries). This value is then written out to a file and can be later retrieved through the [`SummaryReader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.tensorboard.SummaryReader "cerebras.pytorch.utils.tensorboard.SummaryReader") API (see below).
+
+Here’s a simple example where we’d like to summarize the input features and last layer’s logits of a fully connected network:
+```
+from cerebras.modelzoo.trainer import summarize_tensor
+
+class FC(nn.Module):
+    def forward(self, features):
+        summarize_tensor("features", features)
+        logits = self.fc_layer(features)
+        summarize_tensor("last_layer_logits", logits)
+        return logits
+
+```
+
+To retrieve the saved values of these tensors during or after a run, use the [`SummaryReader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.tensorboard.SummaryReader "cerebras.pytorch.utils.tensorboard.SummaryReader") API which supports listing all available tensor names and fetching a tensor by name for a given step. [`SummaryReader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.tensorboard.SummaryReader "cerebras.pytorch.utils.tensorboard.SummaryReader") object takes as input a single argument denoting the path to a Tensorboard events file or a directory containing Tensorboard events files. Location of tensor summaries are inferred from these events files as there is a one-to-one mapping from Tensorboard events files and tensor summary directories.
+
+In the example above, we added summaries for `features` and `last_layer_logits`. We can then use the [`SummaryReader`](../../api/cerebras_pytorch/cstorch.html#cerebras.pytorch.utils.tensorboard.SummaryReader "cerebras.pytorch.utils.tensorboard.SummaryReader") API to load the summarized values of these tensors at a given step:
+```
+>>> import cerebras.pytorch as cstorch
+>>> reader = cstorch.utils.tensorboard.SummaryReader("model_dir")
+>>> reader.tensor_names()   # Grab all tensor summary names
+['features', 'last_layer_logits']
+>>> reader.read_tensor("features", 2)   # Load tensor "features" from step 2
+TensorDescriptor(step=2, tensor=tensor([[2, 4],
+        [6, 8]]), utctime='2023-02-07T05:45:29.017264')
+>>> reader.read_tensor("non_existing", 100)   # Load a non-existing tensor
+WARNING:root:No tensor with name non_existing has been summarized at step 100
+
+```
+
+`SummaryReader.read_tensor()` returns one or more `TensorDescriptor` objects. `TensorDescriptor` is a POD structure which holds:
+
+* `step`: The step at which this tensor was summarized.
+    
+* `utctime`: The UTC time at which the value was saved.
+    
+* `tensor`: The summarized value.
+    
+
+Scalar summaries can be read in the same way.
+
+### Limitations
+
+Adding tensor summaries may change how the graph is lowered and can create a different compile. This is because marking a tensor as an output may prevent it from being pruned out in certain operation fusions. From an overall computation standpoint, however, the graphs should be identical. The only difference is how the computation is represented.
+
+## Conclusion
+-------------------------------------------------------
+
+The ability to summarize scalars and tensors in a PyTorch model offers invaluable insights into the training process, allowing for the tracking and visualization of various values of interest. By leveraging the `SummaryWriter` and `DataExecutor` classes, along with the `summarize_scalar` and `summarize_tensor` APIs, users can effectively log and monitor key metrics and tensor values throughout the training lifecycle. These summaries not only aid in the immediate analysis and debugging of models but also facilitate long-term monitoring and evaluation of model performance over time. With the added functionality to retrieve and inspect these summarized values post-run, practitioners are equipped with a comprehensive toolset to optimize and refine their models, enhancing the overall efficiency and effectiveness of their training workflows in PyTorch.

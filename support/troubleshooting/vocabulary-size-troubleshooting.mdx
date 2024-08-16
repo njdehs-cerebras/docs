@@ -1,0 +1,20 @@
+---
+title: " Vocabulary Size Troubleshooting "
+---
+## Large vocabulary size[#](#large-vocabulary-size "Permalink to this headline")
+
+Vocabulary size up to one million tokens is supported. Large vocabulary (~1M) may take up to 90 minutes to compile. Large vocabulary sizes have not been fully tested on models with 2.7 billion parameter models or more.
+
+If you see something similar to the following error, it might be due to the vocabulary being too large.
+
+### Observed Error[#](#observed-error "Permalink to this headline")
+
+```bash
+
+RuntimeError: [enforce fail at alloc_cpu.cpp:66] . DefaultCPUAllocator: can't allocate memory: you tried to allocate 9120000000000 bytes
+```
+## Small vocabulary size[#](#small-vocabulary-size "Permalink to this headline")
+
+
+Compilation errors may occur at extremely small vocabulary sizes (e.g., < 4).
+

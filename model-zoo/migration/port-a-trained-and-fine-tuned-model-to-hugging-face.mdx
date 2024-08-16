@@ -1,0 +1,206 @@
+---
+title: "      Port A Trained And Fine Tuned Model To Hugging Face     "
+---
+  
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+Once you have trained a language model on Cerebras’s Wafer-Scale cluster, you may port it to Hugging Face to generate outputs. The Cerebras Model Zoo contains conversion scripts to convert from Cerebras Model Zoo to Hugging Face. For more information, refer [Convert checkpoints and model configs](porting-checkpoints.html#convert-checkpoints-hf-cs).
+
+
+<Note>
+    Note
+</Note>
+This “how-to” guide uses an example from Spring 2023 with CerebrasGPT which uses release 1.8 (cs-1.8) as the source format.
+
+Procedure[#](#procedure "Permalink to this headline")
+-----------------------------------------------------
+
+Proceed with the following steps:
+
+**1.** To use the conversion script `convert_checkpoint.py`, activate the Cerebras virtual environment and specify the following flags:
+
+ 
+| Flag | Description |
+| --- | --- |
+| `--model gpt2` | Model architecture the checkpoint corresponds to |
+| `--src-fmt cs-1.8` | the source format of the checkpoint corresponding to Cerebras Model Zoo(R1.8) |
+| `--tgt-fmt hf` | Target format of the checkpoint corresponding to Hugging Face |
+| `--config custom_config_GPT111M.yaml` | `yaml` file configuration used for training the model |
+| `--output-dir hf_dir_train_from_scratch_GPT111M` | Directory containing the output configuration and checkpoint |
+
+
+Table 18 Conversion script flags[#](#id1 "Permalink to this table")
+
+
+```
+cd $PARENT_CS
+```
+```
+source venv_cerebras_pt/bin/activate
+```
+```
+python tools/convert_checkpoint.py \
+  convert\
+  --model gpt2 \
+  --src-fmt cs-1.8 \
+  --tgt-fmt hf \
+  --config custom_config_GPT111M.yaml \
+  --output-dir hf_dir_train_from_scratch_GPT111M \
+  train_from_scratch_GPT111M/checkpoint_10.mdl
+```
+
+
+```
+INFO:root:Loading config & checkpoint...
+Converting Config: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 25/25 [00:00<00:00, 5453.10it/s]
+INFO:root:Finalzing sparsity. The output checkpoint will be dense.
+Converting Checkpoint: 100%|█████████████████████████████████████████████████████████████████████████████████████████| 167/167 [00:00<00:00, 2626.87it/s]
+INFO:root:Saving...
+Checkpoint saved to hf_dir_train_from_scratch_GPT111M/checkpoint_10_to_hf.bin
+Config saved to hf_dir_train_from_scratch_GPT111M/custom_config_GPT111M_to_hf.json
+
+```
+
+```
+deactivate
+```
+
+**2.** Convert the checkpoint obtained from fine-tuning “Cerebras-GPT 111M” included in the model directory finetune_GPT111M.
+
+
+```
+cd $PARENT_CS
+```
+```
+source venv_cerebras_pt/bin/activate
+```
+```
+python modelzoo/modelzoo/tools/convert_checkpoint.py \
+  convert\
+  --model gpt2 \
+  --src-fmt cs-1.8 \
+  --tgt-fmt hf \
+  --config custom_config_GPT111M.yaml \
+  --output-dir hf_dir_finetune_GPT111M \
+  finetune_GPT111M/checkpoint_10.mdl
+```
+
+
+```
+INFO:root:Loading config & checkpoint...
+Converting Config: 100%|███████████████████████████████████████████████████████████████████████████████████████████████| 25/25 [00:00<00:00, 5383.11it/s]
+INFO:root:Finalzing sparsity. The output checkpoint will be dense.
+Converting Checkpoint: 100%|█████████████████████████████████████████████████████████████████████████████████████████| 167/167 [00:00<00:00, 2686.47it/s]
+INFO:root:Saving...
+Checkpoint saved to hf_dir_finetune_GPT111M/checkpoint_10_to_hf.bin
+Config saved to hf_dir_finetune_GPT111M/custom_config_GPT111M_to_hf.json
+
+```
+
+```
+deactivate
+```
+
+**3.**  To facilitate importing the model in Hugging Face, modify the configuration file’s name to include gpt2 in it.
+
+```
+mv hf_dir_train_from_scratch_GPT111M/custom_config_GPT111M_to_hf.json hf_dir_train_from_scratch_GPT111M/config_to_hf_gpt2.json
+
+mv hf_dir_finetune_GPT111M/custom_config_GPT111M_to_hf.json hf_dir_finetune_GPT111M/config_to_gpt2.json
+```
+
+Now the trained models can be used with Hugging Face.
+
+**4.** Create a Python virtual environment to use Hugging Face.
+
+Before you proceed, deactivate the venv_cerebras_pt environment.
+```
+python -m venv hf_env
+```
+```
+source hf_env/bin/activate
+```
+```
+pip install 'transformers[torch]'
+```
+```
+python -c "from transformers import pipeline; print(pipeline('sentiment-analysis')('we love y
+
+```
+
+**5.** Once you have set up the virtual environment, you can now generate outputs using Hugging Face. The tokenizer can be found in Cerebras-GPT-111M available in Hugging Face. Here is an example using the model trained from scratch:
+
+```
+python
+```
+```
+Python 3.8.13 (default, Aug 16 2022, 12:16:29)
+[GCC 9.3.1 20200408 (Red Hat 9.3.1-2)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+
+>>> from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+
+>>>  from transformers import pipeline
+
+>>>  tokenizer = AutoTokenizer.from_pretrained("cerebras/Cerebras-GPT-111M")
+
+>>>  config = AutoConfig.from_pretrained("./hf_dir_train_from_scratch_GPT111M/config_to_hf_gpt2.json")
+
+>>>  model = AutoModelForCausalLM.from_pretrained(pretrained_model_name_or_path="./hf_dir_train_from_scratch_GPT111M/checkpoint_10_to_hf.bin", config = config)
+
+>>>  text = "Generative AI is "
+
+>>>  pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+
+>>>  generated_text = pipe(text, max_length=50, do_sample=False, no_repeat_ngram_size=2)[0]
+
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+>>>  print(generated_text['generated_text'])
+
+Generative AI is  tossed separatist separatist,, separatist Fantasy, heading, Po, green, confession confession Po Po?!", 113, Pitch, counselormot newfound,ioch confession, Christopher, newfoundmotmot confessionrealDonaldTrump,Vict,icity confessionmot resear
+
+>>>  exit()
+```
+
+Here is an example using the model **fine-tuned using Cerebras-GPT checkpoint:**
+
+```
+Python 3.8.13 (default, Aug 16 2022, 12:16:29)
+[GCC 9.3.1 20200408 (Red Hat 9.3.1-2)] on linux
+Type "help", "copyright", "credits" or "license" for more information.
+
+>>> from transformers import AutoTokenizer, AutoModelForCausalLM, AutoConfig
+
+>>> from transformers import pipeline
+
+>>> tokenizer = AutoTokenizer.from_pretrained("cerebras/Cerebras-GPT-111M")
+
+>>> config = AutoConfig.from_pretrained("./hf_dir_finetune_GPT111M/config_to_hf_gpt2.json")
+
+>>> model = AutoModelForCausalLM.from_pretrained("./hf_dir_finetune_GPT111M/checkpoint_10_to_hf.bin", config = config)
+
+>>> text = "Generative AI is "
+
+>>> pipe = pipeline("text-generation", model=model, tokenizer=tokenizer)
+
+>>> generated_text = pipe(text, max_length=50, do_sample=False, no_repeat_ngram_size=2)[0]
+
+Setting `pad_token_id` to `eos_token_id`:50256 for open-end generation.
+
+>>> print(generated_text['generated_text'])
+
+Generative AI is
+
+The following is a list of the most common types of AI in the world.
+AI is the number of human AI classes in which the AI class is defined. The AI type is
+the number that the human
+
+>>> exit()
+```
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Porting a trained and fine-tuned model from Cerebras’s Wafer-Scale cluster to Hugging Face expands the model’s accessibility and usability, allowing for seamless integration with Hugging Face’s extensive toolkit and ecosystem. By following the outlined procedure to convert the model checkpoints and configurations, users can leverage the advanced capabilities of Hugging Face for generating outputs, further analyzing, and integrating their models into broader applications. This process not only enhances the versatility of the models developed on Cerebras’s platform but also fosters broader collaboration and innovation within the AI and machine learning communities.

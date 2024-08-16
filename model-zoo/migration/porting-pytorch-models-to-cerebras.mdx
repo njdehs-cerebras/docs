@@ -1,0 +1,480 @@
+---
+title: "      Porting Pytorch Models To Cerebras     "
+---
+  
+Overview[#](#overview "Permalink to this headline")
+---------------------------------------------------
+
+This document provides a detailed guide on how to port or adapt existing PyTorch models to run on Cerebras systems. The process involves setting up the Cerebras environment, configuring data processing, adapting the model architecture, and running training and evaluation scripts.
+
+Porting models to Cerebras offers significant benefits such as enhanced performance due to specialized hardware, scalability for large models, and efficient handling of extensive datasets. The [Cerebras Model Zoo](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/.) repository offers PyTorch-based reference implementations of well-known neural networks, including BERT, GPT-2, GPT-3, T5, and UNet. These implementations are organized in a modular fashion, dividing data preprocessing, the core model, and other execution-related functions.
+
+Prerequisites[#](#prerequisites "Permalink to this headline")
+-------------------------------------------------------------
+
+Before starting, ensure you meet the following prerequisites and requirements:
+
+* Familiarity with PyTorch and neural network architectures.
+    
+* Access to Cerebras systems and the necessary permissions.
+    
+* Basic understanding of YAML for configuration files.
+    
+
+Pathways for Porting Models[#](#pathways-for-porting-models "Permalink to this headline")
+-----------------------------------------------------------------------------------------
+
+We offer two tailored pathways depending on the complexity of the task and your level of comfort:
+
+**1.** Straightforward approach: This pathway is ideal for those who wish to adapt existing models from the Cerebras Model Zoo. It involves making necessary changes to the model’s architecture or its data preprocessing components. This approach leverages the pre-built models and scripts available in the Model Zoo, minimizing the effort required to get started.
+
+**2.** Moderately complex pathway: This pathway is suited for users who intend to create new models and develop custom data preprocessing scripts. It involves starting with the robust foundation provided by the Cerebras Model Zoo and building upon it. This approach offers more flexibility and allows for extensive customization to meet specific needs.
+
+Customizing models from the Cerebras Model Zoo[#](#customizing-models-from-the-cerebras-model-zoo "Permalink to this headline")
+-------------------------------------------------------------------------------------------------------------------------------
+
+If you intend to use models from the Cerebras Model Zoo and need to modify the model architecture or data preprocessing, it is recommended to start with the resources available in the Cerebras Model Zoo. This starting point allows you to make the necessary customizations to fit your specific requirements. This section guides users on adapting these pre-built models, which might involve changes to the model architecture or adjustments in data preprocessing.
+
+### Example: Modifying a dataloader[#](#example-modifying-a-dataloader "Permalink to this headline")
+
+The data loader is a crucial element that feeds data into the model for training and evaluation. By altering the dataloader, users can customize how the data is processed, presented, or augmented before being used by the model.
+
+#### Implementing a custom dataloader[#](#implementing-a-custom-dataloader "Permalink to this headline")
+
+In this example, we focus on modifying the dataloader within the PyTorch implementation of FC_MNIST from the Cerebras Model Zoo. The goal is to create a synthetic dataloader that will help assess the network’s performance with varying input sizes and class counts.
+
+Defining the Data Loader Function:
+
+In `data.py`, we’re going to define a function named `get_random_dataloader`:
+```
+import torch
+import numpy as np
+
+def get_random_dataloader(input_params):
+    num_classes = input_params.get("num_classes")
+    num_examples = input_params.get("num_examples")
+    batch_size = input_params.get("batch_size")
+    seed = input_params.get("seed", 1)
+    image_size = input_params.get("image_size", [1,28,28])
+
+    # Note: Cast the tensor to be of dtype `np.int32` when running on CS-X systems and to `np.int64` when running on cpus/gpus.
+    np.random.seed(seed)
+    image = np.random.random(size=[num_examples, ] + image_size).astype(np.float32)
+    label = np.random.randint(low=0, high=num_classes, size=num_examples).astype(np.int32)
+
+    dataset = torch.utils.data.TensorDataset(
+        torch.from_numpy(image),
+        torch.from_numpy(label)
+    )
+
+    return torch.utils.data.DataLoader(
+        dataset,
+        batch_size=batch_size,
+    )
+
+def get_train_dataloader(params):
+    return get_random_dataloader(params["train_input"])
+
+def get_eval_dataloader(params):
+    return get_random_dataloader(params["eval_input"])
+
+```
+
+This function generates random images and labels, simulating a dataset for experiments. The key feature of this function is its configurability via the `params.yaml` file.
+
+#### Configuring the dataloader[#](#configuring-the-dataloader "Permalink to this headline")
+
+In the `params.yaml`, we can specify several important parameters that will influence the behavior of our synthetic data loader:
+
+* `num_examples`: This parameter sets how many random images and labels the data loader should generate.
+    
+* `batch_size`: This defines how many examples will be included in a single batch during the training or evaluation of the model.
+    
+* `seed`: A seed for the random number generator ensures the reproducibility of our experiments by generating the same sequence of random images and labels for a given seed value.
+    
+* `image_size`: This specifies the dimensions of the generated random images.
+    
+* `num_classes`: This determines how many different classes the labels can take, which is crucial for classification tasks.
+    
+
+By adjusting these parameters in the `params.yaml` file, we can tailor the behavior of the `get_random_dataloader` function to meet our specific experimental needs, allowing for a flexible and dynamic approach to evaluating the network’s performance under different conditions.
+
+### Adapting the model[#](#adapting-the-model "Permalink to this headline")
+
+In `model.py`, change the fix number of classes to a parameter in the `params.yaml` file:
+```
+class MNIST(nn.Module):
+    def __init__(self, model_params):
+        super().__init__()
+        self.loss_fn = nn.NLLLoss()
+        self.fc_layers = []
+        input_size = model_params.get("input_size",784)
+        num_classes = model_params.get("num_classes",10)
+        ...
+        self.last_layer = nn.Linear(input_size, num_classes)
+        ...
+
+```
+
+In `configs/params.yaml`, add the additional fields used in the dataloader and model definition.
+
+Developing new models and preprocessing scripts[#](#developing-new-models-and-preprocessing-scripts "Permalink to this headline")
+---------------------------------------------------------------------------------------------------------------------------------
+
+### Utilizing the Cerebras Run Function[#](#utilizing-the-cerebras-run-function "Permalink to this headline")
+
+If you aim to create new models and data preprocessing scripts, we recommend beginning with the Cerebras Model Zoo’s shared foundation, specifically the `run` function. This approach allows you to utilize an established structure, streamlining the development process for your custom models and preprocessing routines.
+
+All PyTorch models in the Cerebras Model Zoo share a standard framework that facilitates running them on the Cerebras Systems (CS) platform or other hardware types like CPUs/GPUs. This framework handles the modifications required to compile and execute a model on a Cerebras cluster. It offers a unified training and evaluation interface, allowing users to integrate their models and data preprocessing scripts seamlessly. With this setup, users don’t need to make detailed code adjustments for compatibility with Cerebras systems.
+
+### Porting a PyTorch dense neural network for MNIST[#](#porting-a-pytorch-dense-neural-network-for-mnist "Permalink to this headline")
+
+To utilize the `run` function effectively, ensure that the Cerebras Model Zoo repository, compatible with your target Cerebras cluster’s release, is installed. You can import the run function with the following code snippet:
+```
+from cerebras.modelzoo.common.run_utils import run
+
+```
+
+Code related with run function lives inside the Cerebras Model Zoo and can be found in the [common](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/common) folder.
+
+The `run` function simplifies and organizes various aspects of your model’s workflow, including its implementation, data loading processes, hyperparameter settings, and overall execution. To effectively use the `run` function, you should have:
+
+1.  A params YAML file, which specifies the optimizers and the runtime configuration.
+    
+2.  An implementation that encompasses:
+    
+    * The definition of your model.
+        
+    * Dataloaders that are responsible for both training and evaluation.
+        
+
+#### Define Model[#](#define-model "Permalink to this headline")
+
+To define the model architecture, the `run` function requires a callable class or function that takes as input a dictionary of params and returns a `torch.nn.Module` whose `forward` implementation returns a loss tensor.
+
+For example, let’s implement FC_MNIST parametrized by the depth and the hidden size of the network. Let’s assume that the input size is 784 and the last output dimension is 10. We use `ReLU` as non linearity, and a negative log likelihood loss.
+
+In `model.py`:
+```
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+
+class MNISTModel(nn.Module):
+    def __init__(self, model_params):
+        super().__init__()
+        self.fc_layers = []
+        input_size = 784
+
+        # Depth is len(hidden_sizes)
+        model_params["hidden_sizes"] = [
+            model_params["hidden_size"]
+        ] * model_params["depth"]
+
+        for hidden_size in model_params["hidden_sizes"]:
+            fc_layer = nn.Linear(input_size, hidden_size)
+            self.fc_layers.append(fc_layer)
+            input_size = hidden_size
+        self.fc_layers = nn.ModuleList(self.fc_layers)
+        self.last_layer = nn.Linear(input_size, 10)
+
+        self.nonlin = nn.ReLU()
+
+        self.dropout = nn.Dropout(model_params["dropout"])
+
+        self.loss_fn = nn.NLLLoss()
+
+    def forward(self, batch):
+        inputs, targets = batch
+
+        x = torch.flatten(inputs, 1)
+        for fc_layer in self.fc_layers:
+            x = fc_layer(x)
+            x = self.nonlin(x)
+            x = self.dropout(x)
+
+        pred_logits = self.last_layer(x)
+
+        outputs = F.log_softmax(pred_logits, dim=1)
+
+        loss = self.loss_fn(outputs, targets)
+
+        return loss
+
+```
+
+<Note>
+    Note
+
+* The input to a `torch.nn.Module` object defined in the `run` function includes both the inputs and the labels to compute the loss. It is up to the model to extract the inputs and labels from the batch before using them.
+    
+* The output of the model is expected to be the loss of that forward pass.
+</Note>
+
+#### Define dataloaders[#](#define-dataloaders "Permalink to this headline")
+
+To define the data loaders, the run function requires a callable (either class or function) that takes as input a dictionary of params, and returns a `torch.utils.data.DataLoader`. When running training, the `train_data_fn` must be provided. When running evaluation, the `eval_data_fn` must be provided.
+
+For example, to implement FC_MNIST, we create two different functions for training and evaluation. We use `torchvision.datasets` functionality to download MNIST dataset. Each of these functions returns a `torch.utils.data.DataLoader`.
+
+In `data.py`:
+```
+import torch
+from torchvision import datasets, transforms
+
+def get_train_dataloader(params):
+    input_params = params["train_input"]
+
+    batch_size = input_params.get("batch_size")
+    dtype = torch.float16 if input_params["to_float16"] else torch.float32
+    shuffle = input_params["shuffle"]
+
+    train_dataset = datasets.MNIST(
+        input_params["data_dir"],
+        train=True,
+        download=True,
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,)),
+                transforms.Lambda(
+                    lambda x: torch.as_tensor(x, dtype=dtype)
+                ),
+            ]
+        ),
+        target_transform=transforms.Lambda(
+            lambda x: torch.as_tensor(x, dtype=torch.int32)
+        ),
+    )
+
+    train_loader = torch.utils.data.DataLoader(
+        train_dataset,
+        batch_size=batch_size,
+        drop_last=input_params["drop_last_batch"],
+        shuffle=shuffle,
+        num_workers=input_params.get("num_workers", 0),
+    )
+    return train_loader
+
+def get_eval_dataloader(params):
+    input_params = params["eval_input"]
+
+    batch_size = input_params.get("batch_size")
+    dtype = torch.float16 if input_params["to_float16"] else torch.float32
+
+    eval_dataset = datasets.MNIST(
+        input_params["data_dir"],
+        train=False,
+        download=True,
+        transform=transforms.Compose(
+            [
+                transforms.ToTensor(),
+                transforms.Normalize((0.1307,), (0.3081,)),
+                transforms.Lambda(
+                    lambda x: torch.as_tensor(x, dtype=dtype)
+                ),
+            ]
+        ),
+        target_transform=transforms.Lambda(
+            lambda x: torch.as_tensor(x, dtype=torch.int32)
+        ),
+    )
+
+    eval_loader = torch.utils.data.DataLoader(
+        eval_dataset,
+        batch_size=batch_size,
+        drop_last=input_params["drop_last_batch"],
+        shuffle=False,
+        num_workers=input_params.get("num_workers", 0),
+    )
+    return eval_loader
+
+```
+
+#### Set up the `run` function[#](#set-up-the-run-function "Permalink to this headline")
+
+The run function must be imported from [run_utils.py](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/common/run_utils.py). Always remember to append the parent directory of the Cerebras Model Zoo repository in your local setup.
+
+All the input parameters of `run` function are callables that take as input a dictionary, called `params`. `params` is a dictionary containing all of the model and data parameters specified by the params YAML file of the model.
+
+  
+| Parameter | Type | Notes |
+| --- | --- | --- |
+| `model_fn` | `Callable[[dict], torch.nn.Module]` | Required. A callable that takes in a dictionary of parameters. Returns a `torch.nn.Module`. |
+| `train_data_fn` | `Callable[[dict], torch.utils.data.DataLoader]` | Required during training run. |
+| `eval_data_fn` | `Callable[[dict], torch.utils.data.DataLoader]` | Required during evaluation run. |
+| `default_params_fn` | `Callable[[dict], Optional[dict]]` | Optional. A callable that takes in a dictionary of parameters. Sets default parameters. |
+
+For the FC_MNIST example, with all of the elements in place, now we import the run function from [modelzoo.common.run_utils](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/common/run_utils.py). We append the parent directory of Cerebras Model Zoo.
+
+In `run.py`:
+```
+import os
+import sys
+
+#Append path to parent directory of Cerebras ModelZoo Repository
+sys.path.append(os.path.join(os.path.dirname(__file__), ".."))
+from modelzoo.common.run_utils import run
+
+from data import (
+    get_train_dataloader,
+    get_eval_dataloader,
+)
+from model import MNISTModel
+
+def main():
+    run(MNISTModel, get_train_dataloader, get_eval_dataloader)
+
+if __name__ == '__main__':
+    main()
+```
+
+##### Manage common params[#](#manage-common-params "Permalink to this headline")
+
+To avoid params replication between multiple similar experiments, the `run` function has an optional input parameter called `default_params_fn`. This parameter modifies the dictionary of the params YAML file, adding default values of unspecified params.
+
+Setting up a `default_params_fn` could be beneficial if the user is planning multiple experiments in which only a small subset of the params YAML file changes. The `default_params_fn` sets up the values shared in all of the experiments. The user can create different configuration YAML files to only address the changes between experiments.
+
+The `default_params_fn` should be a callable that takes in the `params` dictionary and returns a new dictionary. If the `default_params_fn` is omitted, the `params` dictionary will be used as is.
+
+#### Create params YAML file[#](#create-params-yaml-file "Permalink to this headline")
+
+At runtime, the `run` function requires a separate params YAML. This file is specified during execution with the flag `--params` in the command line.
+
+For example, this is the `params.yaml` file for the FC_MNIST implementation. You can see both the [new YAML specification](../yaml/index.html#wsc-modelzoo-yaml) (since release 2.3.0) and the legacy YAML specification.
+<CodeGroup>
+```Trainer Trainer YAML
+
+See [Trainer Configuration Overview](../yaml/index.html#wsc-modelzoo-yaml) for more details on how to create a YAML configuration file.
+
+trainer:
+  init:
+    model:
+      name: "fc_mnist"
+      mixed_precision: True
+      depth: 10
+      hidden_size: 50
+      dropout: 0.0
+      activation_fn: "relu"
+    optimizer:
+      SGD:
+        lr: 0.1  # Unused since we have a scheduler
+        momentum: 0.9
+    schedulers:
+      ConstantLR:
+        learning_rate: 0.001
+    precision:
+      loss_scaling_factor: 1.0
+    loop:
+      max_steps: 10000
+    logging:
+      log_steps: 50
+    checkpoint:
+      steps: 2000
+    seed: 1
+fit:
+  train_dataloader:
+    data_dir: "./data/mnist/train"
+    batch_size: 128
+    drop_last_batch: True
+    shuffle: True
+    to_float16: True
+  val_dataloader: &id001
+    data_dir: "./data/mnist/val"
+    batch_size: 128
+    drop_last_batch: True
+    to_float16: True
+validate:
+  val_dataloader: *id001
+validate_all:
+  val_dataloaders: *id001
+
+```
+
+```Trainer Legacy YAML
+Since release 2.3.0, legacy YAML specification is deprecated and its use is no longer recommended.
+
+train_input:
+  data_dir: "./data/mnist/train"
+  batch_size: 128
+  drop_last_batch: True
+  shuffle: True
+  to_float16: True
+
+eval_input:
+  data_dir: "./data/mnist/val"
+  batch_size: 128
+  drop_last_batch: True
+  to_float16: True
+
+model:
+  name: "fc_mnist"
+  mixed_precision: True
+  depth: 10
+  hidden_size: 50
+  dropout: 0.0
+  activation_fn: "relu"
+
+optimizer:
+  optimizer_type: "SGD"
+  learning_rate: 0.001
+  momentum: 0.9
+  loss_scaling_factor: 1.0
+
+runconfig:
+  max_steps: 10000
+  checkpoint_steps: 2000
+  log_steps: 50
+  seed: 1
+
+  ```
+
+</CodeGroup>
+
+#### Execute script with run function[#](#execute-script-with-run-function "Permalink to this headline")
+
+All models in Cerebras Model Zoo use the `run` function inside the script `run.py`. Therefore, once you have ported your model to use the `run` function, you can follow the steps in [Launch your job](../../Fundamentals/cs-appliance.html#cs-appliance) section to launch your training or evaluation job.
+
+### Logging and Evaluation metrics[#](#logging-and-evaluation-metrics "Permalink to this headline")
+
+By default, the run function logs training information to the console and to TensorBoard, as explained in [Measure throughput of your model](../../Fundamentals/rate_global_rate.html#rate-global-rate). You can also define your your own scalar and tensor summaries.
+
+The Cerebras Model Zoo git repository uses a base class to compute evaluation metrics called `CBMetric`. Metrics already defined in the Model Zoo git repository can be imported as:
+```
+from cerebras.pytorch.metrics import (
+    AccuracyMetric,
+    DiceCoefficientMetric,
+    MeanIOUMetric,
+    PerplexityMetric,
+)
+
+```
+
+As an example, the [GPT2 implementation in PyTorch](https://github.com/Cerebras/modelzoo/tree/main/src/cerebras/modelzoo/models/nlp/gpt2/model.py) uses some of these metrics.
+
+How to use evaluation metrics:
+
+1.  **Registration**: All metrics must be registered with the corresponding `torch.nn.Module` class. This is automatically done when the `CBMetric` object is constructed. That is, to register a metric to a `torch.nn.Module` class, construct the metric object in the `torch.nn.Module` class’ constructor.
+    
+2.  **Update**: The metrics are stateful. This means that every call to the metric object with the appropriate arguments automatically the latest metric value and save it in the metric’s internal state.
+    
+3.  **Logging**: At the very end of the run, the final metrics values will be computed and then logged both to the console and to the TensorBoard `SummaryWriter`.
+    
+
+Conclusion[#](#conclusion "Permalink to this headline")
+-------------------------------------------------------
+
+Porting PyTorch models to Cerebras systems offers significant advantages in terms of performance, scalability, and efficiency. By leveraging the specialized hardware and extensive resources provided by Cerebras, you can optimize your neural network models for large-scale data processing and complex computations.
+
+This guide has outlined the essential steps for successfully porting and adapting PyTorch models to run on Cerebras systems, including:
+
+* Setting Up the Cerebras Environment: Ensuring all necessary installations and configurations are in place.
+    
+* Configuring Data Processing: Preparing and customizing datasets for pre-training and fine-tuning.
+    
+* Adapting Model Architecture: Modifying existing models or creating new ones to be compatible with Cerebras hardware.
+    
+* Running Training and Evaluation Scripts: Utilizing the run function and managing parameters for efficient experimentation.
+    
+
+By following the pathways and guidelines provided, whether you choose to adapt existing models or develop new ones, you can take full advantage of the capabilities offered by Cerebras systems. Starting with the robust foundation provided by the Cerebras Model Zoo, you can streamline the development process and achieve superior results.
